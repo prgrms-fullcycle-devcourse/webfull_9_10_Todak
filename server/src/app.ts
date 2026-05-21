@@ -3,9 +3,9 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
-import apiRouter from './api';
-import { env } from './config/env';
-import { errorMiddleware } from './middleware/error.middleware';
+import apiRouter from './api/index.js';
+import { env } from './config/env.js';
+import { errorMiddleware } from './middleware/error.middleware.js';
 
 const app = express();
 

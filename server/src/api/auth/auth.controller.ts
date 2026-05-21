@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 
-import { env } from '../../config/env';
+import { env } from '../../config/env.js';
 import { AuthenticatedRequest } from '../../types/index.js';
 
 export async function githubLogin(_req: Request, res: Response) {

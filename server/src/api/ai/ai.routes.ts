@@ -1,10 +1,10 @@
 import { Router } from 'express';
 
-import { requireAuth } from '../../middleware/auth.middleware';
-import { validate } from '../../middleware/validate.middleware';
+import { requireAuth } from '../../middleware/auth.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
 
-import { requestCodeReview } from './ai.controller';
-import { CodeReviewRequestSchema } from './ai.schema';
+import { requestCodeReview } from './ai.controller.js';
+import { CodeReviewRequestSchema } from './ai.schema.js';
 
 const router = Router();
 

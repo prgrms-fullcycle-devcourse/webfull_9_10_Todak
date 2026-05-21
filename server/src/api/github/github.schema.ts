@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { registry } from '../../schema/openapi';
+import { registry } from '../../schema/openapi.js';
 
 export const RepoParamsSchema = registry.register(
   'RepoParams',

@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
 
-import { generateOpenApiDocument } from '../schema/openapi';
+import { generateOpenApiDocument } from '../schema/openapi.js';
 
-import aiRoutes from './ai/ai.routes';
-import authRoutes from './auth/auth.routes';
-import githubRoutes from './github/github.routes';
+import aiRoutes from './ai/ai.routes.js';
+import authRoutes from './auth/auth.routes.js';
+import githubRoutes from './github/github.routes.js';
 
 const router = Router();
 

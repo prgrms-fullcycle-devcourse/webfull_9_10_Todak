@@ -2,9 +2,9 @@ import { Server as HttpServer } from 'http';
 
 import { Server as SocketServer } from 'socket.io';
 
-import { env } from '../config/env';
+import { env } from '../config/env.js';
 
-import { registerSocketHandlers } from './handlers';
+import { registerSocketHandlers } from './handlers/index.js';
 
 export function initSocket(httpServer: HttpServer): SocketServer {
   const io = new SocketServer(httpServer, {

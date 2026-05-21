@@ -1,10 +1,10 @@
 import http from 'http';
 
-import app from './app';
-import { env } from './config/env';
-import { startWorkers } from './jobs/workers';
-import { prisma } from './lib/prisma';
-import { initSocket } from './socket';
+import app from './app.js';
+import { env } from './config/env.js';
+import { startWorkers } from './jobs/workers/index.js';
+import { prisma } from './lib/prisma.js';
+import { initSocket } from './socket/index.js';
 
 async function bootstrap() {
   await prisma.$connect();

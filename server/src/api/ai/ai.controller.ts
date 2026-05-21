@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
-import { addJob } from '../../jobs/queues';
+import { addJob } from '../../jobs/queues/index.js';
 
 export async function requestCodeReview(
   req: Request,

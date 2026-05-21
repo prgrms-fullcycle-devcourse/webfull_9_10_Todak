@@ -1,7 +1,7 @@
 import { Worker } from 'bullmq';
 
-import { redis } from '../../lib/redis';
-import { reviewCode } from '../../services/anthropic.service';
+import { redis } from '../../lib/redis.js';
+import { reviewCode } from '../../services/anthropic.service.js';
 
 const connection = redis;
 

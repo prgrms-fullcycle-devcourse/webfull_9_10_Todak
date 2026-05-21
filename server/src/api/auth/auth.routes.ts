@@ -1,8 +1,8 @@
 import { Router } from 'express';
 
-import { requireAuth } from '../../middleware/auth.middleware';
+import { requireAuth } from '../../middleware/auth.middleware.js';
 
-import { githubLogin, githubCallback, getMe } from './auth.controller';
+import { githubLogin, githubCallback, getMe } from './auth.controller.js';
 
 const router = Router();
 

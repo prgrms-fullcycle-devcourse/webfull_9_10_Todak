@@ -1,7 +1,7 @@
 import { Queue } from 'bullmq';
 
-import { redis } from '../../lib/redis';
-import { JobName } from '../../types';
+import { redis } from '../../lib/redis.js';
+import { JobName } from '../../types/index.js';
 
 const connection = redis;
 
