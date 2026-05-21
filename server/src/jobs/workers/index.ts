@@ -1,28 +1,30 @@
-import { Worker } from "bullmq";
-import { redis } from "../../lib/redis";
-import { reviewCode } from "../../services/anthropic.service";
+import { Worker } from 'bullmq';
+
+import { redis } from '../../lib/redis';
+import { reviewCode } from '../../services/anthropic.service';
 
 const connection = redis;
 
 export const aiReviewWorker = new Worker(
-  "ai-review",
-  async (job) => {
+  'ai-review',
+  async job => {
     const { code, context } = job.data as { code: string; context?: string };
     console.log(`[Worker] ai-review job ${job.id} started`);
     const result = await reviewCode(code, context);
+
     return { result };
   },
-  { connection }
+  { connection },
 );
 
-aiReviewWorker.on("completed", (job) => {
+aiReviewWorker.on('completed', job => {
   console.log(`[Worker] ai-review job ${job.id} completed`);
 });
 
-aiReviewWorker.on("failed", (job, err) => {
+aiReviewWorker.on('failed', (job, err) => {
   console.error(`[Worker] ai-review job ${job?.id} failed:`, err.message);
 });
 
 export function startWorkers() {
-  console.log("✅ BullMQ workers started");
+  console.log('✅ BullMQ workers started');
 }

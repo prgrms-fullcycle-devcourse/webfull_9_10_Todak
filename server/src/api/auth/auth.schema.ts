@@ -1,15 +1,16 @@
-import { z } from "zod";
-import { registry } from "../../schema/openapi";
+import { z } from 'zod';
+
+import { registry } from '../../schema/openapi';
 
 export const GithubCallbackSchema = registry.register(
-  "GithubCallback",
+  'GithubCallback',
   z.object({
     code: z.string().min(1),
-  })
+  }),
 );
 
 export const AuthResponseSchema = registry.register(
-  "AuthResponse",
+  'AuthResponse',
   z.object({
     token: z.string(),
     user: z.object({
@@ -17,5 +18,5 @@ export const AuthResponseSchema = registry.register(
       login: z.string(),
       avatarUrl: z.string(),
     }),
-  })
+  }),
 );

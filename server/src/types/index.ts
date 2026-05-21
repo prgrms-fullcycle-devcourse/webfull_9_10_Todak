@@ -1,4 +1,4 @@
-import { Request } from "express";
+import { Request } from 'express';
 
 export interface ErrorInfo {
   statusCode: number;
@@ -12,6 +12,7 @@ export interface AuthenticatedRequest extends Request {
     githubId: number;
     login: string;
     avatarUrl: string;
+    githubAccessToken?: string;
   };
 }
 
@@ -22,4 +23,4 @@ export interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-export type JobName = "ai-review" | "github-sync" | "notification";
+export type JobName = 'ai-review' | 'github-sync' | 'notification';

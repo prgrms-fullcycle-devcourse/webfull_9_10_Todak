@@ -1,16 +1,20 @@
-import { OpenAPIRegistry, OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
+import {
+  OpenAPIRegistry,
+  OpenApiGeneratorV3,
+} from '@asteasolutions/zod-to-openapi';
 
 export const registry = new OpenAPIRegistry();
 
 export function generateOpenApiDocument() {
   const generator = new OpenApiGeneratorV3(registry.definitions);
+
   return generator.generateDocument({
-    openapi: "3.0.0",
+    openapi: '3.0.0',
     info: {
-      title: "Todak API",
-      version: "1.0.0",
-      description: "Todak 백엔드 API 문서",
+      title: 'Todak API',
+      version: '1.0.0',
+      description: 'Todak 백엔드 API 문서',
     },
-    servers: [{ url: "/api" }],
+    servers: [{ url: '/api' }],
   });
 }
