@@ -1,5 +1,11 @@
 import { Request } from "express";
 
+export interface ErrorInfo {
+  statusCode: number;
+  code: string;
+  message: string;
+}
+
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;

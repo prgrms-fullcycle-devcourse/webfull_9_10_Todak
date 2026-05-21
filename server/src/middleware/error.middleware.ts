@@ -1,15 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
-
-export class AppError extends Error {
-  constructor(
-    public statusCode: number,
-    message: string
-  ) {
-    super(message);
-    this.name = "AppError";
-  }
-}
+import { AppError } from "../errors/index.js";
 
 export function errorMiddleware(
   err: unknown,
@@ -30,6 +21,7 @@ export function errorMiddleware(
     res.status(err.statusCode).json({
       success: false,
       error: err.message,
+      code: err.code,
     });
     return;
   }
