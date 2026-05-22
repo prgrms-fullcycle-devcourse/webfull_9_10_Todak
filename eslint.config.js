@@ -16,8 +16,8 @@ export default [
       "**/*.cjs",
       "commitlint.config.cjs",
       "eslint.config.js",
-      "server/src/generated/**",
-      "server/prisma/migrations/**",
+      "apps/server/src/generated/**",
+      "apps/server/prisma/migrations/**",
       "package-lock.json",
       "pnpm-lock.yaml",
       ".env*",
@@ -27,8 +27,8 @@ export default [
     files: [
       "*.config.js",
       "*.config.ts",
-      "server/**/*.config.ts",
-      "server/prisma.config.ts",
+      "apps/server/**/*.config.ts",
+      "apps/server/prisma.config.ts",
     ],
     languageOptions: {
       parser: tsParser,
@@ -41,14 +41,14 @@ export default [
     },
   },
   {
-    files: ["server/src/**/*.ts"],
+    files: ["apps/server/src/**/*.ts"],
     languageOptions: {
       parser: tsParser,
       globals: {
         ...globals.node,
       },
       parserOptions: {
-        project: "./server/tsconfig.json",
+        project: "./apps/server/tsconfig.json",
         tsconfigRootDir: rootDir,
       },
     },
@@ -61,7 +61,7 @@ export default [
       "import-x/resolver": {
         typescript: {
           alwaysTryTypes: true,
-          project: "./server/tsconfig.json",
+          project: "./apps/server/tsconfig.json",
         },
       },
     },

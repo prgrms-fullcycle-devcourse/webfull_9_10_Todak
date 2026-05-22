@@ -35,7 +35,7 @@
     "prettier-plugin-prisma": "^5.0.0"
   },
   "lint-staged": {
-    "server/**/*.{ts,json}": [
+    "apps/server/**/*.{ts,json}": [
       "eslint --fix",
       "prettier --write"
     ],

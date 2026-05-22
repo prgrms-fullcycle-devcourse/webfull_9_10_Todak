@@ -29,8 +29,8 @@ Thumbs.db
 coverage/
 
 # Prisma
-server/src/generated/
-server/prisma/migrations/**/migration_lock.toml
+apps/server/src/generated/
+apps/server/prisma/migrations/**/migration_lock.toml
 
 # Misc
 .turbo/

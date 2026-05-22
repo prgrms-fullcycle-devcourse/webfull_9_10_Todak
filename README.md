@@ -8,16 +8,16 @@
 .
 ├── .github/          # PR 템플릿 등
 ├── .husky/           # Git hooks (pre-commit, commit-msg)
-├── server/           # Express API (Railway 배포)
-├── apps/             # (추후) 클라이언트 등
-└── packages/         # (추후) 공유 패키지
+├── apps/
+│   └── server/       # Express API (Railway 배포)
+└── packages/         # 공유 패키지
 ```
 
-| 패키지   | 설명                                         | 배포     |
-| -------- | -------------------------------------------- | -------- |
-| `server` | Node.js + Express, Socket.io, Prisma, BullMQ | Railway  |
-| DB       | PostgreSQL (Supabase)                        | Supabase |
-| Queue    | BullMQ + Redis                               | Railway  |
+| 패키지        | 설명                                         | 배포     |
+| ------------- | -------------------------------------------- | -------- |
+| `apps/server` | Node.js + Express, Socket.io, Prisma, BullMQ | Railway  |
+| DB            | PostgreSQL (Supabase)                        | Supabase |
+| Queue         | BullMQ + Redis                               | Railway  |
 
 ## 기술 스택 (server)
 
@@ -43,8 +43,8 @@ pnpm install
 ### 환경 변수
 
 ```bash
-cp server/.env.example server/.env
-# server/.env 값을 팀 Supabase / Railway / API 키에 맞게 수정
+cp apps/server/.env.example apps/server/.env
+# apps/server/.env 값을 팀 Supabase / Railway / API 키에 맞게 수정
 ```
 
 ### 개발 서버
@@ -55,10 +55,10 @@ pnpm dev
 
 ### DB (Prisma 7)
 
-설정 파일: `server/prisma.config.ts` (DB URL), `server/prisma/schema.prisma` (모델)
+설정 파일: `apps/server/prisma.config.ts` (DB URL), `apps/server/prisma/schema.prisma` (모델)
 
 ```bash
-pnpm db:generate   # Client 생성 → server/src/generated/prisma
+pnpm db:generate   # Client 생성 → apps/server/src/generated/prisma
 pnpm db:migrate    # 마이그레이션 (v7: seed는 자동 실행 안 됨)
 pnpm db:push       # 스키마만 반영
 # seed 사용 시: pnpm --filter todak-server exec prisma db seed
@@ -86,6 +86,6 @@ Supabase: pooling URL로 앱 연결, `migrate` 오류 시 Direct URL을 `DATABAS
 
 ## Railway 배포
 
-- Root Directory: `server`
+- Root Directory: `apps/server`
 - Health check: `GET /api/health`
-- `server/railway.toml` 참고
+- `apps/server/railway.toml` 참고
