@@ -6,10 +6,16 @@
   "description": "Todak - WebFullStack Monorepo",
   "scripts": {
     "dev": "pnpm --filter todak-server dev",
+    "dev:server": "pnpm --filter todak-server dev",
+    "dev:client": "pnpm --filter todak-client dev",
     "build": "pnpm --filter todak-server build",
+    "build:server": "pnpm --filter todak-server build",
+    "build:client": "pnpm --filter todak-client build",
     "start": "pnpm --filter todak-server start",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "start:server": "pnpm --filter todak-server start",
+    "start:client": "pnpm --filter todak-client start",
+    "lint": "pnpm --filter todak-server lint && pnpm --filter todak-client lint",
+    "lint:fix": "pnpm --filter todak-server lint -- --fix && pnpm --filter todak-client lint -- --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "pnpm --filter todak-server db:generate",
@@ -24,6 +30,7 @@
     "@typescript-eslint/eslint-plugin": "^8.33.1",
     "@typescript-eslint/parser": "^8.33.1",
     "eslint": "^9.28.0",
+    "eslint-config-next": "^16.2.6",
     "eslint-config-prettier": "^10.1.5",
     "eslint-import-resolver-typescript": "^4.4.3",
     "eslint-plugin-import-x": "^4.16.1",
@@ -36,6 +43,10 @@
   },
   "lint-staged": {
     "apps/server/**/*.{ts,json}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "apps/client/**/*.{ts,tsx,js,jsx,json,css}": [
       "eslint --fix",
       "prettier --write"
     ],
