@@ -1,19 +1,17 @@
-import { Socket } from 'socket.io';
+import { TypedIO, TypedSocket } from '../socket.types.js';
 
-export function registerSocketHandlers(socket: Socket) {
-  console.log(`🔌 Socket connected: ${socket.id}`);
+import { registerChatHandlers } from './chat.handler.js';
+import { registerMeetingHandlers } from './meeting.handler.js';
+import { registerRoomHandlers } from './room.handler.js';
 
-  socket.on('join-room', (roomId: string) => {
-    socket.join(roomId);
-    socket.to(roomId).emit('user-joined', { socketId: socket.id });
-  });
-
-  socket.on('leave-room', (roomId: string) => {
-    socket.leave(roomId);
-    socket.to(roomId).emit('user-left', { socketId: socket.id });
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`🔌 Socket disconnected: ${socket.id}`);
-  });
+/*
+ * ────────────────────────────────────────────────────────────
+ * 핸들러 등록 진입점
+ * 새 핸들러 파일을 만들면 여기에 추가
+ * ────────────────────────────────────────────────────────────
+ */
+export function registerHandlers(io: TypedIO, socket: TypedSocket) {
+  registerRoomHandlers(io, socket);
+  registerChatHandlers(io, socket);
+  registerMeetingHandlers(io, socket);
 }
