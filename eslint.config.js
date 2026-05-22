@@ -1,17 +1,38 @@
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 import configPrettier from "eslint-config-prettier";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 import importPluginX from "eslint-plugin-import-x";
 import prettierPlugin from "eslint-plugin-prettier";
 import globals from "globals";
 
 const rootDir = import.meta.dirname;
+const clientRootDir = `${rootDir}/apps/client`;
+const clientFiles = ["apps/client/**/*.{js,jsx,mjs,ts,tsx,mts,cts}"];
+const nextConfigs = [...nextVitals, ...nextTs]
+  .filter(config => !("ignores" in config && Object.keys(config).length === 1))
+  .map(config => ({
+    ...config,
+    files: config.files
+      ? config.files.map(pattern => `apps/client/${pattern}`)
+      : clientFiles,
+    settings: {
+      ...config.settings,
+      next: {
+        ...config.settings?.next,
+        rootDir: clientRootDir,
+      },
+    },
+  }));
 
 export default [
   {
     ignores: [
+      "**/.next/**",
       "**/dist/**",
       "**/node_modules/**",
+      "**/out/**",
       "**/coverage/**",
       "**/*.cjs",
       "commitlint.config.cjs",
@@ -23,10 +44,12 @@ export default [
       ".env*",
     ],
   },
+  ...nextConfigs,
   {
     files: [
       "*.config.js",
       "*.config.ts",
+      "apps/client/**/*.config.ts",
       "apps/server/**/*.config.ts",
       "apps/server/prisma.config.ts",
     ],
