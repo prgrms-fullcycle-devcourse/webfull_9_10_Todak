@@ -1,5 +1,7 @@
 import { Response, NextFunction } from 'express';
 
+import { AppError } from '../errors/AppError.js';
+import { verifyJwt } from '../services/auth.service.js';
 import { AuthenticatedRequest } from '../types/index.js';
 
 export function requireAuth(
@@ -7,11 +9,11 @@ export function requireAuth(
   _res: Response,
   next: NextFunction,
 ) {
-  /*
-   * TODO: JWT 검증 로직 구현
-   * const token = req.headers.authorization?.split(" ")[1];
-   * if (!token) throw new AppError("UNAUTHORIZED");
-   * req.user = verifyToken(token);
-   */
+  const token = req.headers.authorization?.split(' ')[1];
+  if (token === undefined || token === '') {
+    throw new AppError('UNAUTHORIZED');
+  }
+
+  req.user = verifyJwt(token);
   next();
 }
