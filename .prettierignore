@@ -3,4 +3,4 @@ dist
 coverage
 pnpm-lock.yaml
 *.min.js
-prisma/migrations/
+apps/server/prisma/migrations/
