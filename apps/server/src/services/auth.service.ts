@@ -20,6 +20,7 @@ export interface JwtPayload {
   githubId: number;
   login: string;
   avatarUrl: string;
+  githubAccessToken: string;
 }
 
 export async function exchangeCodeForToken(code: string): Promise<string> {

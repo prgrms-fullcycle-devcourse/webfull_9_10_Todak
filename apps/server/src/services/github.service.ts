@@ -1,4 +1,8 @@
+import { RequestError } from '@octokit/request-error';
 import { Octokit } from '@octokit/rest';
+
+import { env } from '../config/env.js';
+import { AppError } from '../errors/AppError.js';
 
 export function createGithubClient(accessToken: string): Octokit {
   return new Octokit({ auth: accessToken });
@@ -12,6 +16,94 @@ export async function getUserRepos(accessToken: string) {
   });
 
   return data;
+}
+
+export async function createRepo(
+  accessToken: string,
+  name: string,
+  isPrivate: boolean,
+  org?: string,
+  autoInit: boolean = true,
+) {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } =
+      org !== undefined
+        ? await octokit.repos.createInOrg({
+            org,
+            name,
+            private: isPrivate,
+            auto_init: autoInit,
+          })
+        : await octokit.repos.createForAuthenticatedUser({
+            name,
+            private: isPrivate,
+            auto_init: autoInit,
+          });
+
+    return {
+      full_name: data.full_name,
+      html_url: data.html_url,
+      private: data.private,
+      default_branch: data.default_branch ?? 'main',
+    };
+  } catch (err) {
+    if (err instanceof RequestError) {
+      console.error('[createRepo] GitHub API Error:', err.status, err.message);
+      if (err.status === 403) {
+        throw new AppError('FORBIDDEN');
+      }
+
+      if (err.status === 404) {
+        throw new AppError('NOT_FOUND');
+      }
+
+      if (err.status === 422) {
+        throw new AppError('CONFLICT');
+      }
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
+}
+
+export async function registerWebhook(
+  accessToken: string,
+  owner: string,
+  repo: string,
+): Promise<string> {
+  const octokit = createGithubClient(accessToken);
+  const webhookUrl = `https://webfull910todak-production.up.railway.app/webhooks/github`;
+
+  try {
+    const { data } = await octokit.repos.createWebhook({
+      owner,
+      repo,
+      config: {
+        url: webhookUrl,
+        content_type: 'json',
+        secret: env.WEBHOOK_SECRET,
+        insecure_ssl: '0',
+      },
+      events: ['issues', 'pull_request', 'push'],
+      active: true,
+    });
+
+    return String(data.id);
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 403) {
+        throw new AppError('REPO_ADMIN_REQUIRED');
+      }
+
+      if (err.status === 404) {
+        throw new AppError('REPO_NOT_FOUND');
+      }
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
 }
 
 export async function getPullRequest(

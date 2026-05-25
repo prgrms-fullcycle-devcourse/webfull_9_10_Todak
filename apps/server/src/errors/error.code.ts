@@ -38,6 +38,11 @@ export const ERROR_CODES = {
   },
 
   // 403
+  REPO_ADMIN_REQUIRED: {
+    statusCode: StatusCodes.FORBIDDEN,
+    code: 'REPO_ADMIN_REQUIRED',
+    message: '레포지토리 Admin 권한이 필요합니다.',
+  },
   FORBIDDEN: {
     statusCode: StatusCodes.FORBIDDEN,
     code: 'FORBIDDEN',
