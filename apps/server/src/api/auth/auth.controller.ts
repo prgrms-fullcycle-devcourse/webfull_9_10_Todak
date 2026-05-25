@@ -33,6 +33,7 @@ export async function githubCallback(req: Request, res: Response) {
     githubId: Number(user.githubId),
     login: user.githubUsername,
     avatarUrl: user.avatarUrl ?? '',
+    githubAccessToken: accessToken,
   });
 
   res.redirect(`${env.CLIENT_URL}/auth/callback?token=${token}`);
