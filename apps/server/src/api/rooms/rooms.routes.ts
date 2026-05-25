@@ -5,13 +5,14 @@ import { validate } from '../../middleware/validate.middleware.js';
 
 import './private-room/private-room.swagger.js';
 import privateRoomRoutes from './private-room/private-room.routes.js';
-import { createRoomHandler } from './rooms.controller.js';
+import { createRoomHandler, getRoomsHandler } from './rooms.controller.js';
 import { CreateRoomSchema } from './rooms.schema.js';
 
 const router = Router();
 
 router.use(requireAuth);
 
+router.get('/', getRoomsHandler);
 router.post('/', validate(CreateRoomSchema), createRoomHandler);
 router.use('/:roomId/private-room', privateRoomRoutes);
 
