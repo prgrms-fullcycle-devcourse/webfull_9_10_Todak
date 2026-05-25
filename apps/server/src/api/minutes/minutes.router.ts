@@ -50,4 +50,4 @@ router.post(
   controller.refineMinutesWithAI,
 );
 
-export const minutesRouter = router;
+export default router;
