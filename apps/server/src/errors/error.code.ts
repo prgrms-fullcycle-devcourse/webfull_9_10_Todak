@@ -60,6 +60,16 @@ export const ERROR_CODES = {
     code: 'NOT_FOUND',
     message: '요청한 리소스를 찾을 수 없습니다.',
   },
+  MEETING_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'MEETING_NOT_FOUND',
+    message: '해당 회의(Meeting) 정보를 찾을 수 없습니다.',
+  },
+  MINUTES_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'MINUTES_NOT_FOUND',
+    message: '해당 회의록을 찾을 수 없거나 접근 권한이 없습니다.',
+  },
   USER_NOT_FOUND: {
     statusCode: StatusCodes.NOT_FOUND,
     code: 'USER_NOT_FOUND',
@@ -81,6 +91,11 @@ export const ERROR_CODES = {
     statusCode: StatusCodes.CONFLICT,
     code: 'CONFLICT',
     message: '이미 존재하는 리소스입니다.',
+  },
+  MINUTES_GENERATING: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'MINUTES_GENERATING',
+    message: 'AI가 회의록을 생성 중일 때는 수정할 수 없습니다.',
   },
 
   // 500
