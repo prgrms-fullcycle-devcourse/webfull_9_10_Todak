@@ -106,6 +106,29 @@ export async function registerWebhook(
   }
 }
 
+export async function unregisterWebhook(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  hookId: string,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.repos.deleteWebhook({
+      owner,
+      repo,
+      hook_id: Number(hookId),
+    });
+  } catch (err) {
+    if (err instanceof RequestError && err.status === 404) {
+      // 이미 GitHub에서 삭제된 webhook — 무시하고 진행
+      return;
+    }
+    throw err;
+  }
+}
+
 export async function getPullRequest(
   accessToken: string,
   owner: string,

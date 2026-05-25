@@ -1,8 +1,9 @@
 import { CreateRoomInput } from '../api/rooms/rooms.schema.js';
+import { AppError } from '../errors/AppError.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
 
-import { registerWebhook } from './github.service.js';
+import { registerWebhook, unregisterWebhook } from './github.service.js';
 
 // XXXX-XXXX 형식의 랜덤 초대 코드 생성
 function generateInviteCode(): string {
@@ -65,7 +66,6 @@ export async function createRoom(
         data: {
           roomId: newRoom.id,
           userId,
-          isHost: true,
         },
       });
 
@@ -115,5 +115,51 @@ export async function getRooms(userId: string) {
       last_synced_at: linkedRepo?.statsCachedAt ?? null,
       stats: linkedRepo?.statsCache ?? null,
     };
+  });
+}
+
+// 룸 삭제 — webhook 해제 후 관련 레코드 전체 삭제
+export async function deleteRoom(
+  userId: string,
+  roomId: string,
+  accessToken: string,
+) {
+  const membership = await prisma.roomMember.findFirst({
+    where: { roomId, userId },
+    include: {
+      room: { include: { repos: true } },
+    },
+  });
+
+  if (membership === null) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  const linkedRepo = membership.room.repos[0] ?? null;
+
+  if (linkedRepo?.webhookId !== null && linkedRepo?.webhookId !== undefined) {
+    const [owner, repo] = linkedRepo.fullName.split('/');
+    try {
+      await unregisterWebhook(accessToken, owner, repo, linkedRepo.webhookId);
+    } catch {
+      // webhook 해제 실패해도 룸 삭제는 계속 진행
+      console.error(`[deleteRoom] webhook 해제 실패: ${linkedRepo.fullName}`);
+    }
+  }
+
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await tx.notification.deleteMany({ where: { roomId } });
+    await tx.todo.deleteMany({ where: { roomId } });
+    await tx.meetingParticipant.deleteMany({ where: { meeting: { roomId } } });
+    await tx.minutes.deleteMany({ where: { roomId } });
+    await tx.chatMessage.deleteMany({ where: { roomId } });
+    await tx.meeting.deleteMany({ where: { roomId } });
+    await tx.privateRoomSession.deleteMany({
+      where: { privateRoom: { roomId } },
+    });
+    await tx.privateRoom.deleteMany({ where: { roomId } });
+    await tx.roomMember.deleteMany({ where: { roomId } });
+    await tx.repo.deleteMany({ where: { roomId } });
+    await tx.room.delete({ where: { id: roomId } });
   });
 }

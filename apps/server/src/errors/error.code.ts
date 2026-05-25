@@ -70,6 +70,11 @@ export const ERROR_CODES = {
     code: 'NOT_FOUND',
     message: '요청한 리소스를 찾을 수 없습니다.',
   },
+  ROOM_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'ROOM_NOT_FOUND',
+    message: '룸을 찾을 수 없습니다.',
+  },
   USER_NOT_FOUND: {
     statusCode: StatusCodes.NOT_FOUND,
     code: 'USER_NOT_FOUND',
