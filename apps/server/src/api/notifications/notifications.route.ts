@@ -19,6 +19,10 @@ router
     validate(NotificationsSchema.getNotificationsSchema),
     controller.getNotificationsList,
   )
-  .patch(validate(NotificationsSchema.updateNotificationsReadSchema));
+  .patch(validate(NotificationsSchema.updateNotificationsReadSchema))
+  .delete(
+    validate(NotificationsSchema.deleteNotificationsSchema),
+    controller.deleteNotifications,
+  );
 
 export default router;

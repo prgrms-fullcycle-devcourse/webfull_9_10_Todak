@@ -20,6 +20,15 @@ export const NotificationsSchema = {
       notification_ids: z.array(z.uuid()).optional(),
     }),
   }),
+
+  deleteNotificationsSchema: z.object({
+    params: z.object({
+      roomId: z.uuid(),
+    }),
+    query: z.object({
+      all: z.enum(['true', 'false']).optional().default('true'), // 기본값은 싹 다 삭제
+    }),
+  }),
 };
 
 export type GetNotificationsParams = z.infer<
@@ -39,3 +48,11 @@ export type UpdateNotificationsReadParams = z.infer<
 export type UpdateNotificationsReadBody = z.infer<
   typeof NotificationsSchema.updateNotificationsReadSchema
 >['body'];
+
+export type DeleteNotificationsParams = z.infer<
+  typeof NotificationsSchema.deleteNotificationsSchema
+>['params'];
+
+export type DeleteNotificationsQuery = {
+  all?: 'true' | 'false';
+};

@@ -11,7 +11,14 @@ interface MarkAsReadOptions {
   notificationIds?: string[];
 }
 
+interface DeleteNotificationsOptions {
+  deleteAll: boolean;
+}
+
 export class NotificationsService {
+  /**
+   * 특정 룸 내 현재 로그인한 유저의 알림 목록을 조건에 맞춰 조회합니다.
+   */
   public getNotificationsList = async (
     roomId: string,
     userId: string,
@@ -60,6 +67,9 @@ export class NotificationsService {
     };
   };
 
+  /**
+   * 알림을 선택적으로 혹은 일괄적으로 읽음 처리합니다.
+   */
   public markAsRead = async (
     roomId: string,
     userId: string,
@@ -87,5 +97,32 @@ export class NotificationsService {
     });
 
     return result.count; // 실제로 변경된 행의 개수 반환
+  };
+
+  /**
+   * 유저의 알림을 일괄 삭제(물리 삭제)합니다.
+   */
+  public deleteAllNotifications = async (
+    roomId: string,
+    userId: string,
+    options: DeleteNotificationsOptions,
+  ) => {
+    const { deleteAll } = options;
+
+    const whereClause: Prisma.NotificationWhereInput = {
+      roomId,
+      userId,
+    };
+
+    // deleteAll이 false라면 '읽은 알림(isRead: true)'만 타겟팅하여 삭제
+    if (!deleteAll) {
+      whereClause.isRead = true;
+    }
+
+    const result = await prisma.notification.deleteMany({
+      where: whereClause,
+    });
+
+    return result.count; // 실제로 삭제된 레코드 수 반환
   };
 }

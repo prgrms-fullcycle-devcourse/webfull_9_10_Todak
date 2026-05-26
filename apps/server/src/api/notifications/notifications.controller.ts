@@ -2,6 +2,8 @@ import { AuthenticatedRequest } from '@/types/index.js';
 import { NextFunction, Response } from 'express';
 
 import {
+  DeleteNotificationsParams,
+  DeleteNotificationsQuery,
   GetNotificationsParams,
   GetNotificationsQuery,
   UpdateNotificationsReadBody,
@@ -12,9 +14,6 @@ import { NotificationsService } from './notifications.service.js';
 export class NotificationsController {
   private notificationsService = new NotificationsService();
 
-  /**
-   * 특정 룸 내 현재 로그인한 유저의 알림 목록을 조건에 맞춰 조회합니다.
-   */
   public getNotificationsList = async (
     req: AuthenticatedRequest,
     res: Response,
@@ -48,9 +47,6 @@ export class NotificationsController {
     }
   };
 
-  /**
-   * 알림을 선택적으로 혹은 일괄적으로 읽음 처리합니다.
-   */
   public updateNotificationsRead = async (
     req: AuthenticatedRequest,
     res: Response,
@@ -76,6 +72,35 @@ export class NotificationsController {
         data: {
           updated_count: updatedCount,
           is_bulk: isBulk,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public deleteNotifications = async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const { roomId } = req.params as DeleteNotificationsParams;
+      const { all } = req.query as unknown as DeleteNotificationsQuery;
+      const userId = req.user!.id;
+
+      const deleteAll = all === 'true';
+
+      const deletedCount =
+        await this.notificationsService.deleteAllNotifications(roomId, userId, {
+          deleteAll,
+        });
+
+      return res.status(200).json({
+        success: true,
+        message: '모든 알림 내역이 완전히 삭제되었습니다.',
+        data: {
+          deleted_count: deletedCount,
         },
       });
     } catch (error) {
