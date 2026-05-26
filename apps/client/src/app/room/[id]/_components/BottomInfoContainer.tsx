@@ -1,40 +1,6 @@
 'use client';
 
 import { Button } from '@heroui/react';
-const pullRequests = [
-  {
-    id: 142,
-    time: '10분 전',
-    title: '채팅 이모지 반응 UI 수정',
-  },
-  {
-    id: 138,
-    time: '1시간 전',
-    title: '웹소켓 자동 재연결 로직 구현',
-  },
-  {
-    id: 135,
-    time: '3시간 전',
-    title: '메인 대시보드 마일스톤 생성기',
-  },
-];
-
-const members = [
-  {
-    avatar: '🐶',
-    label: '민호',
-    left: '78%',
-    status: '💬',
-    top: '30%',
-  },
-  {
-    avatar: '🦁',
-    label: '현우',
-    left: '70%',
-    status: '💤',
-    top: '76%',
-  },
-];
 
 const todos = [
   {
