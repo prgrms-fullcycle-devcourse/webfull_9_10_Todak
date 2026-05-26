@@ -8,6 +8,7 @@ import githubRoutes from './github/github.routes.js';
 import reposRoutes from './repos/repos.routes.js';
 import roomsRoutes from './rooms/rooms.routes.js';
 import usersRoutes from './users/users.routes.js';
+import '../api/rooms/private-room/private-room.swagger.js';
 
 const router = Router();
 
