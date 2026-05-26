@@ -10,11 +10,15 @@ const controller = new NotificationsController();
 
 router.use(requireAuth);
 
+/**
+ * 엔드포인트: /rooms/:roomId/notifications
+ */
 router
   .route('/')
   .get(
     validate(NotificationsSchema.getNotificationsSchema),
     controller.getNotificationsList,
-  );
+  )
+  .patch(validate(NotificationsSchema.updateNotificationsReadSchema));
 
 export default router;

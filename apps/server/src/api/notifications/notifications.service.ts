@@ -7,6 +7,10 @@ interface GetNotificationsOptions {
   limit: number;
 }
 
+interface MarkAsReadOptions {
+  notificationIds?: string[];
+}
+
 export class NotificationsService {
   public getNotificationsList = async (
     roomId: string,
@@ -54,5 +58,34 @@ export class NotificationsService {
         has_more: hasMore,
       },
     };
+  };
+
+  public markAsRead = async (
+    roomId: string,
+    userId: string,
+    options: MarkAsReadOptions,
+  ) => {
+    const { notificationIds } = options;
+
+    const whereClause: Prisma.NotificationWhereInput = {
+      roomId,
+      userId,
+      isRead: false, // 이미 읽은 건 업데이트 대상에서 제외하여 count 최적화
+    };
+
+    if (notificationIds && notificationIds.length > 0) {
+      whereClause.id = {
+        in: notificationIds,
+      };
+    }
+
+    const result = await prisma.notification.updateMany({
+      where: whereClause,
+      data: {
+        isRead: true,
+      },
+    });
+
+    return result.count; // 실제로 변경된 행의 개수 반환
   };
 }

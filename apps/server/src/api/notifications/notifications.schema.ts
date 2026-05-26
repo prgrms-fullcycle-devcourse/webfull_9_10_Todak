@@ -1,18 +1,25 @@
 import { z } from 'zod';
 
-const GetNotificationsSchema = z.object({
-  params: z.object({
-    roomId: z.uuid(),
-  }),
-  query: z.object({
-    unread_only: z.enum(['true', 'false']).optional().default('false'),
-    page: z.string().optional().default('1'),
-    limit: z.string().optional().default('20'),
-  }),
-});
-
 export const NotificationsSchema = {
-  getNotificationsSchema: GetNotificationsSchema,
+  getNotificationsSchema: z.object({
+    params: z.object({
+      roomId: z.uuid(),
+    }),
+    query: z.object({
+      unread_only: z.enum(['true', 'false']).optional().default('false'),
+      page: z.string().optional().default('1'),
+      limit: z.string().optional().default('20'),
+    }),
+  }),
+
+  updateNotificationsReadSchema: z.object({
+    params: z.object({
+      roomId: z.uuid(),
+    }),
+    body: z.object({
+      notification_ids: z.array(z.uuid()).optional(),
+    }),
+  }),
 };
 
 export type GetNotificationsParams = z.infer<
@@ -24,3 +31,11 @@ export type GetNotificationsQuery = {
   page?: string;
   limit?: string;
 };
+
+export type UpdateNotificationsReadParams = z.infer<
+  typeof NotificationsSchema.updateNotificationsReadSchema
+>['params'];
+
+export type UpdateNotificationsReadBody = z.infer<
+  typeof NotificationsSchema.updateNotificationsReadSchema
+>['body'];
