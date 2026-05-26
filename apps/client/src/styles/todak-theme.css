@@ -151,6 +151,79 @@
     @apply flex h-full shrink-0 flex-col overflow-hidden border-r border-gray-200/80 bg-todak-bg;
   }
 
+  .room-layout-container {
+    @apply flex h-dvh w-screen overflow-hidden bg-background text-foreground;
+  }
+
+  .room-main-container {
+    @apply relative flex min-w-0 flex-1 overflow-hidden bg-surface-secondary;
+  }
+
+  .room-header-container {
+    @apply flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-6;
+    box-shadow: var(--surface-shadow);
+  }
+
+  .room-toggle-button {
+    @apply cursor-pointer rounded-lg bg-default px-3 py-2 text-xs font-black text-default-foreground transition-colors hover:bg-default-hover;
+    box-shadow: var(--surface-shadow);
+  }
+
+  .sidebar-container {
+    @apply flex h-full w-[260px] shrink-0 flex-col border-r border-border bg-background p-4;
+  }
+
+  .renderer-section-container {
+    @apply flex min-w-0 flex-1 flex-col overflow-hidden;
+  }
+
+  .renderer-container {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden bg-surface-secondary;
+  }
+
+  .renderer-stage-container {
+    @apply relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-8;
+  }
+
+  .renderer-surface {
+    @apply relative h-[400px] w-[600px] shrink-0 overflow-hidden rounded-2xl border border-border bg-overlay;
+    box-shadow: var(--overlay-shadow);
+  }
+
+  .renderer-toolbar {
+    @apply absolute right-8 top-8 z-30 flex items-center gap-2 rounded-2xl border border-border bg-surface/95 p-3 backdrop-blur-md;
+    box-shadow: var(--surface-shadow);
+  }
+
+  .renderer-toolbar-button {
+    @apply rounded-lg bg-default px-3 py-2 text-xs font-black text-default-foreground transition-colors hover:bg-default-hover;
+  }
+
+  .renderer-bottom-container {
+    @apply shrink-0 border-t border-border bg-surface;
+  }
+
+  .renderer-todo-container {
+    @apply space-y-4 px-8 py-5;
+  }
+
+  .renderer-news-container {
+    @apply flex h-12 items-center justify-between bg-foreground px-8 text-background;
+  }
+
+  .review-station-card {
+    @apply absolute left-3 top-3 z-20 w-64 rounded-xl border border-slate-800 bg-slate-900/95 p-3 text-white;
+    box-shadow: var(--overlay-shadow);
+  }
+
+  .chat-container {
+    @apply h-full w-0 shrink-0 overflow-hidden border-l border-border bg-surface transition-[width] duration-300 peer-checked/chat:w-[320px];
+  }
+
+  .chat-panel-container {
+    @apply flex h-full w-[320px] flex-col;
+  }
+
   .todak-section-label {
     @apply text-[10px] font-bold tracking-wider text-gray-400 uppercase;
   }
