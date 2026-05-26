@@ -19,6 +19,11 @@ export const ERROR_CODES = {
     code: 'MISSING_FIELD',
     message: '필수 항목이 누락되었습니다.',
   },
+  NOT_IN_PRIVATE_ROOM: {
+    statusCode: StatusCodes.BAD_REQUEST,
+    code: 'NOT_IN_PRIVATE_ROOM',
+    message: '현재 입장 중인 프라이빗 룸이 아닙니다.',
+  },
 
   // 401
   UNAUTHORIZED: {
@@ -80,12 +85,22 @@ export const ERROR_CODES = {
     code: 'PR_NOT_FOUND',
     message: 'Pull Request를 찾을 수 없습니다.',
   },
+  PRIVATE_ROOM_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'PRIVATE_ROOM_NOT_FOUND',
+    message: '프라이빗 룸을 찾을 수 없습니다.',
+  },
 
   // 409
   CONFLICT: {
     statusCode: StatusCodes.CONFLICT,
     code: 'CONFLICT',
     message: '이미 존재하는 리소스입니다.',
+  },
+  ALREADY_IN_PRIVATE_ROOM: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ALREADY_IN_PRIVATE_ROOM',
+    message: '이미 다른 프라이빗 룸에 입장 중입니다.',
   },
 
   // 500

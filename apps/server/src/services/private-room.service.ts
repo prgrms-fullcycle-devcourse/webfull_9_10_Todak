@@ -1,3 +1,4 @@
+import { AppError } from '@/errors/AppError.js';
 import { prisma } from '@/lib/prisma.js';
 
 export interface PrivateRoomParticipant {
@@ -34,6 +35,16 @@ export interface LeavePrivateRoomResult {
 export async function getPrivateRooms(
   roomId: string,
 ): Promise<PrivateRoomInfo[]> {
+  // 룸 존재 여부 확인
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    select: { id: true },
+  });
+
+  if (room === null) {
+    throw new AppError('NOT_FOUND');
+  }
+
   const privateRooms = await prisma.privateRoom.findMany({
     where: { roomId },
     orderBy: { createdAt: 'asc' },
@@ -58,11 +69,11 @@ export async function getPrivateRooms(
     },
   });
 
-  return privateRooms.map(room => ({
-    id: room.id,
-    name: room.name,
-    is_meeting_active: room.meetings.length > 0,
-    current_participants: room.sessions.map(session => ({
+  return privateRooms.map(privateRoom => ({
+    id: privateRoom.id,
+    name: privateRoom.name,
+    is_meeting_active: privateRoom.meetings.length > 0,
+    current_participants: privateRoom.sessions.map(session => ({
       user_id: session.userId,
       github_username: session.user.githubUsername,
       entered_at: session.enteredAt.toISOString(),
@@ -76,20 +87,47 @@ export async function getPrivateRooms(
  * - 기존 세션이 있으면 해당 세션의 enteredAt 을 그대로 반환 (중복 입장 방지)
  */
 export async function enterPrivateRoom(
+  roomId: string,
   privateRoomId: string,
   userId: string,
 ): Promise<EnterPrivateRoomResult> {
+  // 프라이빗 룸 존재 여부 확인
+  const privateRoom = await prisma.privateRoom.findUnique({
+    where: { id: privateRoomId },
+  });
+
+  if (privateRoom === null) {
+    throw new AppError('PRIVATE_ROOM_NOT_FOUND');
+  }
+
+  if (privateRoom.roomId !== roomId) {
+    throw new AppError('NOT_FOUND');
+  }
+
   // 이미 입장 중인 세션 확인
   const existing = await prisma.privateRoomSession.findFirst({
-    where: { privateRoomId, userId, leftAt: null },
+    where: {
+      userId,
+      leftAt: null,
+      privateRoom: { roomId },
+    },
+    include: {
+      privateRoom: true,
+    },
   });
 
   if (existing !== null) {
-    return {
-      private_room_id: existing.privateRoomId,
-      user_id: existing.userId,
-      entered_at: existing.enteredAt.toISOString(),
-    };
+    // 같은 room 재입장 → 기존 세션 반환
+    if (existing.privateRoomId === privateRoomId) {
+      return {
+        private_room_id: existing.privateRoomId,
+        user_id: existing.userId,
+        entered_at: existing.enteredAt.toISOString(),
+      };
+    }
+
+    // 다른 private room 이미 입장 중
+    throw new AppError('ALREADY_IN_PRIVATE_ROOM');
   }
 
   const session = await prisma.privateRoomSession.create({
@@ -110,20 +148,52 @@ export async function enterPrivateRoom(
  *   → meeting_cancelled: true 반환
  */
 export async function leavePrivateRoom(
+  roomId: string,
   privateRoomId: string,
   userId: string,
 ): Promise<LeavePrivateRoomResult> {
   const now = new Date();
 
-  // 열린 세션 leftAt 업데이트
-  await prisma.privateRoomSession.updateMany({
-    where: { privateRoomId, userId, leftAt: null },
-    data: { leftAt: now },
+  // 프라이빗 룸 존재 여부
+  const privateRoom = await prisma.privateRoom.findUnique({
+    where: { id: privateRoomId },
   });
 
+  if (privateRoom === null) {
+    throw new AppError('PRIVATE_ROOM_NOT_FOUND');
+  }
+
+  if (privateRoom.roomId !== roomId) {
+    throw new AppError('NOT_FOUND');
+  }
+
+  // 현재 입장 중 세션 확인
+  const activeSession = await prisma.privateRoomSession.findFirst({
+    where: {
+      privateRoomId,
+      userId,
+      leftAt: null,
+    },
+  });
+
+  if (activeSession === null) {
+    throw new AppError('NOT_IN_PRIVATE_ROOM');
+  }
+
+  await prisma.privateRoomSession.update({
+    where: {
+      id: activeSession.id,
+    },
+    data: {
+      leftAt: now,
+    },
+  });
   // 퇴장 후 해당 프라이빗 룸의 남은 입장자 수 확인
   const remainingCount = await prisma.privateRoomSession.count({
-    where: { privateRoomId, leftAt: null },
+    where: {
+      privateRoomId,
+      leftAt: null,
+    },
   });
 
   let meetingCancelled = false;
@@ -131,8 +201,14 @@ export async function leavePrivateRoom(
   // 마지막 멤버가 퇴장한 경우 → 진행 중 회의 자동 취소
   if (remainingCount === 0) {
     const cancelledMeetings = await prisma.meeting.updateMany({
-      where: { privateRoomId, status: 'ongoing' },
-      data: { status: 'cancelled', endedAt: now },
+      where: {
+        privateRoomId,
+        status: 'ongoing',
+      },
+      data: {
+        status: 'cancelled',
+        endedAt: now,
+      },
     });
 
     meetingCancelled = cancelledMeetings.count > 0;

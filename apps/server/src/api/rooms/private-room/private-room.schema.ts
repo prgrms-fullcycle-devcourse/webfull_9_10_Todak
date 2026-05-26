@@ -2,6 +2,25 @@ import { z } from 'zod';
 
 import { registry } from '../../../schema/openapi.js';
 
+export const RoomIdParamsSchema = z.object({
+  roomId: z.string().uuid().openapi({
+    description: '룸 ID',
+    example: 'uuid-room-1',
+  }),
+});
+
+export const PrivateRoomParamsSchema = z.object({
+  roomId: z.string().uuid().openapi({
+    description: '룸 ID',
+    example: 'uuid-room-1',
+  }),
+
+  privateRoomId: z.string().uuid().openapi({
+    description: '프라이빗 룸 ID',
+    example: 'uuid-private-room-1',
+  }),
+});
+
 export const PrivateRoomParticipantSchema = registry.register(
   'PrivateRoomParticipant',
   z.object({
@@ -21,14 +40,6 @@ export const PrivateRoomInfoSchema = registry.register(
     name: z.string().openapi({ example: '회의실 A' }),
     is_meeting_active: z.boolean().openapi({ example: false }),
     current_participants: z.array(PrivateRoomParticipantSchema),
-  }),
-);
-
-export const PrivateRoomsResponseSchema = registry.register(
-  'PrivateRoomsResponse',
-  z.object({
-    success: z.boolean(),
-    data: z.array(PrivateRoomInfoSchema),
   }),
 );
 

@@ -6,18 +6,9 @@ import {
   PrivateRoomInfoSchema,
   EnterPrivateRoomResponseSchema,
   LeavePrivateRoomResponseSchema,
+  PrivateRoomParamsSchema,
+  RoomIdParamsSchema,
 } from './private-room.schema.js';
-
-const privateRoomParams = z.object({
-  roomId: z
-    .string()
-    .uuid()
-    .openapi({ description: '룸 ID', example: 'uuid-room-1' }),
-  privateRoomId: z
-    .string()
-    .uuid()
-    .openapi({ description: '프라이빗 룸 ID', example: 'uuid-private-room-1' }),
-});
 
 const errorResponse = (description: string, code: string, message: string) => ({
   description,
@@ -44,12 +35,7 @@ registry.registerPath({
     '소켓 이벤트 room:private-rooms-updated 로 실시간 반영됩니다.',
   security: [{ bearerAuth: [] }],
   request: {
-    params: z.object({
-      roomId: z
-        .string()
-        .uuid()
-        .openapi({ description: '룸 ID', example: 'uuid-room-1' }),
-    }),
+    params: RoomIdParamsSchema,
   },
   responses: {
     200: {
@@ -82,8 +68,8 @@ registry.registerPath({
     },
     401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
     404: errorResponse(
-      '룸을 찾을 수 없음',
-      'NOT_FOUND',
+      '프라이빗 룸을 찾을 수 없음',
+      'PRIVATE_ROOM_NOT_FOUND',
       '요청한 리소스를 찾을 수 없습니다.',
     ),
   },
@@ -100,10 +86,10 @@ registry.registerPath({
     '이미 입장 중인 경우 기존 세션 정보를 반환합니다.',
   security: [{ bearerAuth: [] }],
   request: {
-    params: privateRoomParams,
+    params: PrivateRoomParamsSchema,
   },
   responses: {
-    200: {
+    201: {
       description: '프라이빗 룸 입장 성공',
       content: {
         'application/json': {
@@ -119,8 +105,13 @@ registry.registerPath({
     401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
     404: errorResponse(
       '프라이빗 룸을 찾을 수 없음',
-      'NOT_FOUND',
-      '요청한 리소스를 찾을 수 없습니다.',
+      'PRIVATE_ROOM_NOT_FOUND',
+      '프라이빗 룸을 찾을 수 없습니다.',
+    ),
+    409: errorResponse(
+      '이미 다른 프라이빗 룸에 입장 중',
+      'ALREADY_IN_PRIVATE_ROOM',
+      '이미 다른 프라이빗 룸에 입장 중입니다.',
     ),
   },
 });
@@ -136,7 +127,7 @@ registry.registerPath({
     'meeting_cancelled: true 를 반환합니다. 소켓 이벤트(room:private-rooms-updated)를 트리거합니다.',
   security: [{ bearerAuth: [] }],
   request: {
-    params: privateRoomParams,
+    params: PrivateRoomParamsSchema,
   },
   responses: {
     200: {
@@ -167,11 +158,16 @@ registry.registerPath({
         },
       },
     },
+    400: errorResponse(
+      '현재 입장 중인 프라이빗 룸이 아님',
+      'NOT_IN_PRIVATE_ROOM',
+      '현재 입장 중인 프라이빗 룸이 아닙니다.',
+    ),
     401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
     404: errorResponse(
       '프라이빗 룸을 찾을 수 없음',
-      'NOT_FOUND',
-      '요청한 리소스를 찾을 수 없습니다.',
+      'PRIVATE_ROOM_NOT_FOUND',
+      '프라이빗 룸을 찾을 수 없습니다.',
     ),
   },
 });

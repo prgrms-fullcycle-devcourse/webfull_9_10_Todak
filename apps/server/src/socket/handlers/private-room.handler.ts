@@ -1,4 +1,10 @@
-import { getPrivateRooms } from '../../services/private-room.service.js';
+import { AppError } from '@/errors/AppError.js';
+
+import {
+  getPrivateRooms,
+  enterPrivateRoom,
+  leavePrivateRoom,
+} from '../../services/private-room.service.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 
 /*
@@ -11,23 +17,13 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
 
   /*
    * 프라이빗 룸 입장
-   * 1. 이미 열린 세션이 없으면 PrivateRoomSession 생성
-   * 2. 룸 전체에 업데이트된 private-room 목록 broadcast
    */
   socket.on('private-room:enter', async ({ roomId, privateRoomId }) => {
     try {
-      const { prisma } = await import('../../lib/prisma.js');
+      // service 재사용
+      await enterPrivateRoom(roomId, privateRoomId, user.id);
 
-      const existing = await prisma.privateRoomSession.findFirst({
-        where: { privateRoomId, userId: user.id, leftAt: null },
-      });
-
-      if (existing === null) {
-        await prisma.privateRoomSession.create({
-          data: { privateRoomId, userId: user.id },
-        });
-      }
-
+      // 최신 상태 broadcast
       const privateRooms = await getPrivateRooms(roomId);
 
       io.to(roomId).emit('room:private-rooms-updated', privateRooms);
@@ -37,23 +33,27 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
       );
     } catch (err) {
       console.error('[private-room:enter] error:', err);
+
+      socket.emit('error', {
+        code: err instanceof AppError ? err.code : 'PRIVATE_ROOM_ENTER_ERROR',
+
+        message:
+          err instanceof Error
+            ? err.message
+            : '프라이빗 룸 입장 중 오류가 발생했습니다.',
+      });
     }
   });
 
   /*
    * 프라이빗 룸 퇴장
-   * 1. 해당 유저의 열린 세션에 leftAt = now 업데이트
-   * 2. 룸 전체에 업데이트된 private-room 목록 broadcast
    */
   socket.on('private-room:leave', async ({ roomId, privateRoomId }) => {
     try {
-      const { prisma } = await import('../../lib/prisma.js');
+      // service 재사용
+      await leavePrivateRoom(roomId, privateRoomId, user.id);
 
-      await prisma.privateRoomSession.updateMany({
-        where: { privateRoomId, userId: user.id, leftAt: null },
-        data: { leftAt: new Date() },
-      });
-
+      // 최신 상태 broadcast
       const privateRooms = await getPrivateRooms(roomId);
 
       io.to(roomId).emit('room:private-rooms-updated', privateRooms);
@@ -63,6 +63,15 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
       );
     } catch (err) {
       console.error('[private-room:leave] error:', err);
+
+      socket.emit('error', {
+        code: err instanceof AppError ? err.code : 'PRIVATE_ROOM_LEAVE_ERROR',
+
+        message:
+          err instanceof Error
+            ? err.message
+            : '프라이빗 룸 퇴장 중 오류가 발생했습니다.',
+      });
     }
   });
 }

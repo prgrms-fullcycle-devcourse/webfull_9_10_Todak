@@ -30,24 +30,26 @@ export async function enterPrivateRoomHandler(
   next: NextFunction,
 ) {
   try {
-    const { privateRoomId } = req.params as { privateRoomId: string };
+    const { roomId, privateRoomId } = req.params as {
+      roomId: string;
+      privateRoomId: string;
+    };
     const userId = req.user?.id;
 
     if (userId === undefined) {
       throw new AppError('UNAUTHORIZED');
     }
 
-    const result = await enterPrivateRoom(privateRoomId, userId);
+    const result = await enterPrivateRoom(roomId, privateRoomId, userId);
 
     // Socket 이벤트 트리거: 같은 룸의 모든 멤버에게 업데이트 브로드캐스트
     const io = req.app.get('io');
     if (io !== undefined) {
-      const { roomId } = req.params as { roomId: string };
       const privateRooms = await getPrivateRooms(roomId);
       io.to(roomId).emit('room:private-rooms-updated', privateRooms);
     }
 
-    res.status(200).json(result);
+    res.status(201).json(result);
   } catch (err) {
     next(err);
   }
@@ -59,19 +61,21 @@ export async function leavePrivateRoomHandler(
   next: NextFunction,
 ) {
   try {
-    const { privateRoomId } = req.params as { privateRoomId: string };
+    const { roomId, privateRoomId } = req.params as {
+      roomId: string;
+      privateRoomId: string;
+    };
     const userId = req.user?.id;
 
     if (userId === undefined) {
       throw new AppError('UNAUTHORIZED');
     }
 
-    const result = await leavePrivateRoom(privateRoomId, userId);
+    const result = await leavePrivateRoom(roomId, privateRoomId, userId);
 
     // Socket 이벤트 트리거: 같은 룸의 모든 멤버에게 업데이트 브로드캐스트
     const io = req.app.get('io');
     if (io !== undefined) {
-      const { roomId } = req.params as { roomId: string };
       const privateRooms = await getPrivateRooms(roomId);
       io.to(roomId).emit('room:private-rooms-updated', privateRooms);
     }
