@@ -41,7 +41,7 @@ model Room {
 
   members      RoomMember[]
   repos        Repo[]
-  privateRoom  PrivateRoom?
+  privateRoom  PrivateRoom[]
   chatMessages ChatMessage[]
   meetings     Meeting[]
   minutes      Minutes[]
@@ -87,7 +87,7 @@ model Repo {
 
 model PrivateRoom {
   id        String   @id @default(uuid()) @db.Uuid
-  roomId    String   @unique @map("room_id") @db.Uuid // 룸당 1개 고정
+  roomId    String   @map("room_id") @db.Uuid // 룸당 최대 2개
   name      String   @default("회의실")
   createdAt DateTime @default(now()) @map("created_at")
 
