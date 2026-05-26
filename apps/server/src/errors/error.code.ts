@@ -70,6 +70,11 @@ export const ERROR_CODES = {
     code: 'NOT_FOUND',
     message: '요청한 리소스를 찾을 수 없습니다.',
   },
+  ROOM_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'ROOM_NOT_FOUND',
+    message: '룸을 찾을 수 없습니다.',
+  },
   USER_NOT_FOUND: {
     statusCode: StatusCodes.NOT_FOUND,
     code: 'USER_NOT_FOUND',
@@ -101,6 +106,26 @@ export const ERROR_CODES = {
     statusCode: StatusCodes.CONFLICT,
     code: 'ALREADY_IN_PRIVATE_ROOM',
     message: '이미 다른 프라이빗 룸에 입장 중입니다.',
+  },
+  ALREADY_JOINED: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ALREADY_JOINED',
+    message: '이미 참여한 룸입니다.',
+  },
+  REPO_ALREADY_IN_USE: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'REPO_ALREADY_IN_USE',
+    message: '이미 다른 룸에서 사용 중인 레포지토리입니다.',
+  },
+  ROOM_FULL: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ROOM_FULL',
+    message: '룸 정원이 초과되었습니다.',
+  },
+  INVALID_INVITE_CODE: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'INVALID_INVITE_CODE',
+    message: '유효하지 않은 초대 코드입니다.',
   },
 
   // 500
