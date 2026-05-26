@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import type { ReactNode } from 'react';
 
 import { QueryProvider } from '@/providers/query-provider';
 
@@ -10,27 +9,20 @@ export const metadata: Metadata = {
   description: 'Todak client',
 };
 
-interface RootLayoutProps {
-  sidebar: ReactNode;
-  chats: ReactNode;
-  renderer: ReactNode;
-}
-
 export default function RootLayout({
+  children,
   sidebar,
   chats,
   renderer,
-}: Readonly<RootLayoutProps>) {
+}: LayoutProps<'/'>) {
   return (
     <html className="todak" data-theme="todak" lang="ko">
       <body>
         <QueryProvider>
-          <div className="flex h-dvh w-screen overflow-hidden bg-background text-foreground">
-            <aside className="flex h-full w-[260px] shrink-0 flex-col border-r border-border bg-background p-4">
-              {sidebar}
-            </aside>
+          <div className="room-layout-container">
+            <aside className="sidebar-container">{sidebar}</aside>
 
-            <main className="relative flex min-w-0 flex-1 overflow-hidden bg-surface-secondary">
+            <main className="room-main-container">
               <input
                 className="peer/chat sr-only"
                 defaultChecked
@@ -38,8 +30,8 @@ export default function RootLayout({
                 type="checkbox"
               />
 
-              <section className="flex min-w-0 flex-1 flex-col">
-                <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-6 shadow-surface">
+              <section className="renderer-section-container">
+                <header className="room-header-container">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-wider text-accent">
                       Todak Workspace
@@ -54,7 +46,7 @@ export default function RootLayout({
                       회의 가능
                     </span>
                     <label
-                      className="cursor-pointer rounded-lg bg-default px-3 py-2 text-xs font-black text-default-foreground shadow-surface transition-colors hover:bg-default-hover"
+                      className="room-toggle-button"
                       htmlFor="room-chat-toggle"
                     >
                       채팅 열기/닫기
@@ -62,12 +54,10 @@ export default function RootLayout({
                   </div>
                 </header>
 
-                {renderer}
+                {renderer ?? children}
               </section>
 
-              <aside className="h-full w-0 shrink-0 overflow-hidden border-l border-border bg-surface transition-[width] duration-300 peer-checked/chat:w-[320px]">
-                {chats}
-              </aside>
+              <aside className="chat-container">{chats}</aside>
             </main>
           </div>
         </QueryProvider>

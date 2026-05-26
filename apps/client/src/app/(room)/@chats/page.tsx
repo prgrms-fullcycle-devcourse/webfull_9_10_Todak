@@ -18,10 +18,11 @@ const chatMessages = [
     time: '16:16',
   },
 ];
+
 export default function Chats() {
   return (
     <>
-      <div className="flex h-full w-[320px] flex-col">
+      <div className="chat-panel-container">
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface-secondary px-4">
           <div>
             <p className="text-xs font-black text-foreground">로비 대화방</p>

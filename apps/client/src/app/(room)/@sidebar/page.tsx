@@ -15,6 +15,7 @@ const archiveItems = [
     title: '백엔드 모노레포 구조 이식 전략',
   },
 ];
+
 export default function Sidebar() {
   return (
     <>
