@@ -11,8 +11,13 @@ import {
   getRoomByIdHandler,
   getRoomsHandler,
   joinRoomHandler,
+  updateRoomHandler,
 } from './rooms.controller.js';
-import { CreateRoomSchema, JoinRoomSchema } from './rooms.schema.js';
+import {
+  CreateRoomSchema,
+  JoinRoomSchema,
+  UpdateRoomSchema,
+} from './rooms.schema.js';
 
 const router = Router();
 
@@ -22,6 +27,7 @@ router.get('/', getRoomsHandler);
 router.post('/', validate(CreateRoomSchema), createRoomHandler);
 router.post('/join', validate(JoinRoomSchema), joinRoomHandler);
 router.get('/:roomId', getRoomByIdHandler);
+router.patch('/:roomId', validate(UpdateRoomSchema), updateRoomHandler);
 router.delete('/:roomId', deleteRoomHandler);
 router.use('/:roomId/private-room', privateRoomRoutes);
 

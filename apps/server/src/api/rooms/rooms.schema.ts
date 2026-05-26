@@ -20,3 +20,14 @@ export const JoinRoomSchema = z.object({
 });
 
 export type JoinRoomInput = z.infer<typeof JoinRoomSchema>;
+
+export const UpdateRoomSchema = z
+  .object({
+    name: z.string().min(1).max(100).optional(),
+    max_members: z.number().int().min(2).max(20).optional(),
+  })
+  .refine(data => data.name !== undefined || data.max_members !== undefined, {
+    message: '수정할 항목을 하나 이상 입력해주세요.',
+  });
+
+export type UpdateRoomInput = z.infer<typeof UpdateRoomSchema>;

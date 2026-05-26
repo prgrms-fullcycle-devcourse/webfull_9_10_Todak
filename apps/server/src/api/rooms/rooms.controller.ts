@@ -7,10 +7,15 @@ import {
   getRoomById,
   getRooms,
   joinRoom,
+  updateRoom,
 } from '../../services/rooms.service.js';
 import { AuthenticatedRequest } from '../../types/index.js';
 
-import { CreateRoomInput, JoinRoomInput } from './rooms.schema.js';
+import {
+  CreateRoomInput,
+  JoinRoomInput,
+  UpdateRoomInput,
+} from './rooms.schema.js';
 
 // 룸 생성
 export async function createRoomHandler(
@@ -94,6 +99,28 @@ export async function joinRoomHandler(
     const result = await joinRoom(userId, input);
 
     res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// 룸 정보 수정
+export async function updateRoomHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const userId = req.user?.id;
+    if (userId === undefined) {
+      throw new AppError('UNAUTHORIZED');
+    }
+
+    const { roomId } = req.params as { roomId: string };
+    const input = req.body as UpdateRoomInput;
+    const room = await updateRoom(userId, roomId, input);
+
+    res.status(200).json({ success: true, data: room });
   } catch (err) {
     next(err);
   }

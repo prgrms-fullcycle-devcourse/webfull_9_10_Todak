@@ -1,4 +1,8 @@
-import { CreateRoomInput, JoinRoomInput } from '../api/rooms/rooms.schema.js';
+import {
+  CreateRoomInput,
+  JoinRoomInput,
+  UpdateRoomInput,
+} from '../api/rooms/rooms.schema.js';
 import { AppError } from '../errors/AppError.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
@@ -176,6 +180,43 @@ export async function getRoomById(userId: string, roomId: string) {
       pos_y: m.posY,
     })),
     member_count: room.members.length,
+  };
+}
+
+// 룸 정보 수정
+export async function updateRoom(
+  userId: string,
+  roomId: string,
+  input: UpdateRoomInput,
+) {
+  const membership = await prisma.roomMember.findFirst({
+    where: { roomId, userId },
+    include: { room: { include: { members: true } } },
+  });
+
+  if (membership === null) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  if (
+    input.max_members !== undefined &&
+    input.max_members < membership.room.members.length
+  ) {
+    throw new AppError('BAD_REQUEST');
+  }
+
+  const updated = await prisma.room.update({
+    where: { id: roomId },
+    data: {
+      ...(input.name !== undefined && { name: input.name }),
+      ...(input.max_members !== undefined && { maxMembers: input.max_members }),
+    },
+  });
+
+  return {
+    id: updated.id,
+    name: updated.name,
+    max_members: updated.maxMembers,
   };
 }
 
