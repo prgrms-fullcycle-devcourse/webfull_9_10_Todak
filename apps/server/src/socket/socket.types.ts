@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { Server, Socket } from 'socket.io';
 
+import { PrivateRoomInfo } from '../services/private-room.service.js';
+
 /*
  * 유저 정보 (JWT 검증 후 socket.data.user 에 저장됨)
  */
@@ -33,6 +35,9 @@ export interface ServerToClientEvents {
     posY: number;
   }) => void;
 
+  // Private Room
+  'room:private-rooms-updated': (data: PrivateRoomInfo[]) => void;
+
   // Chat
   'chat:message': (data: {
     userId: string;
@@ -62,6 +67,16 @@ export interface ClientToServerEvents {
   'room:leave': (roomId: string) => void;
   'room:status-change': (data: { roomId: string; status: string }) => void;
   'room:move': (data: { roomId: string; posX: number; posY: number }) => void;
+
+  // Private Room
+  'private-room:enter': (data: {
+    roomId: string;
+    privateRoomId: string;
+  }) => void;
+  'private-room:leave': (data: {
+    roomId: string;
+    privateRoomId: string;
+  }) => void;
 
   // Chat
   'chat:send': (data: {
