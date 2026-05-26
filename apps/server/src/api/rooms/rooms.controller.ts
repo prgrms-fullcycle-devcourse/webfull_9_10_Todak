@@ -5,10 +5,11 @@ import {
   createRoom,
   deleteRoom,
   getRooms,
+  joinRoom,
 } from '../../services/rooms.service.js';
 import { AuthenticatedRequest } from '../../types/index.js';
 
-import { CreateRoomInput } from './rooms.schema.js';
+import { CreateRoomInput, JoinRoomInput } from './rooms.schema.js';
 
 // 룸 생성
 export async function createRoomHandler(
@@ -50,6 +51,27 @@ export async function getRoomsHandler(
 
     const rooms = await getRooms(userId);
     res.status(200).json({ success: true, data: rooms });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// 초대 코드로 룸 입장
+export async function joinRoomHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const userId = req.user?.id;
+    if (userId === undefined) {
+      throw new AppError('UNAUTHORIZED');
+    }
+
+    const input = req.body as JoinRoomInput;
+    const result = await joinRoom(userId, input);
+
+    res.status(200).json({ success: true, ...result });
   } catch (err) {
     next(err);
   }

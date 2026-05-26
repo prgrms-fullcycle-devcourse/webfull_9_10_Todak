@@ -1,4 +1,4 @@
-import { CreateRoomInput } from '../api/rooms/rooms.schema.js';
+import { CreateRoomInput, JoinRoomInput } from '../api/rooms/rooms.schema.js';
 import { AppError } from '../errors/AppError.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
@@ -116,6 +116,33 @@ export async function getRooms(userId: string) {
       stats: linkedRepo?.statsCache ?? null,
     };
   });
+}
+
+// 초대 코드로 룸 입장
+export async function joinRoom(userId: string, input: JoinRoomInput) {
+  const room = await prisma.room.findUnique({
+    where: { inviteCode: input.invite_code },
+    include: { members: true },
+  });
+
+  if (room === null) {
+    throw new AppError('INVALID_INVITE_CODE');
+  }
+
+  const alreadyMember = room.members.some(m => m.userId === userId);
+  if (alreadyMember) {
+    throw new AppError('ALREADY_JOINED');
+  }
+
+  if (room.members.length >= room.maxMembers) {
+    throw new AppError('ROOM_FULL');
+  }
+
+  await prisma.roomMember.create({
+    data: { roomId: room.id, userId },
+  });
+
+  return { room_id: room.id, name: room.name };
 }
 
 // 룸 삭제 — webhook 해제 후 관련 레코드 전체 삭제

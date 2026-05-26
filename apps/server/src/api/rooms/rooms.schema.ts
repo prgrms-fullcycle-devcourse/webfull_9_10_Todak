@@ -9,3 +9,14 @@ export const CreateRoomSchema = z.object({
 });
 
 export type CreateRoomInput = z.infer<typeof CreateRoomSchema>;
+
+export const JoinRoomSchema = z.object({
+  invite_code: z
+    .string()
+    .regex(
+      /^[A-Z0-9]{4}-[A-Z0-9]{4}$/,
+      'XXXX-XXXX 형식의 초대 코드를 입력해주세요.',
+    ),
+});
+
+export type JoinRoomInput = z.infer<typeof JoinRoomSchema>;

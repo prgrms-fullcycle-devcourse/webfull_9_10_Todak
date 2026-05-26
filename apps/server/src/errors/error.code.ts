@@ -107,6 +107,21 @@ export const ERROR_CODES = {
     code: 'ALREADY_IN_PRIVATE_ROOM',
     message: '이미 다른 프라이빗 룸에 입장 중입니다.',
   },
+  ALREADY_JOINED: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ALREADY_JOINED',
+    message: '이미 참여한 룸입니다.',
+  },
+  ROOM_FULL: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ROOM_FULL',
+    message: '룸 정원이 초과되었습니다.',
+  },
+  INVALID_INVITE_CODE: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'INVALID_INVITE_CODE',
+    message: '유효하지 않은 초대 코드입니다.',
+  },
 
   // 500
   INTERNAL_SERVER_ERROR: {
