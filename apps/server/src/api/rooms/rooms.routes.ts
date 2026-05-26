@@ -8,6 +8,7 @@ import privateRoomRoutes from './private-room/private-room.routes.js';
 import {
   createRoomHandler,
   deleteRoomHandler,
+  getRoomByIdHandler,
   getRoomsHandler,
   joinRoomHandler,
 } from './rooms.controller.js';
@@ -20,6 +21,7 @@ router.use(requireAuth);
 router.get('/', getRoomsHandler);
 router.post('/', validate(CreateRoomSchema), createRoomHandler);
 router.post('/join', validate(JoinRoomSchema), joinRoomHandler);
+router.get('/:roomId', getRoomByIdHandler);
 router.delete('/:roomId', deleteRoomHandler);
 router.use('/:roomId/private-room', privateRoomRoutes);
 

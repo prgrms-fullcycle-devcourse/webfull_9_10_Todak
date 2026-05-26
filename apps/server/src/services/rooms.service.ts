@@ -37,6 +37,13 @@ export async function createRoom(
   accessToken: string,
   input: CreateRoomInput,
 ) {
+  const existingRepo = await prisma.repo.findFirst({
+    where: { fullName: input.repo_full_name },
+  });
+  if (existingRepo !== null) {
+    throw new AppError('REPO_ALREADY_IN_USE');
+  }
+
   const [owner, repo] = input.repo_full_name.split('/');
 
   // Admin 권한 확인 및 webhook 등록 (실패 시 AppError throw → 룸 생성 금지)
@@ -116,6 +123,60 @@ export async function getRooms(userId: string) {
       stats: linkedRepo?.statsCache ?? null,
     };
   });
+}
+
+// 특정 룸 상세 조회
+export async function getRoomById(userId: string, roomId: string) {
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    include: {
+      repos: true,
+      members: {
+        include: { user: true },
+      },
+    },
+  });
+
+  if (room === null) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  const isMember = room.members.some(m => m.userId === userId);
+  if (!isMember) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  const linkedRepo = room.repos[0] ?? null;
+
+  return {
+    id: room.id,
+    name: room.name,
+    status: room.status,
+    invite_code: room.inviteCode,
+    max_members: room.maxMembers,
+    created_at: room.createdAt,
+    repo:
+      linkedRepo !== null
+        ? {
+            full_name: linkedRepo.fullName,
+            default_branch: linkedRepo.defaultBranch,
+            stats_cache: linkedRepo.statsCache,
+            stats_cached_at: linkedRepo.statsCachedAt,
+          }
+        : null,
+    members: room.members.map(m => ({
+      github_username: m.user.githubUsername,
+      avatar_url: m.user.avatarUrl,
+      role: m.role,
+      character_type: m.characterType,
+      nickname: m.nickname,
+      status: m.status,
+      is_host: m.isHost,
+      pos_x: m.posX,
+      pos_y: m.posY,
+    })),
+    member_count: room.members.length,
+  };
 }
 
 // 초대 코드로 룸 입장

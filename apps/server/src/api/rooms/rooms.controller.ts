@@ -4,6 +4,7 @@ import { AppError } from '../../errors/AppError.js';
 import {
   createRoom,
   deleteRoom,
+  getRoomById,
   getRooms,
   joinRoom,
 } from '../../services/rooms.service.js';
@@ -51,6 +52,27 @@ export async function getRoomsHandler(
 
     const rooms = await getRooms(userId);
     res.status(200).json({ success: true, data: rooms });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// 특정 룸 상세 조회
+export async function getRoomByIdHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const userId = req.user?.id;
+    if (userId === undefined) {
+      throw new AppError('UNAUTHORIZED');
+    }
+
+    const { roomId } = req.params as { roomId: string };
+    const room = await getRoomById(userId, roomId);
+
+    res.status(200).json({ success: true, data: room });
   } catch (err) {
     next(err);
   }
