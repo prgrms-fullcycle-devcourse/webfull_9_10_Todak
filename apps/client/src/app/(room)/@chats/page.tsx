@@ -1,3 +1,9 @@
+'use client';
+
+import { Button } from '@heroui/react';
+
+import ChatCloseButton from './_components/ChatCloseButton';
+
 const chatMessages = [
   {
     id: 1,
@@ -30,27 +36,22 @@ export default function Chats() {
               회의 대기 중
             </p>
           </div>
-          <label
-            className="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-default text-sm font-black text-default-foreground transition-colors hover:bg-default-hover"
-            htmlFor="room-chat-toggle"
-          >
-            ×
-          </label>
+          <ChatCloseButton />
         </div>
 
         <div className="grid grid-cols-2 border-b border-border text-[11px] font-black">
-          <button
-            className="border-b-2 border-accent bg-surface px-3 py-2.5 text-accent"
-            type="button"
+          <Button
+            className="h-auto min-w-0 rounded-none border-b-2 border-accent bg-surface px-3 py-2.5 text-[11px] font-black text-accent"
+            variant="ghost"
           >
             전체 채널
-          </button>
-          <button
-            className="border-b-2 border-transparent bg-surface-secondary px-3 py-2.5 text-muted"
-            type="button"
+          </Button>
+          <Button
+            className="h-auto min-w-0 rounded-none border-b-2 border-transparent bg-surface-secondary px-3 py-2.5 text-[11px] font-black text-muted"
+            variant="ghost"
           >
             프라이빗 룸
-          </button>
+          </Button>
         </div>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-surface-secondary/60 p-4">
@@ -81,12 +82,12 @@ export default function Chats() {
             className="min-w-0 flex-1 rounded-lg border border-field-border bg-field px-3 py-2 text-xs text-field-foreground outline-none placeholder:text-field-placeholder focus:border-field-border-focus"
             placeholder="메시지를 전송하세요..."
           />
-          <button
-            className="rounded-lg bg-accent px-3 py-2 text-xs font-black text-accent-foreground transition-colors hover:bg-accent-hover"
-            type="button"
+          <Button
+            className="h-auto min-w-0 rounded-lg bg-accent px-3 py-2 text-xs font-black text-accent-foreground transition-colors hover:bg-accent-hover"
+            variant="ghost"
           >
             전송
-          </button>
+          </Button>
         </div>
       </div>
     </>

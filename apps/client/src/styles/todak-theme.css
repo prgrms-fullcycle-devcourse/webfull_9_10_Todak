@@ -174,15 +174,45 @@
   }
 
   .renderer-section-container {
-    @apply flex min-w-0 flex-1 flex-col;
+    @apply flex min-w-0 flex-1 flex-col overflow-hidden;
   }
 
   .renderer-container {
-    @apply flex min-h-0 flex-1 flex-col gap-4 p-4;
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden bg-surface-secondary;
+  }
+
+  .renderer-stage-container {
+    @apply relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-8;
   }
 
   .renderer-surface {
-    @apply relative min-h-[520px] flex-1 overflow-hidden rounded-2xl border border-border bg-overlay;
+    @apply relative h-[400px] w-[600px] shrink-0 overflow-hidden rounded-2xl border border-border bg-overlay;
+    box-shadow: var(--overlay-shadow);
+  }
+
+  .renderer-toolbar {
+    @apply absolute right-8 top-8 z-30 flex items-center gap-2 rounded-2xl border border-border bg-surface/95 p-3 backdrop-blur-md;
+    box-shadow: var(--surface-shadow);
+  }
+
+  .renderer-toolbar-button {
+    @apply rounded-lg bg-default px-3 py-2 text-xs font-black text-default-foreground transition-colors hover:bg-default-hover;
+  }
+
+  .renderer-bottom-container {
+    @apply shrink-0 border-t border-border bg-surface;
+  }
+
+  .renderer-todo-container {
+    @apply space-y-4 px-8 py-5;
+  }
+
+  .renderer-news-container {
+    @apply flex h-12 items-center justify-between bg-foreground px-8 text-background;
+  }
+
+  .review-station-card {
+    @apply absolute left-3 top-3 z-20 w-64 rounded-xl border border-slate-800 bg-slate-900/95 p-3 text-white;
     box-shadow: var(--overlay-shadow);
   }
 
