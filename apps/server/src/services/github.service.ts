@@ -100,6 +100,20 @@ export async function registerWebhook(
       if (err.status === 404) {
         throw new AppError('REPO_NOT_FOUND');
       }
+
+      // 422 = 동일한 URL의 webhook이 이미 존재 → 기존 webhook ID 반환
+      if (err.status === 422) {
+        const { data: hooks } = await octokit.repos.listWebhooks({
+          owner,
+          repo,
+        });
+        const existing = hooks.find(h => h.config.url === webhookUrl);
+        if (existing !== undefined) {
+          return String(existing.id);
+        }
+        throw new AppError('GITHUB_API_ERROR');
+      }
+
       throw new AppError('GITHUB_API_ERROR');
     }
     throw err;

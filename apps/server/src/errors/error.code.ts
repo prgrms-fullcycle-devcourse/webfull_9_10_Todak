@@ -112,6 +112,11 @@ export const ERROR_CODES = {
     code: 'ALREADY_JOINED',
     message: '이미 참여한 룸입니다.',
   },
+  REPO_ALREADY_IN_USE: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'REPO_ALREADY_IN_USE',
+    message: '이미 다른 룸에서 사용 중인 레포지토리입니다.',
+  },
   ROOM_FULL: {
     statusCode: StatusCodes.CONFLICT,
     code: 'ROOM_FULL',
