@@ -1,9 +1,15 @@
 import { Router } from 'express';
 
-import { getPrivateRoomsHandler } from './private-room.controller.js';
+import {
+  getPrivateRoomsHandler,
+  enterPrivateRoomHandler,
+  leavePrivateRoomHandler,
+} from './private-room.controller.js';
 
 const router = Router({ mergeParams: true });
 
 router.get('/', getPrivateRoomsHandler);
+router.post('/:privateRoomId/enter', enterPrivateRoomHandler);
+router.post('/:privateRoomId/leave', leavePrivateRoomHandler);
 
 export default router;

@@ -31,3 +31,34 @@ export const PrivateRoomsResponseSchema = registry.register(
     data: z.array(PrivateRoomInfoSchema),
   }),
 );
+
+export const EnterPrivateRoomResponseSchema = registry.register(
+  'EnterPrivateRoomResponse',
+  z.object({
+    private_room_id: z
+      .string()
+      .uuid()
+      .openapi({ example: 'uuid-private-room-1' }),
+    user_id: z.string().uuid().openapi({ example: 'uuid-user-1' }),
+    entered_at: z
+      .string()
+      .datetime()
+      .openapi({ example: '2026-05-18T14:02:00.000Z' }),
+  }),
+);
+
+export const LeavePrivateRoomResponseSchema = registry.register(
+  'LeavePrivateRoomResponse',
+  z.object({
+    private_room_id: z
+      .string()
+      .uuid()
+      .openapi({ example: 'uuid-private-room-1' }),
+    user_id: z.string().uuid().openapi({ example: 'uuid-user-1' }),
+    left_at: z
+      .string()
+      .datetime()
+      .openapi({ example: '2026-05-18T14:30:00.000Z' }),
+    meeting_cancelled: z.boolean().openapi({ example: false }),
+  }),
+);
