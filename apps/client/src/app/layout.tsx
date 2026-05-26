@@ -16,7 +16,7 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="ko">
+    <html className="todak" data-theme="todak" lang="ko">
       <body>
         <QueryProvider>{children}</QueryProvider>
       </body>

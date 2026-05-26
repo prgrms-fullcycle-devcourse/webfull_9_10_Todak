@@ -1,0 +1,287 @@
+@theme {
+  --color-todak-coral-50: #fff5f4;
+  --color-todak-coral-100: #ffebe9;
+  --color-todak-coral-200: #ffd6d1;
+  --color-todak-coral-300: #fca5a5;
+  --color-todak-coral-500: #ff6f61;
+  --color-todak-coral-600: #fa5a4a;
+
+  --color-todak-bg: #fafaf9;
+  --color-todak-surface: #ffffff;
+  --color-todak-ink: #1e293b;
+  --color-todak-muted: #64748b;
+  --color-todak-line: #e5e7eb;
+
+  --font-todak-sans: 'Noto Sans KR', ui-sans-serif, system-ui, sans-serif;
+  --font-todak-mono:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+
+  --shadow-todak-soft: 0 12px 30px rgb(15 23 42 / 8%);
+  --shadow-todak-panel: 0 20px 45px rgb(15 23 42 / 12%);
+  --shadow-todak-neon-red: 0 0 15px rgb(239 68 68 / 40%);
+  --shadow-todak-neon-idle: 0 0 15px rgb(34 197 94 / 20%);
+
+  --animate-todak-fade-in: todak-fade-in 180ms ease-out both;
+  --animate-todak-neon-red: todak-neon-red 2s infinite alternate;
+}
+
+@layer theme {
+  :root,
+  .todak,
+  [data-theme='todak'] {
+    color-scheme: light;
+
+    --white: #ffffff;
+    --black: #000000;
+    --snow: var(--color-todak-bg);
+    --eclipse: var(--color-todak-ink);
+
+    --border-width: 1px;
+    --field-border-width: 1px;
+    --disabled-opacity: 0.5;
+    --ring-offset-width: 2px;
+    --radius: 0.5rem;
+    --field-radius: 0.75rem;
+
+    --background: var(--color-todak-bg);
+    --foreground: var(--color-todak-ink);
+
+    --surface: var(--color-todak-surface);
+    --surface-foreground: var(--foreground);
+    --surface-secondary: #f8fafc;
+    --surface-secondary-foreground: var(--foreground);
+    --surface-tertiary: #f1f5f9;
+    --surface-tertiary-foreground: var(--foreground);
+
+    --overlay: var(--color-todak-surface);
+    --overlay-foreground: var(--foreground);
+    --muted: var(--color-todak-muted);
+
+    --default: #f3f4f6;
+    --default-foreground: var(--color-slateGray);
+
+    --accent: var(--color-todak-coral-500);
+    --accent-foreground: var(--white);
+
+    --success: #22c55e;
+    --success-foreground: var(--white);
+    --warning: #f59e0b;
+    --warning-foreground: var(--foreground);
+    --danger: #ef4444;
+    --danger-foreground: var(--white);
+
+    --segment: var(--surface);
+    --segment-foreground: var(--foreground);
+
+    --border: var(--color-todak-line);
+    --separator: var(--color-todak-line);
+    --focus: var(--accent);
+    --link: var(--accent);
+    --backdrop: rgb(0 0 0 / 50%);
+
+    --field-background: var(--surface);
+    --field-foreground: var(--foreground);
+    --field-placeholder: #94a3b8;
+    --field-border: var(--border);
+
+    --surface-shadow: var(--shadow-todak-soft);
+    --overlay-shadow: var(--shadow-todak-panel);
+    --field-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  }
+}
+
+@layer base {
+  body {
+    margin: 0;
+    background: var(--color-todak-bg);
+    color: var(--color-todak-ink);
+    font-family: var(--font-todak-sans);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  ::selection {
+    background: var(--color-todak-coral-100);
+    color: var(--color-todak-ink);
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+@layer components {
+  .todak-shell {
+    @apply flex min-h-dvh flex-col overflow-hidden bg-white text-todak-ink select-none;
+  }
+
+  .todak-page-center {
+    @apply flex min-h-dvh items-center justify-center bg-todak-bg p-8;
+  }
+
+  .todak-card {
+    @apply rounded-2xl border border-todak-line bg-white shadow-todak-soft;
+  }
+
+  .todak-panel {
+    @apply border border-todak-line bg-white shadow-todak-panel;
+  }
+
+  .todak-sidebar {
+    @apply flex h-full shrink-0 flex-col overflow-hidden border-r border-gray-200/80 bg-todak-bg;
+  }
+
+  .todak-section-label {
+    @apply text-[10px] font-bold tracking-wider text-gray-400 uppercase;
+  }
+
+  .todak-title {
+    @apply text-2xl font-black tracking-normal text-slate-900;
+  }
+
+  .todak-subcopy {
+    @apply text-xs leading-relaxed text-gray-500;
+  }
+
+  .todak-button-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-todak-coral-500 px-4 py-2.5 text-xs font-black text-white shadow-md transition-all hover:bg-todak-coral-600 focus:outline-none;
+  }
+
+  .todak-button-dark {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-black text-white shadow-md transition-all hover:bg-slate-800 focus:outline-none;
+  }
+
+  .todak-button-soft {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-gray-100 focus:outline-none;
+  }
+
+  .todak-segment {
+    @apply flex overflow-hidden rounded-lg border border-gray-200 text-xs font-bold;
+  }
+
+  .todak-segment-item {
+    @apply flex-1 bg-todak-bg px-3 py-2 text-gray-500 transition-colors hover:bg-gray-100 focus:outline-none;
+  }
+
+  .todak-segment-item-active {
+    @apply bg-slate-900 text-white hover:bg-slate-900;
+  }
+
+  .todak-input {
+    @apply w-full rounded-xl border border-gray-200 bg-white p-3 text-xs text-slate-700 transition-colors placeholder:text-gray-400 focus:border-todak-coral-500 focus:outline-none;
+  }
+
+  .todak-select {
+    @apply w-full rounded-xl border border-gray-200 bg-white p-3 text-xs text-slate-700 transition-colors focus:border-todak-coral-500 focus:outline-none;
+  }
+
+  .todak-chip {
+    @apply inline-flex items-center justify-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500;
+  }
+
+  .todak-chip-coral {
+    @apply inline-flex items-center justify-center rounded-full border border-todak-coral-200 bg-todak-coral-50 px-2 py-0.5 text-[10px] font-bold text-todak-coral-500;
+  }
+
+  .todak-nav-item {
+    @apply flex w-full items-center gap-3 rounded-xl border border-gray-200/60 bg-white px-3.5 py-2.5 text-left text-xs font-bold text-slate-700 transition-all hover:bg-gray-100;
+  }
+
+  .todak-nav-item-active {
+    @apply border-todak-coral-500 bg-todak-coral-500 text-white shadow-sm hover:bg-todak-coral-500;
+  }
+
+  .todak-town-canvas {
+    @apply relative h-[400px] w-[600px] shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl;
+  }
+
+  .todak-room {
+    @apply pointer-events-none rounded-xl border-2 border-slate-200 bg-slate-50/80 p-3 transition-all duration-300;
+  }
+
+  .todak-room-active {
+    @apply border-rose-500 shadow-todak-neon-red animate-todak-neon-red;
+  }
+
+  .todak-room-idle {
+    @apply border-slate-200 shadow-todak-neon-idle;
+  }
+
+  .todak-avatar {
+    @apply flex items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm;
+  }
+
+  .todak-avatar-own {
+    @apply border-2 border-todak-coral-500 shadow-md;
+  }
+
+  .todak-bubble {
+    @apply rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white shadow-lg;
+  }
+
+  .todak-toast {
+    @apply fixed top-20 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900/90 px-5 py-2.5 text-xs font-semibold text-white shadow-lg backdrop-blur-xs;
+  }
+}
+
+@layer utilities {
+  .todak-mono {
+    font-family: var(--font-todak-mono);
+  }
+
+  .todak-grid-bg {
+    background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+    background-size: 20px 20px;
+  }
+
+  .todak-draggable {
+    cursor: grab;
+    user-select: none;
+  }
+
+  .todak-draggable:active {
+    cursor: grabbing;
+  }
+}
+
+@keyframes todak-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes todak-neon-red {
+  from {
+    border-color: #ef4444;
+  }
+
+  to {
+    border-color: #fca5a5;
+  }
+}
