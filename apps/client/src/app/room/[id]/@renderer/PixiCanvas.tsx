@@ -1,0 +1,98 @@
+'use client';
+import { useEffect, useRef } from 'react';
+import * as PIXI from 'pixi.js';
+import { useSpaceStore } from '@/store/useSpaceStore';
+import { loadAllAnimalAssets } from './_animals/animalAssets';
+import { createPlayer, CHAR_WIDTH, CHAR_HEIGHT } from './_player/createPlayer';
+import { setupMovement } from './_player/setupMovement';
+
+export default function PixiCanvas() {
+  // 캔버스를 마운트할 DOM 컨테이너 참조
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let app: PIXI.Application | null = null;
+    let unsubscribeStatus: (() => void) | null = null;
+    let unsubscribeAnimal: (() => void) | null = null;
+    let cleanupMovement: (() => void) | null = null;
+
+    const initPixi = async () => {
+      app = new PIXI.Application();
+      await app.init({
+        width: 1000,
+        height: 500,
+        backgroundAlpha: 0,
+        resolution: window.devicePixelRatio || 1, // 레티나 대응
+        autoDensity: true,
+      });
+
+      if (canvasRef.current) {
+        canvasRef.current.innerHTML = '';
+        canvasRef.current.appendChild(app.canvas);
+      }
+
+      // 동물 에셋 로드 & 현재 선택된 동물 결정
+      const animalAssets = await loadAllAnimalAssets();
+
+      const currentType = useSpaceStore.getState().currentAnimal;
+
+      // store에서 동물 변경 시, 변수만 변경하면 ticker 자동 반영
+      let activeTextures = animalAssets[currentType] ?? animalAssets.rabbit;
+
+      // 플레이어 생성 (스프라이트 + 이름표 + 상태창 + 클릭 메뉴)
+      const player = createPlayer(app, activeTextures);
+      app.stage.addChild(player.container);
+
+      // Zustand 구독
+      // 상태 텍스트 (예: "💻 개발 중") 변경 시 머리 위 텍스트 업데이트
+      unsubscribeStatus = useSpaceStore.subscribe(
+        state => state.myChar.status,
+        newStatus => {
+          player.statusText.text = newStatus;
+        },
+      );
+
+      // 동물 종류 변경 시 텍스처 스왑
+      unsubscribeAnimal = useSpaceStore.subscribe(
+        state => state.currentAnimal,
+        newAnimal => {
+          activeTextures = animalAssets[newAnimal] ?? animalAssets.rabbit;
+          player.sprite.texture = activeTextures.front;
+          player.sprite.width = CHAR_WIDTH;
+          player.sprite.height = CHAR_HEIGHT;
+        },
+      );
+
+      // 빈 공간 클릭 시 링 메뉴 닫기
+      app.stage.eventMode = 'static';
+      app.stage.on('pointerdown', () => {
+        useSpaceStore.getState().setMenuOpen(false);
+      });
+
+      // 이동 로직 셋업
+      cleanupMovement = setupMovement(app, player, () => activeTextures);
+    };
+
+    initPixi();
+
+    // 컴포넌트 언마운트 시 호출
+    return () => {
+      cleanupMovement?.();
+      unsubscribeStatus?.();
+      unsubscribeAnimal?.();
+      app?.destroy(true, { children: true, texture: true });
+    };
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 p-4">
+      <div
+        ref={canvasRef}
+        className="border-4 border-slate-700 rounded-xl overflow-hidden shadow-2xl"
+      />
+      <p className="text-slate-400 text-sm">
+        방향키를 눌러 캐릭터를 움직여 보세요!
+      </p>
+    </div>
+  );
+}
