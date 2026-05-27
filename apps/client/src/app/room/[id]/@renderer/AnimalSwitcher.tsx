@@ -1,6 +1,6 @@
 'use client';
 import { useSpaceStore } from '@/store/useSpaceStore';
-import type { AnimalType } from './animals/types';
+import type { AnimalType } from './_animals/types';
 
 const ANIMAL_LABELS: Record<AnimalType, string> = {
   rabbit: '🐰 토끼',

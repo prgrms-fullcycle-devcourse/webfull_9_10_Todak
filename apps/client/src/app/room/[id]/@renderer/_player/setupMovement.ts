@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import type { AnimalAssetPack } from '../animals/types';
+import type { AnimalAssetPack } from '../_animals/types';
 import { type Player, CHAR_HEIGHT } from './createPlayer';
 
 const SPEED = 5;

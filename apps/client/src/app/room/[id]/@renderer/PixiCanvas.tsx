@@ -2,9 +2,9 @@
 import { useEffect, useRef } from 'react';
 import * as PIXI from 'pixi.js';
 import { useSpaceStore } from '@/store/useSpaceStore';
-import { loadAllAnimalAssets } from './animals/animalAssets';
-import { createPlayer, CHAR_WIDTH, CHAR_HEIGHT } from './player/createPlayer';
-import { setupMovement } from './player/setupMovement';
+import { loadAllAnimalAssets } from './_animals/animalAssets';
+import { createPlayer, CHAR_WIDTH, CHAR_HEIGHT } from './_player/createPlayer';
+import { setupMovement } from './_player/setupMovement';
 
 export default function PixiCanvas() {
   // 캔버스를 마운트할 DOM 컨테이너 참조
