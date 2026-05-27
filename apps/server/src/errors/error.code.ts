@@ -95,6 +95,11 @@ export const ERROR_CODES = {
     code: 'PRIVATE_ROOM_NOT_FOUND',
     message: '프라이빗 룸을 찾을 수 없습니다.',
   },
+  ROOM_MEMBER_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'ROOM_MEMBER_NOT_FOUND',
+    message: '룸 멤버를 찾을 수 없습니다.',
+  },
 
   // 409
   CONFLICT: {
@@ -121,6 +126,12 @@ export const ERROR_CODES = {
     statusCode: StatusCodes.CONFLICT,
     code: 'ROOM_FULL',
     message: '룸 정원이 초과되었습니다.',
+  },
+  ROOM_MEMBER_ALREADY_SET_UP: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ROOM_MEMBER_ALREADY_SET_UP',
+    message:
+      '이미 캐릭터/역할이 설정되어 있습니다. 프로필 수정을 이용해주세요.',
   },
   INVALID_INVITE_CODE: {
     statusCode: StatusCodes.NOT_FOUND,
