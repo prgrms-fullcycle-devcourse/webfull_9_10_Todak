@@ -1,9 +1,11 @@
 import BottomInfoContainer from '../_components/BottomInfoContainer';
 import PixiCanvas from './PixiCanvas';
+import AnimalSwitcher from './AnimalSwitcher';
 
 export default async function Renderer() {
   return (
     <div className="renderer-container h-full w-full flex flex-col">
+      <AnimalSwitcher />
       {/* 2D 가상 공간 */}
       <div className="renderer-stage-container flex-1 flex items-center justify-center p-4 relative">
         {/* 테두리와 배경 그림자, 그리고 투명 캔버스 뒤에 깔릴 가상 그리드 배경 주입 */}

@@ -2,16 +2,18 @@
 import { useEffect, useRef } from 'react';
 import * as PIXI from 'pixi.js';
 import { useSpaceStore } from '@/store/useSpaceStore';
-import { loadAnimalAsset } from './animals/animalAssets';
-import { createPlayer } from './player/createPlayer';
+import { loadAllAnimalAssets } from './animals/animalAssets';
+import { createPlayer, CHAR_WIDTH, CHAR_HEIGHT } from './player/createPlayer';
 import { setupMovement } from './player/setupMovement';
 
 export default function PixiCanvas() {
+  // 캔버스를 마운트할 DOM 컨테이너 참조
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let app: PIXI.Application | null = null;
     let unsubscribeStatus: (() => void) | null = null;
+    let unsubscribeAnimal: (() => void) | null = null;
     let cleanupMovement: (() => void) | null = null;
 
     const initPixi = async () => {
@@ -20,7 +22,7 @@ export default function PixiCanvas() {
         width: 1000,
         height: 500,
         backgroundAlpha: 0,
-        resolution: window.devicePixelRatio || 1,
+        resolution: window.devicePixelRatio || 1, // 레티나 대응
         autoDensity: true,
       });
 
@@ -29,11 +31,20 @@ export default function PixiCanvas() {
         canvasRef.current.appendChild(app.canvas);
       }
 
-      const textures = await loadAnimalAsset('rabbit');
-      const player = createPlayer(app, textures);
+      // 동물 에셋 로드 & 현재 선택된 동물 결정
+      const animalAssets = await loadAllAnimalAssets();
+
+      const currentType = useSpaceStore.getState().currentAnimal;
+
+      // store에서 동물 변경 시, 변수만 변경하면 ticker 자동 반영
+      let activeTextures = animalAssets[currentType] ?? animalAssets.rabbit;
+
+      // 플레이어 생성 (스프라이트 + 이름표 + 상태창 + 클릭 메뉴)
+      const player = createPlayer(app, activeTextures);
       app.stage.addChild(player.container);
 
-      // 상태 텍스트 구독
+      // Zustand 구독
+      // 상태 텍스트 (예: "💻 개발 중") 변경 시 머리 위 텍스트 업데이트
       unsubscribeStatus = useSpaceStore.subscribe(
         state => state.myChar.status,
         newStatus => {
@@ -41,21 +52,34 @@ export default function PixiCanvas() {
         },
       );
 
-      // 빈 공간 클릭 시 메뉴 닫기
+      // 동물 종류 변경 시 텍스처 스왑
+      unsubscribeAnimal = useSpaceStore.subscribe(
+        state => state.currentAnimal,
+        newAnimal => {
+          activeTextures = animalAssets[newAnimal] ?? animalAssets.rabbit;
+          player.sprite.texture = activeTextures.front;
+          player.sprite.width = CHAR_WIDTH;
+          player.sprite.height = CHAR_HEIGHT;
+        },
+      );
+
+      // 빈 공간 클릭 시 링 메뉴 닫기
       app.stage.eventMode = 'static';
       app.stage.on('pointerdown', () => {
         useSpaceStore.getState().setMenuOpen(false);
       });
 
-      // 이동 로직 설정
-      cleanupMovement = setupMovement(app, player, () => textures);
+      // 이동 로직 셋업
+      cleanupMovement = setupMovement(app, player, () => activeTextures);
     };
 
     initPixi();
 
+    // 컴포넌트 언마운트 시 호출
     return () => {
       cleanupMovement?.();
       unsubscribeStatus?.();
+      unsubscribeAnimal?.();
       app?.destroy(true, { children: true, texture: true });
     };
   }, []);
