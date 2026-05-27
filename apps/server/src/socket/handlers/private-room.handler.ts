@@ -5,6 +5,7 @@ import {
   enterPrivateRoom,
   leavePrivateRoom,
 } from '../../services/private-room.service.js';
+import { updateRoomMemberStatus } from '../../services/room-member.service.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 
 /*
@@ -22,6 +23,13 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
     try {
       // service 재사용
       await enterPrivateRoom(roomId, privateRoomId, user.id);
+
+      // 상태 → meeting 자동 전환
+      await updateRoomMemberStatus(user.id, roomId, 'meeting');
+      io.to(roomId).emit('room:member-status-changed', {
+        userId: user.id,
+        status: 'meeting',
+      });
 
       // 최신 상태 broadcast
       const privateRooms = await getPrivateRooms(roomId);
@@ -52,6 +60,13 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
     try {
       // service 재사용
       await leavePrivateRoom(roomId, privateRoomId, user.id);
+
+      // 상태 → focus 자동 복구
+      await updateRoomMemberStatus(user.id, roomId, 'focus');
+      io.to(roomId).emit('room:member-status-changed', {
+        userId: user.id,
+        status: 'focus',
+      });
 
       // 최신 상태 broadcast
       const privateRooms = await getPrivateRooms(roomId);

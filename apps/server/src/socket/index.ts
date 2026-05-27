@@ -3,6 +3,7 @@ import { Server as HttpServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 
 import { env } from '../config/env.js';
+import { setUserStatusInAllRooms } from '../services/room-member.service.js';
 
 import { registerHandlers } from './handlers/index.js';
 import { socketAuthMiddleware } from './socket.auth.js';
@@ -45,8 +46,22 @@ export function initSocket(httpServer: HttpServer): TypedIO {
 
     registerHandlers(io, socket);
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       console.log(`🔌 [${login}] disconnected (${socket.id})`);
+      try {
+        const roomIds = await setUserStatusInAllRooms(
+          socket.data.user.id,
+          'away',
+        );
+        for (const roomId of roomIds) {
+          io.to(roomId).emit('room:member-status-changed', {
+            userId: socket.data.user.id,
+            status: 'away',
+          });
+        }
+      } catch {
+        console.error(`[disconnect] status away 처리 실패: ${login}`);
+      }
     });
   });
 
