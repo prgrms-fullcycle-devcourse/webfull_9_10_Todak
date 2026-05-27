@@ -240,7 +240,8 @@ registry.registerPath({
                 z.object({
                   github_username: z.string(),
                   avatar_url: z.string().nullable(),
-                  role: z.string(),
+                  roles: z.array(z.string()),
+                  detailed_role: z.string().nullable(),
                   character_type: z.string().nullable(),
                   nickname: z.string().nullable(),
                   status: z.string(),
@@ -271,8 +272,9 @@ registry.registerPath({
                 {
                   github_username: 'jiyun-dev',
                   avatar_url: 'https://avatars.githubusercontent.com/u/1234',
-                  role: 'MEMBER',
-                  character_type: null,
+                  roles: ['frontend', 'backend'],
+                  detailed_role: 'Frontend Developer',
+                  character_type: 'cat',
                   nickname: null,
                   status: 'ONLINE',
                   is_host: true,
