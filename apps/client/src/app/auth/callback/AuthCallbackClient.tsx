@@ -9,7 +9,6 @@ import {
   getGithubLoginUrl,
   saveAuthToken,
 } from '@/lib/auth';
-import { refreshSocketAuth } from '@/lib/socket';
 
 interface AuthCallbackClientProps {
   token: string | null;
@@ -52,7 +51,6 @@ export default function AuthCallbackClient({ token }: AuthCallbackClientProps) {
     }
 
     saveAuthToken(token);
-    refreshSocketAuth();
     router.replace(`/${encodeURIComponent(authResult.user.id)}/join`);
   }, [authResult, router, token]);
 
