@@ -6,6 +6,7 @@ import {
   RoomIdParamsSchema,
   RoomMemberResponseSchema,
   SetupRoomMemberSchema,
+  UpdateRoomMemberSchema,
 } from './members.schema.js';
 
 const errorResponse = (description: string, code: string, message: string) => ({
@@ -162,6 +163,81 @@ registry.registerPath({
       '이미 setup 완료',
       'ROOM_MEMBER_ALREADY_SET_UP',
       '이미 캐릭터/역할이 설정되어 있습니다. 프로필 수정을 이용해주세요.',
+    ),
+  },
+});
+
+// ─── PATCH /rooms/:roomId/members/me ──────────────────────────────────────
+registry.registerPath({
+  method: 'patch',
+  path: '/rooms/{roomId}/members/me',
+  tags: ['Rooms'],
+  summary: '내 프로필 수정',
+  description:
+    'setup 완료 후 캐릭터·닉네임·역할·세부 직군을 수정합니다. ' +
+    '변경할 필드만 포함하면 되며, 나머지 필드는 기존 값이 유지됩니다. ' +
+    'detailed_role을 null로 전달하면 삭제됩니다. ' +
+    'setup 미완료 상태에서 호출 시 ROOM_MEMBER_NOT_SET_UP(409)을 반환합니다.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: RoomIdParamsSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: UpdateRoomMemberSchema,
+          example: {
+            character_type: 'dog',
+            nickname: '엘리',
+            roles: ['frontend'],
+            detailed_role: 'UI Developer',
+          },
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: '프로필 수정 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: RoomMemberResponseSchema,
+          }),
+          example: {
+            success: true,
+            data: {
+              github_username: 'Kang-Ellie',
+              avatar_url:
+                'https://avatars.githubusercontent.com/u/252135802?v=4',
+              roles: ['frontend'],
+              detailed_role: 'UI Developer',
+              character_type: 'dog',
+              nickname: '엘리',
+              status: 'focus',
+              is_host: true,
+              pos_x: 0,
+              pos_y: 0,
+            },
+          },
+        },
+      },
+    },
+    400: errorResponse(
+      '요청 형식이 올바르지 않음',
+      'BAD_REQUEST',
+      '요청 형식이 올바르지 않습니다.',
+    ),
+    401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
+    404: errorResponse(
+      '룸 멤버가 아님',
+      'ROOM_MEMBER_NOT_FOUND',
+      '룸 멤버를 찾을 수 없습니다.',
+    ),
+    409: errorResponse(
+      'setup 미완료',
+      'ROOM_MEMBER_NOT_SET_UP',
+      '먼저 캐릭터/역할 설정을 완료해주세요.',
     ),
   },
 });

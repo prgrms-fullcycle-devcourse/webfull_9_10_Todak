@@ -133,6 +133,11 @@ export const ERROR_CODES = {
     message:
       '이미 캐릭터/역할이 설정되어 있습니다. 프로필 수정을 이용해주세요.',
   },
+  ROOM_MEMBER_NOT_SET_UP: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ROOM_MEMBER_NOT_SET_UP',
+    message: '먼저 캐릭터/역할 설정을 완료해주세요.',
+  },
   INVALID_INVITE_CODE: {
     statusCode: StatusCodes.NOT_FOUND,
     code: 'INVALID_INVITE_CODE',

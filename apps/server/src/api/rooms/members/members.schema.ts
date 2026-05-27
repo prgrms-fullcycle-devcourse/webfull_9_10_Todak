@@ -43,6 +43,42 @@ export const SetupRoomMemberSchema = z.object({
 
 export type SetupRoomMemberInput = z.infer<typeof SetupRoomMemberSchema>;
 
+export const UpdateRoomMemberSchema = z
+  .object({
+    character_type: z.enum(CHARACTER_TYPES).optional().openapi({
+      description: '변경할 캐릭터',
+      example: 'dog',
+    }),
+    nickname: z.string().trim().min(1).max(20).optional().openapi({
+      description: '변경할 닉네임',
+      example: '엘리',
+    }),
+    roles: z
+      .array(z.enum(ROLES))
+      .min(1, '역할/파트를 1개 이상 선택해주세요.')
+      .optional()
+      .openapi({
+        description: '변경할 역할/파트',
+        example: ['frontend'],
+      }),
+    detailed_role: z
+      .string()
+      .trim()
+      .min(1)
+      .max(50)
+      .nullable()
+      .optional()
+      .openapi({
+        description: '변경할 세부 직군 (null 전달 시 삭제)',
+        example: 'UI Developer',
+      }),
+  })
+  .refine(data => Object.values(data).some(v => v !== undefined), {
+    message: '수정할 항목을 1개 이상 입력해주세요.',
+  });
+
+export type UpdateRoomMemberInput = z.infer<typeof UpdateRoomMemberSchema>;
+
 export const RoomMemberResponseSchema = registry.register(
   'RoomMember',
   z.object({

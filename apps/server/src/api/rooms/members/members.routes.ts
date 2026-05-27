@@ -6,8 +6,13 @@ import { validate } from '../../../middleware/validate.middleware.js';
 import {
   getRoomMembersHandler,
   setupRoomMemberHandler,
+  updateRoomMemberHandler,
 } from './members.controller.js';
-import { RoomIdParamsSchema, SetupRoomMemberSchema } from './members.schema.js';
+import {
+  RoomIdParamsSchema,
+  SetupRoomMemberSchema,
+  UpdateRoomMemberSchema,
+} from './members.schema.js';
 
 const router = Router({ mergeParams: true });
 
@@ -19,6 +24,12 @@ router.post(
   validate(RoomIdParamsSchema, 'params'),
   validate(SetupRoomMemberSchema),
   setupRoomMemberHandler,
+);
+router.patch(
+  '/me',
+  validate(RoomIdParamsSchema, 'params'),
+  validate(UpdateRoomMemberSchema),
+  updateRoomMemberHandler,
 );
 
 export default router;
