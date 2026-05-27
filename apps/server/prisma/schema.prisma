@@ -54,8 +54,9 @@ model RoomMember {
   id            String   @id @default(uuid()) @db.Uuid
   roomId        String   @map("room_id") @db.Uuid
   userId        String   @map("user_id") @db.Uuid
-  role          String?  // frontend | backend | design | qa | devops | reviewer | etc
-  characterType String?  @map("character_type") // circle | square | triangle | star | moon | cloud
+  roles         String[] // frontend | backend | design | pm (중복 선택 가능)
+  detailedRole  String?  @map("detailed_role") // 세부 직군 (예: Frontend Developer)
+  characterType String?  @map("character_type") // cat | dog | rabbit | hamster | bear
   nickname      String?
   status        String   @default("focus") // focus | rest | meeting | away
   isHost        Boolean  @default(false) @map("is_host")
@@ -183,7 +184,7 @@ model Todo {
   id                String   @id @default(uuid()) @db.Uuid
   roomId            String?  @map("room_id") @db.Uuid
   userId            String?  @map("user_id") @db.Uuid
-  githubIssueNumber Int      @map("github_issue_number")
+  githubIssueNumber Int?     @map("github_issue_number")
   isDone            Boolean  @default(false) @map("is_done")
   date              DateTime @db.Date // 오늘 날짜
   createdAt         DateTime @default(now()) @map("created_at")
