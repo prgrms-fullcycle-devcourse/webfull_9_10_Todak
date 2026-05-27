@@ -5,6 +5,12 @@ import { useSpaceStore } from '@/store/useSpaceStore';
 import { loadAllAnimalAssets } from './_animals/animalAssets';
 import { createPlayer, CHAR_WIDTH, CHAR_HEIGHT } from './_player/createPlayer';
 import { setupMovement } from './_player/setupMovement';
+import { loadBackgroundAsset } from './_background/backgroundAssets';
+import {
+  createBackground,
+  WORLD_WIDTH,
+  WORLD_HEIGHT,
+} from './_background/createBackground';
 
 export default function PixiCanvas() {
   // 캔버스를 마운트할 DOM 컨테이너 참조
@@ -19,8 +25,8 @@ export default function PixiCanvas() {
     const initPixi = async () => {
       app = new PIXI.Application();
       await app.init({
-        width: 1000,
-        height: 500,
+        width: WORLD_WIDTH,
+        height: WORLD_HEIGHT,
         backgroundAlpha: 0,
         resolution: window.devicePixelRatio || 1, // 레티나 대응
         autoDensity: true,
@@ -30,6 +36,10 @@ export default function PixiCanvas() {
         canvasRef.current.innerHTML = '';
         canvasRef.current.appendChild(app.canvas);
       }
+
+      const backgroundTexture = await loadBackgroundAsset();
+      const background = createBackground(backgroundTexture);
+      app.stage.addChild(background);
 
       // 동물 에셋 로드 & 현재 선택된 동물 결정
       const animalAssets = await loadAllAnimalAssets();
