@@ -1,6 +1,7 @@
 'use client';
 
-import { Card, Tabs } from '@heroui/react';
+import { Button, Card, Chip, Input, Tabs } from '@heroui/react';
+import Link from 'next/link';
 
 const TabOptions = [
   {
@@ -10,6 +11,14 @@ const TabOptions = [
   {
     id: 'invite',
     label: '초대 코드로 참여',
+  },
+];
+
+const teamList = [
+  {
+    repoName: '토닥윕미 웹 앱 개발단',
+    url: 'team/todak-with-me',
+    id: 'TODAK-992F',
   },
 ];
 
@@ -45,6 +54,41 @@ export default function ProjectHub() {
                 id={option.id}
               >
                 <p>{option.label}</p>
+
+                {option.id === 'create' ? (
+                  <>
+                    <p>GitHub 레포지토리 연결</p>
+                    <Input
+                      fullWidth
+                      placeholder="레포지토리 URL을 입력하세요"
+                    />
+                    <p>연결 가능한 기존 팀 리스트</p>
+                    {teamList.map(team => (
+                      <Link
+                        className="flex"
+                        key={`existing-team-list-${team.id}`}
+                        href=""
+                      >
+                        <span>
+                          <p>{team.repoName}</p>
+                          <p>{team.url}</p>
+                        </span>
+                        <span>
+                          <Chip>{team.id}</Chip>
+                        </span>
+                      </Link>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <p>팀 초대 코드 입력</p>
+                    <Input
+                      fullWidth
+                      placeholder="12자리 초대 코드를 입력하세요"
+                    />
+                    <Button>다음 단계로 이동 (프로필 설정)</Button>
+                  </>
+                )}
               </Tabs.Panel>
             ))}
           </Tabs>
