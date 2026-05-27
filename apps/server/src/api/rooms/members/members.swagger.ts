@@ -7,6 +7,7 @@ import {
   RoomMemberResponseSchema,
   SetupRoomMemberSchema,
   UpdateRoomMemberSchema,
+  UpdateMemberStatusSchema,
 } from './members.schema.js';
 
 const errorResponse = (description: string, code: string, message: string) => ({
@@ -238,6 +239,54 @@ registry.registerPath({
       'setup 미완료',
       'ROOM_MEMBER_NOT_SET_UP',
       '먼저 캐릭터/역할 설정을 완료해주세요.',
+    ),
+  },
+});
+
+// ─── PATCH /rooms/:roomId/members/me/status ───────────────────────────────
+registry.registerPath({
+  method: 'patch',
+  path: '/rooms/{roomId}/members/me/status',
+  tags: ['Rooms'],
+  summary: '내 상태 변경',
+  description:
+    '현재 상태를 변경하고 룸 내 모든 멤버에게 소켓 이벤트(room:member-status-changed)를 브로드캐스트합니다. ' +
+    '부재(away)는 소켓 disconnect 시 자동 전환되며, 회의중(meeting)은 프라이빗룸 입장 시 자동 전환됩니다.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: RoomIdParamsSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: UpdateMemberStatusSchema,
+          example: { status: 'rest' },
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: '상태 변경 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({ status: z.string() }),
+          }),
+          example: { success: true, data: { status: 'rest' } },
+        },
+      },
+    },
+    400: errorResponse(
+      '요청 형식이 올바르지 않음',
+      'BAD_REQUEST',
+      '요청 형식이 올바르지 않습니다.',
+    ),
+    401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
+    404: errorResponse(
+      '룸 멤버가 아님',
+      'ROOM_MEMBER_NOT_FOUND',
+      '룸 멤버를 찾을 수 없습니다.',
     ),
   },
 });

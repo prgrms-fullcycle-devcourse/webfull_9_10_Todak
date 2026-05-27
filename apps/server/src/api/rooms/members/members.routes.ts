@@ -7,11 +7,13 @@ import {
   getRoomMembersHandler,
   setupRoomMemberHandler,
   updateRoomMemberHandler,
+  updateMemberStatusHandler,
 } from './members.controller.js';
 import {
   RoomIdParamsSchema,
   SetupRoomMemberSchema,
   UpdateRoomMemberSchema,
+  UpdateMemberStatusSchema,
 } from './members.schema.js';
 
 const router = Router({ mergeParams: true });
@@ -30,6 +32,12 @@ router.patch(
   validate(RoomIdParamsSchema, 'params'),
   validate(UpdateRoomMemberSchema),
   updateRoomMemberHandler,
+);
+router.patch(
+  '/me/status',
+  validate(RoomIdParamsSchema, 'params'),
+  validate(UpdateMemberStatusSchema),
+  updateMemberStatusHandler,
 );
 
 export default router;

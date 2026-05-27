@@ -79,6 +79,18 @@ export const UpdateRoomMemberSchema = z
 
 export type UpdateRoomMemberInput = z.infer<typeof UpdateRoomMemberSchema>;
 
+export const MEMBER_STATUSES = ['focus', 'rest', 'meeting', 'away'] as const;
+
+export const UpdateMemberStatusSchema = z.object({
+  status: z.enum(MEMBER_STATUSES).openapi({
+    description:
+      '변경할 상태 (focus: 집중 | rest: 휴식 | meeting: 회의중 | away: 부재)',
+    example: 'rest',
+  }),
+});
+
+export type UpdateMemberStatusInput = z.infer<typeof UpdateMemberStatusSchema>;
+
 export const RoomMemberResponseSchema = registry.register(
   'RoomMember',
   z.object({

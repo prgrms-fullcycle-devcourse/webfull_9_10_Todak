@@ -5,12 +5,15 @@ import {
   getRoomMembers,
   setupRoomMember,
   updateRoomMember,
+  updateRoomMemberStatus,
 } from '../../../services/room-member.service.js';
+import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 
 import {
   SetupRoomMemberInput,
   UpdateRoomMemberInput,
+  UpdateMemberStatusInput,
 } from './members.schema.js';
 
 // 룸 멤버 목록 조회
@@ -75,6 +78,31 @@ export async function updateRoomMemberHandler(
     const member = await updateRoomMember(userId, roomId, input);
 
     res.status(200).json({ success: true, data: member });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// 내 상태 변경 + 소켓 브로드캐스트
+export async function updateMemberStatusHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const userId = req.user?.id;
+    if (userId === undefined) {
+      throw new AppError('UNAUTHORIZED');
+    }
+
+    const { roomId } = req.params as { roomId: string };
+    const { status } = req.body as UpdateMemberStatusInput;
+
+    await updateRoomMemberStatus(userId, roomId, status);
+
+    getIO().to(roomId).emit('room:member-status-changed', { userId, status });
+
+    res.status(200).json({ success: true, data: { status } });
   } catch (err) {
     next(err);
   }
