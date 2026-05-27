@@ -3,7 +3,10 @@ import { Router } from 'express';
 import { requireAuth } from '@/middleware/auth.middleware.js';
 import { validate } from '@/middleware/validate.middleware.js';
 
+import { ChatsQuerySchema } from '../chat/chat.schema.js';
+
 import {
+  getPrivateRoomChatsHandler,
   getPrivateRoomsHandler,
   enterPrivateRoomHandler,
   leavePrivateRoomHandler,
@@ -27,6 +30,13 @@ router.post(
   '/:privateRoomId/leave',
   validate(PrivateRoomParamsSchema, 'params'),
   leavePrivateRoomHandler,
+);
+
+router.get(
+  '/:privateRoomId/chats',
+  validate(PrivateRoomParamsSchema, 'params'),
+  validate(ChatsQuerySchema, 'query'),
+  getPrivateRoomChatsHandler,
 );
 
 export default router;

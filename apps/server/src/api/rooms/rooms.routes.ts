@@ -4,6 +4,8 @@ import { requireAuth } from '../../middleware/auth.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 
 import './private-room/private-room.swagger.js';
+import './chat/chat.swagger.js';
+import chatRoutes from './chat/chat.routes.js';
 import privateRoomRoutes from './private-room/private-room.routes.js';
 import {
   createRoomHandler,
@@ -30,5 +32,6 @@ router.get('/:roomId', getRoomByIdHandler);
 router.patch('/:roomId', validate(UpdateRoomSchema), updateRoomHandler);
 router.delete('/:roomId', deleteRoomHandler);
 router.use('/:roomId/private-room', privateRoomRoutes);
+router.use('/:roomId/chats', chatRoutes);
 
 export default router;

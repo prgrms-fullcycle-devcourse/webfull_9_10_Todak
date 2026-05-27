@@ -1,12 +1,14 @@
 import { Response, NextFunction } from 'express';
 
 import { AppError } from '../../../errors/AppError.js';
+import { getPrivateRoomChats } from '../../../services/chat.service.js';
 import {
   getPrivateRooms,
   enterPrivateRoom,
   leavePrivateRoom,
 } from '../../../services/private-room.service.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
+import { ChatsQuery } from '../chat/chat.schema.js';
 
 export async function getPrivateRoomsHandler(
   req: AuthenticatedRequest,
@@ -81,6 +83,50 @@ export async function leavePrivateRoomHandler(
     }
 
     res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+function slim(chat: {
+  id: string;
+  user: { github_username: string; avatar_url: string | null };
+  content: string | null;
+  type: string;
+  created_at: string;
+}) {
+  return {
+    id: chat.id,
+    user: chat.user,
+    content: chat.content,
+    type: chat.type,
+    created_at: chat.created_at,
+  };
+}
+
+export async function getPrivateRoomChatsHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const userId = req.user?.id;
+    if (userId === undefined) {
+      throw new AppError('UNAUTHORIZED');
+    }
+
+    const { roomId, privateRoomId } = req.params as {
+      roomId: string;
+      privateRoomId: string;
+    };
+    const { before, limit } = req.query as unknown as ChatsQuery;
+
+    const chats = await getPrivateRoomChats(userId, roomId, privateRoomId, {
+      before,
+      limit,
+    });
+
+    res.json(chats.map(slim));
   } catch (err) {
     next(err);
   }
