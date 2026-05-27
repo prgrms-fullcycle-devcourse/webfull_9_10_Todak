@@ -2,6 +2,8 @@
 
 import { Link } from '@heroui/react';
 
+import { getGithubLoginUrl } from '@/lib/auth';
+
 function GithubIcon() {
   return (
     <svg aria-hidden="true" className="size-5 fill-current" viewBox="0 0 24 24">
@@ -41,8 +43,9 @@ export default function HomeLeft() {
       </p>
 
       <Link
-        href="/user_id/join"
-        className="mt-10 h-auto min-w-0 rounded-xl bg-foreground px-8 py-4 text-sm font-black text-background shadow-todak-soft"
+        aria-label="GitHub 계정으로 로그인"
+        className="mt-10 inline-flex h-auto min-w-0 items-center gap-2 rounded-xl bg-foreground px-8 py-4 text-sm font-black text-background shadow-todak-soft"
+        href={getGithubLoginUrl()}
       >
         <GithubIcon />
         GitHub 계정으로 시작하기
