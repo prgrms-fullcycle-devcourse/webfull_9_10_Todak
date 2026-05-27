@@ -41,7 +41,7 @@ export default function HomeLeft() {
       </p>
 
       <Link
-        href="/room/23"
+        href="/user_id/join"
         className="mt-10 h-auto min-w-0 rounded-xl bg-foreground px-8 py-4 text-sm font-black text-background shadow-todak-soft"
       >
         <GithubIcon />
