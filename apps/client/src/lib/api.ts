@@ -1,6 +1,6 @@
 import axios, { AxiosHeaders } from 'axios';
 
-import { getAuthToken } from './auth';
+import { clearAuthToken, getAuthToken } from './auth';
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000',
@@ -18,3 +18,25 @@ api.interceptors.request.use(config => {
 
   return config;
 });
+
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (
+      axios.isAxiosError(error) &&
+      error.response?.status === 401 &&
+      typeof window !== 'undefined'
+    ) {
+      clearAuthToken();
+
+      if (
+        window.location.pathname !== '/' &&
+        !window.location.pathname.startsWith('/auth/callback')
+      ) {
+        window.location.assign('/');
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);
