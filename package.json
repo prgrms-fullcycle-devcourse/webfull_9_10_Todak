@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Todak - WebFullStack Monorepo",
   "scripts": {
-    "dev": "pnpm --filter todak-server dev",
+    "dev": "pnpm --filter todak-server --filter todak-client --parallel run dev",
     "dev:server": "pnpm --filter todak-server dev",
     "dev:client": "pnpm --filter todak-client dev",
     "build": "pnpm --filter todak-server build",
