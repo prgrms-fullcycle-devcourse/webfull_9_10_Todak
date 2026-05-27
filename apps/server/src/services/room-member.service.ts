@@ -2,6 +2,39 @@ import { SetupRoomMemberInput } from '../api/rooms/members/members.schema.js';
 import { AppError } from '../errors/AppError.js';
 import { prisma } from '../lib/prisma.js';
 
+// 룸 전체 멤버 목록 조회 (멤버만 호출 가능)
+export async function getRoomMembers(userId: string, roomId: string) {
+  const membership = await prisma.roomMember.findFirst({
+    where: { roomId, userId },
+  });
+
+  if (membership === null) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  const members = await prisma.roomMember.findMany({
+    where: { roomId, characterType: { not: null } },
+    include: { user: true },
+    orderBy: { joinedAt: 'asc' },
+  });
+
+  return {
+    members: members.map(m => ({
+      github_username: m.user.githubUsername,
+      avatar_url: m.user.avatarUrl,
+      roles: m.roles,
+      detailed_role: m.detailedRole,
+      character_type: m.characterType,
+      nickname: m.nickname,
+      status: m.status,
+      is_host: m.isHost,
+      pos_x: m.posX,
+      pos_y: m.posY,
+    })),
+    member_count: members.length,
+  };
+}
+
 // 룸 멤버 최초 1회 setup (캐릭터/닉네임/역할/세부 직군 설정)
 export async function setupRoomMember(
   userId: string,

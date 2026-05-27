@@ -168,19 +168,21 @@ export async function getRoomById(userId: string, roomId: string) {
             stats_cached_at: linkedRepo.statsCachedAt,
           }
         : null,
-    members: room.members.map(m => ({
-      github_username: m.user.githubUsername,
-      avatar_url: m.user.avatarUrl,
-      roles: m.roles,
-      detailed_role: m.detailedRole,
-      character_type: m.characterType,
-      nickname: m.nickname,
-      status: m.status,
-      is_host: m.isHost,
-      pos_x: m.posX,
-      pos_y: m.posY,
-    })),
-    member_count: room.members.length,
+    members: room.members
+      .filter(m => m.characterType !== null)
+      .map(m => ({
+        github_username: m.user.githubUsername,
+        avatar_url: m.user.avatarUrl,
+        roles: m.roles,
+        detailed_role: m.detailedRole,
+        character_type: m.characterType,
+        nickname: m.nickname,
+        status: m.status,
+        is_host: m.isHost,
+        pos_x: m.posX,
+        pos_y: m.posY,
+      })),
+    member_count: room.members.filter(m => m.characterType !== null).length,
   };
 }
 

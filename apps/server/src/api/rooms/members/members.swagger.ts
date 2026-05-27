@@ -22,6 +22,77 @@ const errorResponse = (description: string, code: string, message: string) => ({
   },
 });
 
+// ─── GET /rooms/:roomId/members ────────────────────────────────────────────
+registry.registerPath({
+  method: 'get',
+  path: '/rooms/{roomId}/members',
+  tags: ['Rooms'],
+  summary: '룸 멤버 목록 조회',
+  description:
+    '해당 룸의 멤버 목록과 실시간 상태(status, 위치, 캐릭터 등)를 반환합니다. ' +
+    'setup을 완료한 멤버만 포함됩니다 (가입은 했으나 캐릭터/역할을 설정하지 않은 멤버는 제외). ' +
+    '룸 멤버만 호출 가능하며, 비멤버 접근 시 룸 존재를 숨기기 위해 ROOM_NOT_FOUND 로 응답합니다.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: RoomIdParamsSchema,
+  },
+  responses: {
+    200: {
+      description: '멤버 목록 조회 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({
+              members: z.array(RoomMemberResponseSchema),
+              member_count: z.number(),
+            }),
+          }),
+          example: {
+            success: true,
+            data: {
+              members: [
+                {
+                  github_username: 'Kang-Ellie',
+                  avatar_url:
+                    'https://avatars.githubusercontent.com/u/252135802?v=4',
+                  roles: ['frontend', 'backend'],
+                  detailed_role: 'Frontend Developer',
+                  character_type: 'cat',
+                  nickname: '수정',
+                  status: 'focus',
+                  is_host: true,
+                  pos_x: 0,
+                  pos_y: 0,
+                },
+                {
+                  github_username: 'jiyun-dev',
+                  avatar_url: 'https://avatars.githubusercontent.com/u/1234',
+                  roles: ['backend'],
+                  detailed_role: 'Backend Developer',
+                  character_type: 'dog',
+                  nickname: '지윤',
+                  status: 'rest',
+                  is_host: false,
+                  pos_x: 120,
+                  pos_y: 80,
+                },
+              ],
+              member_count: 2,
+            },
+          },
+        },
+      },
+    },
+    401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
+    404: errorResponse(
+      '룸을 찾을 수 없음 (또는 멤버가 아님)',
+      'ROOM_NOT_FOUND',
+      '룸을 찾을 수 없습니다.',
+    ),
+  },
+});
+
 // ─── POST /rooms/:roomId/members/setup ─────────────────────────────────────
 registry.registerPath({
   method: 'post',
