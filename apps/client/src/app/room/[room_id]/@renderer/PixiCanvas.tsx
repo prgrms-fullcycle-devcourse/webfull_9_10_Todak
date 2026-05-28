@@ -5,6 +5,10 @@ import { useSpaceStore } from '@/store/useSpaceStore';
 import { loadAllAnimalAssets } from './_animals/animalAssets';
 import { createPlayer, CHAR_WIDTH, CHAR_HEIGHT } from './_player/createPlayer';
 import { setupMovement } from './_player/setupMovement';
+import { loadBackgroundAsset } from './_background/backgroundAssets';
+import { createBackground } from './_background/createBackground';
+import { createWorld } from './_world/createWorld';
+import { setupCamera } from './_world/setupCamera';
 
 export default function PixiCanvas() {
   // 캔버스를 마운트할 DOM 컨테이너 참조
@@ -15,12 +19,17 @@ export default function PixiCanvas() {
     let unsubscribeStatus: (() => void) | null = null;
     let unsubscribeAnimal: (() => void) | null = null;
     let cleanupMovement: (() => void) | null = null;
+    let cleanupCamera: (() => void) | null = null;
+    let handleResize: (() => void) | null = null;
 
     const initPixi = async () => {
+      const container = canvasRef.current;
+      if (!container) return;
+
       app = new PIXI.Application();
       await app.init({
-        width: 1000,
-        height: 500,
+        width: container.clientWidth,
+        height: container.clientHeight,
         backgroundAlpha: 0,
         resolution: window.devicePixelRatio || 1, // 레티나 대응
         autoDensity: true,
@@ -30,6 +39,13 @@ export default function PixiCanvas() {
         canvasRef.current.innerHTML = '';
         canvasRef.current.appendChild(app.canvas);
       }
+
+      const world = createWorld();
+      app.stage.addChild(world);
+
+      const backgroundTexture = await loadBackgroundAsset();
+      const background = createBackground(backgroundTexture);
+      world.addChild(background);
 
       // 동물 에셋 로드 & 현재 선택된 동물 결정
       const animalAssets = await loadAllAnimalAssets();
@@ -41,7 +57,7 @@ export default function PixiCanvas() {
 
       // 플레이어 생성 (스프라이트 + 이름표 + 상태창 + 클릭 메뉴)
       const player = createPlayer(app, activeTextures);
-      app.stage.addChild(player.container);
+      world.addChild(player.container);
 
       // Zustand 구독
       // 상태 텍스트 (예: "💻 개발 중") 변경 시 머리 위 텍스트 업데이트
@@ -71,12 +87,21 @@ export default function PixiCanvas() {
 
       // 이동 로직 셋업
       cleanupMovement = setupMovement(app, player, () => activeTextures);
+
+      // 카메라 셋업
+      cleanupCamera = setupCamera(app, world, player);
+      handleResize = () => {
+        if (!app || !container) return;
+        app.renderer.resize(container.clientWidth, container.clientHeight);
+      };
+      window.addEventListener('resize', handleResize);
     };
 
     initPixi();
 
     // 컴포넌트 언마운트 시 호출
     return () => {
+      cleanupCamera?.();
       cleanupMovement?.();
       unsubscribeStatus?.();
       unsubscribeAnimal?.();
@@ -85,10 +110,16 @@ export default function PixiCanvas() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center gap-4 p-4">
+    <div className="flex flex-col items-center justify-center gap-4 p-4 h-full w-full">
       <div
         ref={canvasRef}
-        className="border-4 border-slate-700 rounded-xl overflow-hidden shadow-2xl"
+        className="border-4 border-slate-700 rounded-xl overflow-hidden shadow-2xl w-full h-full"
+        style={{
+          width: '90vw',
+          maxWidth: '1400px',
+          height: '70vh',
+          maxHeight: '800px',
+        }}
       />
       <p className="text-slate-400 text-sm">
         방향키를 눌러 캐릭터를 움직여 보세요!
