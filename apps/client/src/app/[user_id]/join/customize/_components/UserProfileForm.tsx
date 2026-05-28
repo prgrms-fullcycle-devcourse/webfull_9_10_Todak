@@ -1,5 +1,6 @@
 'use client';
 
+import { Checkbox, CheckboxGroup, Radio, RadioGroup } from '@heroui/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -87,25 +88,34 @@ export default function UserProfileForm({
         </header>
 
         <div className="mt-5 space-y-4">
-          <fieldset>
-            <legend className="text-xs font-black text-slate-700">
+          <div>
+            <p className="text-xs font-black text-slate-700">
               원하는 아바타 선택
-            </legend>
-            <div className="mt-3 grid grid-cols-5 place-items-center gap-2 sm:gap-3">
+            </p>
+            <RadioGroup
+              aria-label="원하는 아바타 선택"
+              className="mt-3 grid grid-cols-5 place-items-center gap-2 sm:gap-3"
+              onChange={value => {
+                const nextAvatar = avatars.find(avatar => avatar.id === value);
+
+                if (nextAvatar) {
+                  setSelectedAvatar(nextAvatar);
+                }
+              }}
+              value={selectedAvatar.id}
+            >
               {avatars.map(avatar => {
                 const isSelected = selectedAvatar.id === avatar.id;
 
                 return (
-                  <button
-                    aria-pressed={isSelected}
+                  <Radio
                     className={cn(
                       'todak-avatar aspect-square w-full max-w-[58px] cursor-pointer transition-all hover:-translate-y-0.5 hover:border-todak-coral-200 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-todak-coral-500 focus-visible:ring-offset-2',
                       isSelected &&
                         'todak-avatar-own border-todak-coral-500 bg-todak-coral-50 shadow-md',
                     )}
                     key={avatar.id}
-                    onClick={() => setSelectedAvatar(avatar)}
-                    type="button"
+                    value={avatar.id}
                   >
                     <span className="sr-only">{avatar.name} 아바타 선택</span>
                     <Image
@@ -116,11 +126,11 @@ export default function UserProfileForm({
                       src={avatar.src}
                       width={420}
                     />
-                  </button>
+                  </Radio>
                 );
               })}
-            </div>
-          </fieldset>
+            </RadioGroup>
+          </div>
 
           <div className="space-y-2">
             <label
@@ -137,42 +147,43 @@ export default function UserProfileForm({
             />
           </div>
 
-          <fieldset>
-            <legend className="text-xs font-black text-slate-700">
+          <div>
+            <p className="text-xs font-black text-slate-700">
               역할/파트 (중복 선택 가능)
-            </legend>
-            <div className="mt-3 grid grid-cols-4 gap-1.5 sm:gap-2">
+            </p>
+            <CheckboxGroup
+              aria-label="역할/파트"
+              className="mt-3 grid grid-cols-4 gap-1.5 sm:gap-2"
+              onChange={value => {
+                const nextParts = value.filter(part =>
+                  parts.includes(part as (typeof parts)[number]),
+                ) as (typeof parts)[number][];
+
+                if (nextParts.length > 0) {
+                  setSelectedParts(nextParts);
+                }
+              }}
+              value={selectedParts}
+            >
               {parts.map(part => {
                 const isSelected = selectedParts.includes(part);
 
                 return (
-                  <button
-                    aria-pressed={isSelected}
+                  <Checkbox
                     className={cn(
-                      'h-9 cursor-pointer rounded-xl border border-border bg-surface px-1 text-[11px] font-black text-slate-500 shadow-sm transition-all hover:border-todak-coral-200 hover:bg-todak-coral-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-todak-coral-500 focus-visible:ring-offset-2 sm:px-2 sm:text-xs',
+                      'flex h-9 cursor-pointer items-center justify-center gap-0 rounded-xl border border-border bg-surface px-1 text-center text-[11px] font-black text-slate-500 shadow-sm transition-all hover:border-todak-coral-200 hover:bg-todak-coral-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-todak-coral-500 focus-visible:ring-offset-2 sm:px-2 sm:text-xs',
                       isSelected &&
                         'border-todak-coral-500 bg-todak-coral-50 text-todak-coral-500 shadow-sm',
                     )}
                     key={part}
-                    onClick={() => {
-                      setSelectedParts(current => {
-                        if (current.includes(part)) {
-                          return current.length === 1
-                            ? current
-                            : current.filter(item => item !== part);
-                        }
-
-                        return [...current, part];
-                      });
-                    }}
-                    type="button"
+                    value={part}
                   >
                     {part}
-                  </button>
+                  </Checkbox>
                 );
               })}
-            </div>
-          </fieldset>
+            </CheckboxGroup>
+          </div>
 
           <div className="space-y-2">
             <label
