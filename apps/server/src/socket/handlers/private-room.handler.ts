@@ -24,6 +24,8 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
       // service 재사용
       await enterPrivateRoom(roomId, privateRoomId, user.id);
 
+      // 프라이빗 룸 채팅 채널 구독 (chat.handler 에서 io.to 로 broadcast)
+      await socket.join(`private-room:${privateRoomId}`);
       // 상태 → meeting 자동 전환
       await updateRoomMemberStatus(user.id, roomId, 'meeting');
       io.to(roomId).emit('room:member-status-changed', {
@@ -61,6 +63,8 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
       // service 재사용
       await leavePrivateRoom(roomId, privateRoomId, user.id);
 
+      // 프라이빗 룸 채팅 채널 구독 해제
+      await socket.leave(`private-room:${privateRoomId}`);
       // 상태 → focus 자동 복구
       await updateRoomMemberStatus(user.id, roomId, 'focus');
       io.to(roomId).emit('room:member-status-changed', {
