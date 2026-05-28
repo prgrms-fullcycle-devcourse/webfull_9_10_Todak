@@ -24,7 +24,7 @@ model User {
   hostedMeetings       Meeting[]            @relation("MeetingHost")
   meetingParticipants  MeetingParticipant[]
   minutes              Minutes[]            @relation("MinutesAuthor")
-  todos                Todo[]
+  assignedTodos        Todo[]
   notifications        Notification[]
 
   @@map("user")
@@ -176,21 +176,26 @@ model Minutes {
   meeting Meeting? @relation(fields: [meetingId], references: [id])
   room    Room     @relation(fields: [roomId], references: [id])
   author  User     @relation("MinutesAuthor", fields: [authorId], references: [id])
+  todos   Todo[]
 
   @@map("minutes")
 }
 
 model Todo {
   id                String   @id @default(uuid()) @db.Uuid
-  roomId            String?  @map("room_id") @db.Uuid
-  userId            String?  @map("user_id") @db.Uuid
+  roomId            String   @map("room_id") @db.Uuid
+  assigneeId        String?  @map("assignee_id") @db.Uuid
+  minutesId         String?  @map("minutes_id") @db.Uuid
   githubIssueNumber Int?     @map("github_issue_number")
+  title             String
+  body              String?
+  labels            String[]
   isDone            Boolean  @default(false) @map("is_done")
-  date              DateTime @db.Date // 오늘 날짜
   createdAt         DateTime @default(now()) @map("created_at")
 
-  room Room? @relation(fields: [roomId], references: [id])
-  user User? @relation(fields: [userId], references: [id])
+  room     Room     @relation(fields: [roomId], references: [id])
+  assignee User?    @relation(fields: [assigneeId], references: [id])
+  minutes  Minutes? @relation(fields: [minutesId], references: [id])
 
   @@map("todo")
 }
