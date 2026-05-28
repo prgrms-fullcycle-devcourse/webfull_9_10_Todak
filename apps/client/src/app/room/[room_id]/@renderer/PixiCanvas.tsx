@@ -7,8 +7,8 @@ import { createPlayer, CHAR_WIDTH, CHAR_HEIGHT } from './_player/createPlayer';
 import { setupMovement } from './_player/setupMovement';
 import { loadBackgroundAsset } from './_background/backgroundAssets';
 import { createBackground } from './_background/createBackground';
-import { createWorld } from './_wold/createWorld';
-import { setupCamera } from './_wold/setupCamera';
+import { createWorld } from './_world/createWorld';
+import { setupCamera } from './_world/setupCamera';
 
 export default function PixiCanvas() {
   // 캔버스를 마운트할 DOM 컨테이너 참조
