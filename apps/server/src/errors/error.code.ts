@@ -110,6 +110,11 @@ export const ERROR_CODES = {
     code: 'TODO_NOT_FOUND',
     message: 'Todo를 찾을 수 없습니다.',
   },
+  CHAT_MESSAGE_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'CHAT_MESSAGE_NOT_FOUND',
+    message: '채팅 메시지를 찾을 수 없습니다.',
+  },
 
   // 409
   CONFLICT: {

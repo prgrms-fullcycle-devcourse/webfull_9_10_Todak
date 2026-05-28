@@ -51,7 +51,10 @@ function toPayload(row: ChatRow): ChatPayload {
   };
 }
 
-async function assertRoomMember(roomId: string, userId: string): Promise<void> {
+export async function assertRoomMember(
+  roomId: string,
+  userId: string,
+): Promise<void> {
   const membership = await prisma.roomMember.findFirst({
     where: { roomId, userId },
     select: { id: true },
@@ -62,7 +65,7 @@ async function assertRoomMember(roomId: string, userId: string): Promise<void> {
   }
 }
 
-async function assertPrivateRoomBelongsToRoom(
+export async function assertPrivateRoomBelongsToRoom(
   roomId: string,
   privateRoomId: string,
 ): Promise<void> {
@@ -76,7 +79,7 @@ async function assertPrivateRoomBelongsToRoom(
   }
 }
 
-async function assertInPrivateRoomSession(
+export async function assertInPrivateRoomSession(
   privateRoomId: string,
   userId: string,
 ): Promise<void> {
