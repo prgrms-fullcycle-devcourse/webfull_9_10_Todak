@@ -26,6 +26,7 @@ model User {
   minutes              Minutes[]            @relation("MinutesAuthor")
   assignedTodos        Todo[]
   notifications        Notification[]
+  chatReactions        ChatReaction[]
 
   @@map("user")
 }
@@ -124,8 +125,24 @@ model ChatMessage {
   room        Room         @relation(fields: [roomId], references: [id])
   privateRoom PrivateRoom? @relation(fields: [privateRoomId], references: [id])
   user        User         @relation(fields: [userId], references: [id])
+  reactions   ChatReaction[]
 
   @@map("chat_message")
+}
+
+model ChatReaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @map("message_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  emoji     String   // 유니코드 이모지 그대로 저장 (예: 👍 🔥 ❤️)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id])
+
+  // 같은 유저가 한 메시지에 같은 이모지를 중복으로 누르지 못하게 (토글 보장)
+  @@unique([messageId, userId, emoji])
+  @@map("chat_reaction")
 }
 
 model Meeting {
