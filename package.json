@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Todak - WebFullStack Monorepo",
   "scripts": {
-    "dev": "pnpm --filter todak-server dev",
+    "dev": "pnpm --filter todak-server --filter todak-client --parallel run dev",
     "dev:server": "pnpm --filter todak-server dev",
     "dev:client": "pnpm --filter todak-client dev",
     "build": "pnpm --filter todak-server build",
@@ -22,6 +22,7 @@
     "db:migrate": "pnpm --filter todak-server db:migrate",
     "db:push": "pnpm --filter todak-server db:push",
     "db:studio": "pnpm --filter todak-server db:studio",
+    "db:seed": "pnpm --filter todak-server db:seed",
     "prepare": "husky"
   },
   "devDependencies": {

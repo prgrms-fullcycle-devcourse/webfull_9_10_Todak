@@ -50,7 +50,9 @@ cp apps/server/.env.example apps/server/.env
 ### 개발 서버
 
 ```bash
-pnpm dev
+pnpm dev          # client + server 동시 실행
+pnpm dev:client  # client만 실행
+pnpm dev:server  # server만 실행
 ```
 
 ### DB (Prisma 7)
@@ -68,14 +70,16 @@ Supabase: pooling URL로 앱 연결, `migrate` 오류 시 Direct URL을 `DATABAS
 
 ## 스크립트 (루트)
 
-| 명령                | 설명             |
-| ------------------- | ---------------- |
-| `pnpm dev`          | server 개발 모드 |
-| `pnpm build`        | server 빌드      |
-| `pnpm lint`         | ESLint           |
-| `pnpm lint:fix`     | ESLint 자동 수정 |
-| `pnpm format`       | Prettier 포맷    |
-| `pnpm format:check` | Prettier 검사    |
+| 명령                | 설명                           |
+| ------------------- | ------------------------------ |
+| `pnpm dev`          | client + server 동시 개발 모드 |
+| `pnpm dev:client`   | client 개발 모드               |
+| `pnpm dev:server`   | server 개발 모드               |
+| `pnpm build`        | server 빌드                    |
+| `pnpm lint`         | ESLint                         |
+| `pnpm lint:fix`     | ESLint 자동 수정               |
+| `pnpm format`       | Prettier 포맷                  |
+| `pnpm format:check` | Prettier 검사                  |
 
 ## Git 컨벤션
 
