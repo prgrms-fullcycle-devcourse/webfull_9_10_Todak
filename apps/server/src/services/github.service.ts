@@ -180,6 +180,32 @@ export async function createIssue(
   }
 }
 
+export async function closeIssue(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.issues.update({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      state: 'closed',
+    });
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 404) {
+        throw new AppError('REPO_NOT_FOUND');
+      }
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
+}
+
 export async function getPullRequest(
   accessToken: string,
   owner: string,

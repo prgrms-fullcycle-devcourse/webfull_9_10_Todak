@@ -5,6 +5,7 @@ import { validate } from '../../../middleware/validate.middleware.js';
 
 import {
   createTodosHandler,
+  deleteTodoHandler,
   getMyTodosHandler,
   getTodosHandler,
 } from './todos.controller.js';
@@ -17,5 +18,6 @@ router.use(requireAuth);
 router.get('/me', getMyTodosHandler);
 router.get('/', validate(GetTodosQuerySchema, 'query'), getTodosHandler);
 router.post('/', validate(CreateTodosSchema), createTodosHandler);
+router.delete('/:todoId', deleteTodoHandler);
 
 export default router;

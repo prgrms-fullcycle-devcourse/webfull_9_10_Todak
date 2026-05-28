@@ -1,7 +1,11 @@
 import { Response, NextFunction } from 'express';
 
 import { AppError } from '../../../errors/AppError.js';
-import { createTodos, getTodos } from '../../../services/todos.service.js';
+import {
+  createTodos,
+  deleteTodo,
+  getTodos,
+} from '../../../services/todos.service.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 
 import { CreateTodosInput, GetTodosQuery } from './todos.schema.js';
@@ -70,6 +74,30 @@ export async function getMyTodosHandler(
     });
 
     res.status(200).json({ success: true, data: { todos } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteTodoHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const userId = req.user?.id;
+    if (userId === undefined) {
+      throw new AppError('UNAUTHORIZED');
+    }
+
+    const { roomId, todoId } = req.params as {
+      roomId: string;
+      todoId: string;
+    };
+
+    await deleteTodo(userId, roomId, todoId);
+
+    res.status(200).json({ success: true, data: null });
   } catch (err) {
     next(err);
   }
