@@ -1,6 +1,7 @@
-import { requireAuth } from '@/middleware/auth.middleware.js';
-import { validate } from '@/middleware/validate.middleware.js';
 import { Router } from 'express';
+
+import { requireAuth } from '../../middleware/auth.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
 
 import { MinutesController } from './minutes.controller.js';
 import { MinutesSchema } from './minutes.schema.js';

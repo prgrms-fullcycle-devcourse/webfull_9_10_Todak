@@ -1,6 +1,7 @@
-import { getIO } from '@/socket/index.js';
-import { AuthenticatedRequest } from '@/types/index.js';
 import type { NextFunction, Response } from 'express';
+
+import { getIO } from '../../socket/index.js';
+import { AuthenticatedRequest } from '../../types/index.js';
 
 import {
   CreateManualMinutesBody,

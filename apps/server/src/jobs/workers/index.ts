@@ -1,13 +1,13 @@
-import { AppError } from '@/errors/AppError.js';
-import { prisma } from '@/lib/prisma.js';
-import { getIO } from '@/socket/index.js';
 import { Worker } from 'bullmq';
 
+import { AppError } from '../../errors/AppError.js';
+import { prisma } from '../../lib/prisma.js';
 import { redis } from '../../lib/redis.js';
 import {
   generateMinutesSummary,
   reviewCode,
 } from '../../services/anthropic.service.js';
+import { getIO } from '../../socket/index.js';
 
 const connection = redis;
 

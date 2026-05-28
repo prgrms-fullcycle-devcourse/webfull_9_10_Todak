@@ -1,7 +1,7 @@
-import { Prisma } from '@/generated/prisma/client/index.js';
 import Anthropic from '@anthropic-ai/sdk';
 
 import { env } from '../config/env.js';
+import { Prisma } from '../generated/prisma/client/index.js';
 
 const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 

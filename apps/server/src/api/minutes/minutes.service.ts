@@ -1,7 +1,7 @@
-import { AppError } from '@/errors/AppError.js';
-import { Prisma } from '@/generated/prisma/client/index.js';
-import { addJob } from '@/jobs/queues/index.js';
-import { prisma } from '@/lib/prisma.js';
+import { AppError } from '../../errors/AppError.js';
+import { Prisma } from '../../generated/prisma/client/index.js';
+import { addJob } from '../../jobs/queues/index.js';
+import { prisma } from '../../lib/prisma.js';
 
 import {
   CreateManualMinutesBody,
