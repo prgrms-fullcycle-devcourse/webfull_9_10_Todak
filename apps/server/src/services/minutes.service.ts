@@ -1,14 +1,13 @@
-import { AppError } from '../../errors/AppError.js';
-import { Prisma } from '../../generated/prisma/client/index.js';
-import { addJob } from '../../jobs/queues/index.js';
-import { prisma } from '../../lib/prisma.js';
-
 import {
   CreateManualMinutesBody,
   GenerateAiMinutesBody,
   GetMinutesListQuery,
   UpdateMinutesBody,
-} from './minutes.schema.js';
+} from '../api/minutes/minutes.schema.js';
+import { AppError } from '../errors/AppError.js';
+import { Prisma } from '../generated/prisma/client/index.js';
+import { addJob } from '../jobs/queues/index.js';
+import { prisma } from '../lib/prisma.js';
 
 export class MinutesService {
   public async getMinutesList(roomId: string, query: GetMinutesListQuery) {
