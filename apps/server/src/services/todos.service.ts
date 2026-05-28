@@ -1,0 +1,125 @@
+import type { CreateTodosInput } from '../api/rooms/todos/todos.schema.js';
+import { AppError } from '../errors/AppError.js';
+import { prisma } from '../lib/prisma.js';
+
+import { createIssue } from './github.service.js';
+
+export async function createTodos(
+  userId: string,
+  roomId: string,
+  input: CreateTodosInput,
+) {
+  const { todos } = input;
+
+  // 1. 룸 + 레포 조회
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    include: { repos: true },
+  });
+  if (room === null) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  // 2. GitHub 이슈 발행이 필요한지 확인
+  const needsGithub = todos.some(t => t.create_issue);
+
+  let accessToken: string | null = null;
+  let repoOwner = '';
+  let repoName = '';
+
+  if (needsGithub) {
+    const repo = room.repos[0] ?? null;
+    if (repo === null) {
+      throw new AppError('ROOM_REPO_NOT_FOUND');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { accessToken: true },
+    });
+    if (user?.accessToken === null || user?.accessToken === undefined) {
+      throw new AppError('GITHUB_SCOPE_REQUIRED');
+    }
+
+    ({ accessToken } = user);
+    [repoOwner, repoName] = repo.fullName.split('/');
+  }
+
+  // 3. 이슈 발행이 필요한 todo의 담당자 GitHub 유저명 선조회
+  const assigneeIds = [
+    ...new Set(
+      todos
+        .filter(
+          t =>
+            t.create_issue &&
+            t.assignee_id !== null &&
+            t.assignee_id !== undefined,
+        )
+        .map(t => t.assignee_id!),
+    ),
+  ];
+
+  const githubUsernameMap = new Map<string, string>();
+  if (assigneeIds.length > 0) {
+    const assignees = await prisma.user.findMany({
+      where: { id: { in: assigneeIds } },
+      select: { id: true, githubUsername: true },
+    });
+    for (const a of assignees) {
+      githubUsernameMap.set(a.id, a.githubUsername);
+    }
+  }
+
+  // 4. GitHub 이슈 생성 → DB 저장 (순서 보장을 위해 순차 처리)
+  const results = [];
+
+  for (const todo of todos) {
+    let githubIssueNumber: number | null = null;
+
+    if (todo.create_issue && accessToken !== null) {
+      const assignees =
+        todo.assignee_id !== null &&
+        todo.assignee_id !== undefined &&
+        githubUsernameMap.has(todo.assignee_id)
+          ? [githubUsernameMap.get(todo.assignee_id)!]
+          : [];
+
+      githubIssueNumber = await createIssue(
+        accessToken,
+        repoOwner,
+        repoName,
+        todo.title,
+        todo.body,
+        todo.labels,
+        assignees,
+      );
+    }
+
+    const created = await prisma.todo.create({
+      data: {
+        roomId,
+        assigneeId: todo.assignee_id ?? null,
+        minutesId: todo.minutes_id ?? null,
+        title: todo.title,
+        body: todo.body ?? null,
+        labels: todo.labels,
+        githubIssueNumber,
+      },
+    });
+
+    results.push({
+      id: created.id,
+      room_id: created.roomId,
+      title: created.title,
+      body: created.body,
+      labels: created.labels,
+      assignee_id: created.assigneeId,
+      minutes_id: created.minutesId,
+      github_issue_number: created.githubIssueNumber,
+      is_done: created.isDone,
+      created_at: created.createdAt,
+    });
+  }
+
+  return results;
+}

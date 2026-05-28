@@ -19,6 +19,11 @@ export const ERROR_CODES = {
     code: 'MISSING_FIELD',
     message: '필수 항목이 누락되었습니다.',
   },
+  NOT_IN_PRIVATE_ROOM: {
+    statusCode: StatusCodes.BAD_REQUEST,
+    code: 'NOT_IN_PRIVATE_ROOM',
+    message: '현재 입장 중인 프라이빗 룸이 아닙니다.',
+  },
 
   // 401
   UNAUTHORIZED: {
@@ -65,6 +70,11 @@ export const ERROR_CODES = {
     code: 'NOT_FOUND',
     message: '요청한 리소스를 찾을 수 없습니다.',
   },
+  ROOM_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'ROOM_NOT_FOUND',
+    message: '룸을 찾을 수 없습니다.',
+  },
   MEETING_NOT_FOUND: {
     statusCode: StatusCodes.NOT_FOUND,
     code: 'MEETING_NOT_FOUND',
@@ -90,12 +100,68 @@ export const ERROR_CODES = {
     code: 'PR_NOT_FOUND',
     message: 'Pull Request를 찾을 수 없습니다.',
   },
+  PRIVATE_ROOM_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'PRIVATE_ROOM_NOT_FOUND',
+    message: '프라이빗 룸을 찾을 수 없습니다.',
+  },
+  ROOM_MEMBER_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'ROOM_MEMBER_NOT_FOUND',
+    message: '룸 멤버를 찾을 수 없습니다.',
+  },
+  ROOM_REPO_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'ROOM_REPO_NOT_FOUND',
+    message: '룸에 연결된 레포지토리가 없습니다.',
+  },
+  TODO_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'TODO_NOT_FOUND',
+    message: 'Todo를 찾을 수 없습니다.',
+  },
 
   // 409
   CONFLICT: {
     statusCode: StatusCodes.CONFLICT,
     code: 'CONFLICT',
     message: '이미 존재하는 리소스입니다.',
+  },
+  ALREADY_IN_PRIVATE_ROOM: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ALREADY_IN_PRIVATE_ROOM',
+    message: '이미 다른 프라이빗 룸에 입장 중입니다.',
+  },
+  ALREADY_JOINED: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ALREADY_JOINED',
+    message: '이미 참여한 룸입니다.',
+  },
+  REPO_ALREADY_IN_USE: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'REPO_ALREADY_IN_USE',
+    message: '이미 다른 룸에서 사용 중인 레포지토리입니다.',
+  },
+  ROOM_FULL: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ROOM_FULL',
+    message: '룸 정원이 초과되었습니다.',
+  },
+  ROOM_MEMBER_ALREADY_SET_UP: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ROOM_MEMBER_ALREADY_SET_UP',
+    message:
+      '이미 캐릭터/역할이 설정되어 있습니다. 프로필 수정을 이용해주세요.',
+  },
+  ROOM_MEMBER_NOT_SET_UP: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'ROOM_MEMBER_NOT_SET_UP',
+    message: '먼저 캐릭터/역할 설정을 완료해주세요.',
+  },
+  INVALID_INVITE_CODE: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'INVALID_INVITE_CODE',
+    message: '유효하지 않은 초대 코드입니다.',
   },
   MINUTES_GENERATING: {
     statusCode: StatusCodes.CONFLICT,

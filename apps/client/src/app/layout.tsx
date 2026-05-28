@@ -1,22 +1,17 @@
 import type { Metadata } from 'next';
-import type { ReactNode } from 'react';
 
 import { QueryProvider } from '@/providers/query-provider';
 
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Todak',
-  description: 'Todak client',
+  title: '토닥윗미',
+  description: 'AI와 GitHub를 연결하는 2D 가상 협업 타운',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: ReactNode;
-}>) {
+export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="ko">
+    <html className="todak" data-theme="todak" lang="ko">
       <body>
         <QueryProvider>{children}</QueryProvider>
       </body>

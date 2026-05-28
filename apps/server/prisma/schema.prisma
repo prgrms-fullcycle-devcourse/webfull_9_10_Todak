@@ -24,8 +24,9 @@ model User {
   hostedMeetings       Meeting[]            @relation("MeetingHost")
   meetingParticipants  MeetingParticipant[]
   minutes              Minutes[]            @relation("MinutesAuthor")
-  todos                Todo[]
+  assignedTodos        Todo[]
   notifications        Notification[]
+  chatReactions        ChatReaction[]
 
   @@map("user")
 }
@@ -40,7 +41,7 @@ model Room {
 
   members      RoomMember[]
   repos        Repo[]
-  privateRoom  PrivateRoom?
+  privateRoom  PrivateRoom[]
   chatMessages ChatMessage[]
   meetings     Meeting[]
   minutes      Minutes[]
@@ -54,8 +55,9 @@ model RoomMember {
   id            String   @id @default(uuid()) @db.Uuid
   roomId        String   @map("room_id") @db.Uuid
   userId        String   @map("user_id") @db.Uuid
-  role          String?  // frontend | backend | design | qa | devops | reviewer | etc
-  characterType String?  @map("character_type") // circle | square | triangle | star | moon | cloud
+  roles         String[] // frontend | backend | design | pm (중복 선택 가능)
+  detailedRole  String?  @map("detailed_role") // 세부 직군 (예: Frontend Developer)
+  characterType String?  @map("character_type") // cat | dog | rabbit | hamster | bear
   nickname      String?
   status        String   @default("focus") // focus | rest | meeting | away
   isHost        Boolean  @default(false) @map("is_host")
@@ -86,7 +88,7 @@ model Repo {
 
 model PrivateRoom {
   id        String   @id @default(uuid()) @db.Uuid
-  roomId    String   @unique @map("room_id") @db.Uuid // 룸당 1개 고정
+  roomId    String   @map("room_id") @db.Uuid // 룸당 최대 2개
   name      String   @default("회의실")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -123,8 +125,24 @@ model ChatMessage {
   room        Room         @relation(fields: [roomId], references: [id])
   privateRoom PrivateRoom? @relation(fields: [privateRoomId], references: [id])
   user        User         @relation(fields: [userId], references: [id])
+  reactions   ChatReaction[]
 
   @@map("chat_message")
+}
+
+model ChatReaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @map("message_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  emoji     String   // 유니코드 이모지 그대로 저장 (예: 👍 🔥 ❤️)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id])
+
+  // 같은 유저가 한 메시지에 같은 이모지를 중복으로 누르지 못하게 (토글 보장)
+  @@unique([messageId, userId, emoji])
+  @@map("chat_reaction")
 }
 
 model Meeting {
@@ -175,21 +193,26 @@ model Minutes {
   meeting Meeting? @relation(fields: [meetingId], references: [id])
   room    Room     @relation(fields: [roomId], references: [id])
   author  User     @relation("MinutesAuthor", fields: [authorId], references: [id])
+  todos   Todo[]
 
   @@map("minutes")
 }
 
 model Todo {
   id                String   @id @default(uuid()) @db.Uuid
-  roomId            String?  @map("room_id") @db.Uuid
-  userId            String?  @map("user_id") @db.Uuid
-  githubIssueNumber Int      @map("github_issue_number")
+  roomId            String   @map("room_id") @db.Uuid
+  assigneeId        String?  @map("assignee_id") @db.Uuid
+  minutesId         String?  @map("minutes_id") @db.Uuid
+  githubIssueNumber Int?     @map("github_issue_number")
+  title             String
+  body              String?
+  labels            String[]
   isDone            Boolean  @default(false) @map("is_done")
-  date              DateTime @db.Date // 오늘 날짜
   createdAt         DateTime @default(now()) @map("created_at")
 
-  room Room? @relation(fields: [roomId], references: [id])
-  user User? @relation(fields: [userId], references: [id])
+  room     Room     @relation(fields: [roomId], references: [id])
+  assignee User?    @relation(fields: [assigneeId], references: [id])
+  minutes  Minutes? @relation(fields: [minutesId], references: [id])
 
   @@map("todo")
 }

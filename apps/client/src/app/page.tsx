@@ -1,9 +1,15 @@
-export default function Home() {
+import HomeAuthRedirect from './_components/HomeAuthRedirect';
+import HomeLeft from './_components/HomeLeft';
+import HomeRight from './_components/HomeRight';
+
+export default async function Home() {
   return (
-    <main className="grid min-h-dvh place-items-center px-6">
-      <h1 className="text-3xl font-semibold tracking-normal text-slate-950">
-        Todak
-      </h1>
+    <main className="min-h-dvh bg-background text-foreground">
+      <HomeAuthRedirect />
+      <section className="mx-auto grid min-h-dvh w-full max-w-6xl items-center gap-16 px-8 py-16 md:grid-cols-[1fr_0.95fr]">
+        <HomeLeft />
+        <HomeRight />
+      </section>
     </main>
   );
 }

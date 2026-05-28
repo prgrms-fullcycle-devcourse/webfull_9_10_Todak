@@ -10,6 +10,12 @@ import reposRoutes from './repos/repos.routes.js';
 import roomsRoutes from './rooms/rooms.routes.js';
 import usersRoutes from './users/users.routes.js';
 
+import '../api/rooms/rooms.swagger.js';
+import '../api/rooms/private-room/private-room.swagger.js';
+import '../api/auth/auth.swagger.js';
+import '../api/repos/repos.swagger.js';
+import '../api/users/users.swagger.js';
+
 const router = Router();
 
 router.get('/health', (_req: Request, res: Response) => {
