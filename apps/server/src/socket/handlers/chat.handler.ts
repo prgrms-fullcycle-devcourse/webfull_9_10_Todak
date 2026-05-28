@@ -2,12 +2,24 @@ import { z } from 'zod';
 
 import { AppError } from '../../errors/AppError.js';
 import { createChat } from '../../services/chat.service.js';
-import { TypedIO, TypedSocket } from '../socket.types.js';
+import { toggleReaction } from '../../services/reaction.service.js';
+import {
+  ChatReactionEventPayload,
+  TypedIO,
+  TypedSocket,
+} from '../socket.types.js';
 
 const ChatSendSchema = z.object({
   roomId: z.string().uuid(),
   privateRoomId: z.string().uuid().optional(),
   content: z.string().min(1).max(2000),
+});
+
+const ChatReactSchema = z.object({
+  roomId: z.string().uuid(),
+  privateRoomId: z.string().uuid().optional(),
+  messageId: z.string().uuid(),
+  emoji: z.string().min(1).max(32),
 });
 
 /*
@@ -51,6 +63,50 @@ export function registerChatHandlers(io: TypedIO, socket: TypedSocket) {
         err instanceof Error ? err.message : '채팅 전송에 실패했습니다.';
 
       console.error(`[chat:send] ${user.login} error:`, err);
+
+      ack?.({ ok: false, code, message });
+      socket.emit('error', { code, message });
+    }
+  });
+
+  socket.on('chat:react', async (raw, ack) => {
+    try {
+      const input = ChatReactSchema.parse(raw);
+
+      const result = await toggleReaction(user.id, input);
+
+      const channel =
+        input.privateRoomId !== undefined
+          ? `private-room:${input.privateRoomId}`
+          : input.roomId;
+
+      const payload: ChatReactionEventPayload = {
+        message_id: result.messageId,
+        room_id: input.roomId,
+        private_room_id: input.privateRoomId ?? null,
+        emoji: result.emoji,
+        user: {
+          id: user.id,
+          github_username: user.login,
+          avatar_url: user.avatarUrl,
+        },
+        action: result.action,
+      };
+
+      io.to(channel).emit('chat:reaction', payload);
+
+      ack?.({ ok: true, reaction: payload });
+    } catch (err) {
+      const code =
+        err instanceof AppError
+          ? err.code
+          : err instanceof z.ZodError
+            ? 'BAD_REQUEST'
+            : 'CHAT_REACT_ERROR';
+      const message =
+        err instanceof Error ? err.message : '반응 처리에 실패했습니다.';
+
+      console.error(`[chat:react] ${user.login} error:`, err);
 
       ack?.({ ok: false, code, message });
       socket.emit('error', { code, message });

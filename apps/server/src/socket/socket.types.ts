@@ -25,6 +25,27 @@ export type ChatSendAck =
   | { ok: false; code: string; message: string };
 
 /*
+ * 메시지 이모지 반응 토글 결과 페이로드
+ * action 으로 추가/제거를 구분 → 클라이언트가 카운트/내 반응 상태 갱신
+ */
+export interface ChatReactionEventPayload {
+  message_id: string;
+  room_id: string;
+  private_room_id: string | null;
+  emoji: string;
+  user: {
+    id: string;
+    github_username: string;
+    avatar_url: string | null;
+  };
+  action: 'added' | 'removed';
+}
+
+export type ChatReactAck =
+  | { ok: true; reaction: ChatReactionEventPayload }
+  | { ok: false; code: string; message: string };
+
+/*
  * 유저 정보 (JWT 검증 후 socket.data.user 에 저장됨)
  */
 export interface SocketUser {
@@ -61,6 +82,7 @@ export interface ServerToClientEvents {
 
   // Chat
   'chat:message': (data: ChatEventPayload) => void;
+  'chat:reaction': (data: ChatReactionEventPayload) => void;
 
   // Meeting
   'meeting:started': (data: { meetingId: string; hostId: string }) => void;
@@ -97,6 +119,15 @@ export interface ClientToServerEvents {
   'chat:send': (
     data: { roomId: string; content: string; privateRoomId?: string },
     ack?: (response: ChatSendAck) => void,
+  ) => void;
+  'chat:react': (
+    data: {
+      roomId: string;
+      privateRoomId?: string;
+      messageId: string;
+      emoji: string;
+    },
+    ack?: (response: ChatReactAck) => void,
   ) => void;
 
   // Meeting
