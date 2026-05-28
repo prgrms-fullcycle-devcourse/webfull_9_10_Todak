@@ -40,6 +40,27 @@ export const CreateTodosSchema = z.object({
 
 export type CreateTodosInput = z.infer<typeof CreateTodosSchema>;
 
+export const GetTodosQuerySchema = z.object({
+  assignee_id: z.string().uuid().optional().openapi({
+    description: '담당자 User ID로 필터링',
+    example: 'uuid-user-1',
+  }),
+  minutes_id: z.string().uuid().optional().openapi({
+    description: '회의록 ID로 필터링',
+    example: 'uuid-minutes-1',
+  }),
+  is_issued: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform(val => (val === undefined ? undefined : val === 'true'))
+    .openapi({
+      description: 'GitHub 이슈 발행된 Todo만 필터링',
+      example: 'true',
+    }),
+});
+
+export type GetTodosQuery = z.infer<typeof GetTodosQuerySchema>;
+
 export const TodoResponseSchema = registry.register(
   'Todo',
   z.object({
