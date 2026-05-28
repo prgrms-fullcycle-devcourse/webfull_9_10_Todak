@@ -12,7 +12,7 @@ export async function githubLogin(_req: Request, res: Response) {
   const params = new URLSearchParams({
     client_id: env.GITHUB_CLIENT_ID,
     redirect_uri: env.GITHUB_CALLBACK_URL,
-    scope: 'user repo',
+    scope: 'user repo delete_repo',
   });
   res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 }

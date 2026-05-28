@@ -180,6 +180,30 @@ export async function createIssue(
   }
 }
 
+export async function deleteRepo(
+  accessToken: string,
+  owner: string,
+  repo: string,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.repos.delete({ owner, repo });
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 403) {
+        throw new AppError('REPO_ADMIN_REQUIRED');
+      }
+
+      if (err.status === 404) {
+        throw new AppError('REPO_NOT_FOUND');
+      }
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
+}
+
 export async function closeIssue(
   accessToken: string,
   owner: string,
