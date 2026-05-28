@@ -100,6 +100,16 @@ export const ERROR_CODES = {
     code: 'ROOM_MEMBER_NOT_FOUND',
     message: '룸 멤버를 찾을 수 없습니다.',
   },
+  ROOM_REPO_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'ROOM_REPO_NOT_FOUND',
+    message: '룸에 연결된 레포지토리가 없습니다.',
+  },
+  TODO_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'TODO_NOT_FOUND',
+    message: 'Todo를 찾을 수 없습니다.',
+  },
 
   // 409
   CONFLICT: {
