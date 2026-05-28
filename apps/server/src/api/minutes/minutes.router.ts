@@ -16,9 +16,14 @@ router.use(requireAuth);
  */
 router
   .route('/')
-  .get(validate(MinutesSchema.getMinutesListSchema), controller.getMinutesList)
+  .get(
+    validate(MinutesSchema.commonParams, 'params'),
+    validate(MinutesSchema.getMinutesListQuery, 'query'),
+    controller.getMinutesList,
+  )
   .post(
-    validate(MinutesSchema.createManualMinutes),
+    validate(MinutesSchema.commonParams, 'params'),
+    validate(MinutesSchema.createManualMinutesBody, 'body'),
     controller.createManualMinutes,
   );
 
@@ -27,7 +32,8 @@ router
  */
 router.post(
   '/generate',
-  validate(MinutesSchema.generateAiMinutes),
+  validate(MinutesSchema.commonParams, 'params'),
+  validate(MinutesSchema.generateAiMinutesBody, 'body'),
   controller.generateAiMinutes,
 );
 
@@ -37,17 +43,22 @@ router.post(
 router
   .route('/:minutesId')
   .get(
-    validate(MinutesSchema.getMinutesDetailSchema),
+    validate(MinutesSchema.detailParams, 'params'),
     controller.getMinutesDetail,
   )
-  .patch(validate(MinutesSchema.updateMinutes), controller.updateMinutes);
+  .patch(
+    validate(MinutesSchema.detailParams, 'params'),
+    validate(MinutesSchema.updateMinutesBody, 'body'),
+    controller.updateMinutes,
+  );
 
 /**
  * 엔드포인트: /rooms/:roomId/minutes/:minutesId/ai-refine
  */
 router.post(
   '/:minutesId/ai-refine',
-  validate(MinutesSchema.refineMinutes),
+  validate(MinutesSchema.detailParams, 'params'),
+  validate(MinutesSchema.refineMinutesBody, 'body'),
   controller.refineMinutesWithAI,
 );
 

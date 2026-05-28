@@ -14,7 +14,7 @@ import {
   UpdateMinutesBody,
   UpdateMinutesParams,
 } from './minutes.schema.js';
-import { MinutesService } from './minutes.service.js';
+import { MinutesService } from '../../services/minutes.service.js';
 
 export class MinutesController {
   private minutesService = new MinutesService();
