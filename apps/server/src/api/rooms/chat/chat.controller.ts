@@ -17,6 +17,7 @@ function slim(chat: ChatPayload) {
     content: chat.content,
     type: chat.type,
     created_at: chat.created_at,
+    reactions: chat.reactions,
   };
 }
 

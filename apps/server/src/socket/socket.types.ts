@@ -18,6 +18,7 @@ export interface ChatEventPayload {
   content: string | null;
   type: string;
   created_at: string;
+  reactions: { emoji: string; count: number; me: boolean }[];
 }
 
 export type ChatSendAck =

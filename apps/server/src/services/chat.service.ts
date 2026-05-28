@@ -1,6 +1,12 @@
 import { AppError } from '../errors/AppError.js';
 import { prisma } from '../lib/prisma.js';
 
+export interface ReactionSummary {
+  emoji: string;
+  count: number;
+  me: boolean; // 요청한 유저가 이 이모지를 눌렀는지
+}
+
 export interface ChatPayload {
   id: string;
   room_id: string;
@@ -12,6 +18,7 @@ export interface ChatPayload {
   content: string | null;
   type: string;
   created_at: string;
+  reactions: ReactionSummary[];
 }
 
 interface ChatsQuery {
@@ -30,13 +37,37 @@ interface ChatRow {
     githubUsername: string;
     avatarUrl: string | null;
   };
+  reactions: { emoji: string; userId: string }[];
 }
 
-const includeUser = {
+const includeChat = {
   user: { select: { githubUsername: true, avatarUrl: true } },
+  reactions: { select: { emoji: true, userId: true } },
 } as const;
 
-function toPayload(row: ChatRow): ChatPayload {
+function aggregateReactions(
+  rows: { emoji: string; userId: string }[],
+  currentUserId: string,
+): ReactionSummary[] {
+  const byEmoji = new Map<string, { count: number; me: boolean }>();
+
+  for (const row of rows) {
+    const entry = byEmoji.get(row.emoji) ?? { count: 0, me: false };
+    entry.count += 1;
+    if (row.userId === currentUserId) {
+      entry.me = true;
+    }
+    byEmoji.set(row.emoji, entry);
+  }
+
+  return Array.from(byEmoji, ([emoji, { count, me }]) => ({
+    emoji,
+    count,
+    me,
+  }));
+}
+
+function toPayload(row: ChatRow, currentUserId: string): ChatPayload {
   return {
     id: row.id,
     room_id: row.roomId,
@@ -48,6 +79,7 @@ function toPayload(row: ChatRow): ChatPayload {
     content: row.content,
     type: row.type,
     created_at: row.createdAt.toISOString(),
+    reactions: aggregateReactions(row.reactions, currentUserId),
   };
 }
 
@@ -112,10 +144,10 @@ export async function getMainRoomChats(
     },
     orderBy: { createdAt: 'desc' },
     take: limit,
-    include: includeUser,
+    include: includeChat,
   });
 
-  return rows.map(toPayload);
+  return rows.map(row => toPayload(row, userId));
 }
 
 /*
@@ -139,10 +171,10 @@ export async function getPrivateRoomChats(
     },
     orderBy: { createdAt: 'desc' },
     take: limit,
-    include: includeUser,
+    include: includeChat,
   });
 
-  return rows.map(toPayload);
+  return rows.map(row => toPayload(row, userId));
 }
 
 /*
@@ -169,8 +201,8 @@ export async function createChat(
       content: input.content,
       type: 'text',
     },
-    include: includeUser,
+    include: includeChat,
   });
 
-  return toPayload(saved);
+  return toPayload(saved, userId);
 }
