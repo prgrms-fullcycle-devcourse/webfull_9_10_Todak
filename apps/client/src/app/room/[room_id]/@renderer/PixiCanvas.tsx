@@ -20,6 +20,7 @@ export default function PixiCanvas() {
     let unsubscribeAnimal: (() => void) | null = null;
     let cleanupMovement: (() => void) | null = null;
     let cleanupCamera: (() => void) | null = null;
+    let handleResize: (() => void) | null = null;
 
     const initPixi = async () => {
       const container = canvasRef.current;
@@ -89,6 +90,11 @@ export default function PixiCanvas() {
 
       // 카메라 셋업
       cleanupCamera = setupCamera(app, world, player);
+      handleResize = () => {
+        if (!app || !container) return;
+        app.renderer.resize(container.clientWidth, container.clientHeight);
+      };
+      window.addEventListener('resize', handleResize);
     };
 
     initPixi();

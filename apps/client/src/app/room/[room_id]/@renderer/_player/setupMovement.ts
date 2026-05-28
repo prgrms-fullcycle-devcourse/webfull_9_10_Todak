@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { AnimalAssetPack } from '../_animals/types';
 import { type Player, CHAR_HEIGHT } from './createPlayer';
+import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
 
 const SPEED = 5;
 
@@ -62,8 +63,8 @@ export function setupMovement(
     sprite.height = CHAR_HEIGHT;
 
     // 화면 경계 처리
-    container.x = Math.max(30, Math.min(app.screen.width - 30, container.x));
-    container.y = Math.max(50, Math.min(app.screen.height - 50, container.y));
+    container.x = Math.max(30, Math.min(WORLD_WIDTH - 30, container.x));
+    container.y = Math.max(50, Math.min(WORLD_HEIGHT - 50, container.y));
   };
 
   app.ticker.add(tickerCallback);
