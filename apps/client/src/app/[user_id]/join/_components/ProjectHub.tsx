@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Card, Chip, Input, Tabs } from '@heroui/react';
+import { Card, Chip, Input, Tabs } from '@heroui/react';
 import Link from 'next/link';
 
 const TabOptions = [
@@ -20,16 +20,23 @@ const teamList = [
   {
     repoName: '토닥윗미 웹 앱 개발단',
     url: 'team/todak-with-me',
-    id: 'TODAK-992F',
+    roomID: 'TODAK-992F',
   },
   {
     repoName: '소켓 통신 프로토콜 스파이크팀',
     url: 'team/socket-spike',
-    id: 'TODAK-881A',
+    roomID: 'TODAK-881A',
   },
 ];
 
-export default function ProjectHub() {
+interface ProjectHubProps {
+  userID: string;
+}
+
+export default function ProjectHub({ userID }: ProjectHubProps) {
+  const customizeHref = (roomID: string) =>
+    `/${encodeURIComponent(userID)}/join/customize?roomID=${encodeURIComponent(roomID)}`;
+
   return (
     <section className="flex min-h-dvh w-full items-start justify-center bg-background px-5 pb-8 pt-[max(2rem,calc((100dvh-494px)/2))]">
       <Card className="w-full max-w-[386px] gap-0 rounded-[26px] border border-border/80 bg-surface px-7 py-8 shadow-todak-panel">
@@ -96,8 +103,8 @@ export default function ProjectHub() {
                         {teamList.map(team => (
                           <Link
                             className="group flex min-h-[50px] items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3.5 py-2.5 shadow-sm transition-colors hover:border-todak-coral-200 hover:bg-todak-coral-50/60"
-                            key={`existing-team-list-${team.id}`}
-                            href={`/room/${team.id}`}
+                            key={`existing-team-list-${team.roomID}`}
+                            href={customizeHref(team.roomID)}
                           >
                             <span className="min-w-0">
                               <span className="block truncate text-xs font-black text-slate-800">
@@ -113,21 +120,19 @@ export default function ProjectHub() {
                               size="sm"
                               variant="soft"
                             >
-                              {team.id}
+                              {team.roomID}
                             </Chip>
                           </Link>
                         ))}
                       </div>
                     </div>
 
-                    <Button
-                      className="mt-1 h-9 rounded-xl bg-accent text-xs font-black text-accent-foreground shadow-md hover:bg-accent-hover"
-                      fullWidth
-                      type="button"
-                      variant="primary"
+                    <Link
+                      className="mt-1 flex h-9 w-full items-center justify-center rounded-xl bg-accent text-xs font-black text-accent-foreground shadow-md transition-colors hover:bg-todak-coral-600"
+                      href={customizeHref(teamList[0].roomID)}
                     >
                       다음 단계로 이동 (프로필 설정)
-                    </Button>
+                    </Link>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -139,14 +144,12 @@ export default function ProjectHub() {
                       fullWidth
                       placeholder="12자리 초대 코드를 입력하세요"
                     />
-                    <Button
-                      className="h-9 rounded-xl bg-accent text-xs font-black text-accent-foreground shadow-md hover:bg-accent-hover"
-                      fullWidth
-                      type="button"
-                      variant="primary"
+                    <Link
+                      className="flex h-9 w-full items-center justify-center rounded-xl bg-accent text-xs font-black text-accent-foreground shadow-md transition-colors hover:bg-todak-coral-600"
+                      href={customizeHref('TODAK-INVITE')}
                     >
                       다음 단계로 이동 (프로필 설정)
-                    </Button>
+                    </Link>
                   </div>
                 )}
               </Tabs.Panel>
