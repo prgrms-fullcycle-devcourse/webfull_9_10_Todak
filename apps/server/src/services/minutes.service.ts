@@ -74,7 +74,7 @@ export class MinutesService {
       status: m.status,
       author: {
         id: m.author.id,
-        nickname: m.author.githubUsername,
+        github_username: m.author.githubUsername,
         avatar_url: m.author.avatarUrl,
       },
       linked_issue_numbers: m.linkedIssueNumbers,
