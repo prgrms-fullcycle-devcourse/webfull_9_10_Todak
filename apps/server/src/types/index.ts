@@ -27,4 +27,5 @@ export type JobName =
   | 'ai-review'
   | 'github-sync'
   | 'notification'
-  | 'minutes-generation';
+  | 'minutes-generation'
+  | 'chat-cleanup';
