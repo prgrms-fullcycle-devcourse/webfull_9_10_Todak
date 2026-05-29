@@ -92,6 +92,7 @@ export class MinutesService {
         type,
         contentMd: content_md,
         meetingId: null,
+        actionItems: {} as Prisma.JsonObject,
       },
     });
 
