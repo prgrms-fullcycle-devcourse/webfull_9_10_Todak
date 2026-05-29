@@ -94,6 +94,7 @@ function slim(chat: {
   content: string | null;
   type: string;
   created_at: string;
+  reactions: { emoji: string; count: number; me: boolean }[];
 }) {
   return {
     id: chat.id,
@@ -101,6 +102,7 @@ function slim(chat: {
     content: chat.content,
     type: chat.type,
     created_at: chat.created_at,
+    reactions: chat.reactions,
   };
 }
 
