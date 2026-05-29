@@ -27,8 +27,9 @@ export class MinutesController {
     try {
       const { roomId } = req.params as GetMinutesListParams;
       const { type, page, limit } = req.query as unknown as GetMinutesListQuery;
+      const userId = req.user!.id;
 
-      const result = await this.minutesService.getMinutesList(roomId, {
+      const result = await this.minutesService.getMinutesList(roomId, userId, {
         type,
         page,
         limit,
@@ -111,9 +112,11 @@ export class MinutesController {
   ) => {
     try {
       const { roomId, minutesId } = req.params as GetMinutesDetailParams;
+      const userId = req.user!.id;
 
       const detailData = await this.minutesService.getMinutesDetail(
         roomId,
+        userId,
         minutesId,
       );
 
@@ -134,9 +137,11 @@ export class MinutesController {
     try {
       const { roomId, minutesId } = req.params as UpdateMinutesParams;
       const dto = req.body as UpdateMinutesBody;
+      const userId = req.user!.id;
 
       const updatedData = await this.minutesService.updateMinutes(
         roomId,
+        userId,
         minutesId,
         dto,
       );

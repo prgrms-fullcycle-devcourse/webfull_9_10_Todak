@@ -10,7 +10,25 @@ import { addJob } from '../jobs/queues/index.js';
 import { prisma } from '../lib/prisma.js';
 
 export class MinutesService {
-  public async getMinutesList(roomId: string, query: GetMinutesListQuery) {
+  // 호출자가 해당 룸의 멤버인지 검증 (멤버가 아니면 룸 존재 여부를 숨기기 위해 ROOM_NOT_FOUND)
+  private async assertRoomMember(roomId: string, userId: string) {
+    const membership = await prisma.roomMember.findFirst({
+      where: { roomId, userId },
+      select: { id: true },
+    });
+
+    if (membership === null) {
+      throw new AppError('ROOM_NOT_FOUND');
+    }
+  }
+
+  public async getMinutesList(
+    roomId: string,
+    userId: string,
+    query: GetMinutesListQuery,
+  ) {
+    await this.assertRoomMember(roomId, userId);
+
     const { type, page, limit } = query;
 
     const whereCondition: Prisma.MinutesWhereInput = { roomId };
@@ -82,6 +100,8 @@ export class MinutesService {
     authorId: string,
     data: CreateManualMinutesBody,
   ) {
+    await this.assertRoomMember(roomId, authorId);
+
     const { title, type, content_md } = data;
 
     const newMinutes = await prisma.minutes.create({
@@ -92,7 +112,7 @@ export class MinutesService {
         type,
         contentMd: content_md,
         meetingId: null,
-        actionItems: {} as Prisma.JsonObject,
+        actionItems: [] as Prisma.JsonArray,
       },
     });
 
@@ -117,6 +137,8 @@ export class MinutesService {
     authorId: string,
     body: GenerateAiMinutesBody,
   ) {
+    await this.assertRoomMember(roomId, authorId);
+
     const { meeting_id, title } = body;
 
     const finalTitle = title ?? 'AI가 회의록을 생성하고 있습니다...';
@@ -132,11 +154,17 @@ export class MinutesService {
       },
     });
 
-    await addJob('minutes-generation', {
-      minutesId: tempMinutes.id,
-      meetingId: meeting_id,
-      roomId,
-    });
+    try {
+      await addJob('minutes-generation', {
+        minutesId: tempMinutes.id,
+        meetingId: meeting_id,
+        roomId,
+      });
+    } catch (error) {
+      // 큐 등록 실패 시 'generating' 상태로 남는 고아 레코드 방지
+      await prisma.minutes.delete({ where: { id: tempMinutes.id } });
+      throw error;
+    }
 
     return {
       id: tempMinutes.id,
@@ -153,7 +181,13 @@ export class MinutesService {
     };
   }
 
-  public async getMinutesDetail(roomId: string, minutesId: string) {
+  public async getMinutesDetail(
+    roomId: string,
+    userId: string,
+    minutesId: string,
+  ) {
+    await this.assertRoomMember(roomId, userId);
+
     // 1. 회의록 단건 조회 (User 테이블 include 및 해당 룸 검증)
     const minutes = await prisma.minutes.findFirst({
       where: {
@@ -191,9 +225,12 @@ export class MinutesService {
 
   public async updateMinutes(
     roomId: string,
+    userId: string,
     minutesId: string,
     dto: UpdateMinutesBody,
   ) {
+    await this.assertRoomMember(roomId, userId);
+
     const existingMinutes = await prisma.minutes.findFirst({
       where: {
         id: minutesId,

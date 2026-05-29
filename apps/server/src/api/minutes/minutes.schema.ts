@@ -22,7 +22,7 @@ const CreateManualMinutesBodySchema = z.object({
 });
 
 const GenerateAiMinutesBodySchema = z.object({
-  meeting_id: z.string().min(1),
+  meeting_id: z.uuid(),
   title: z.string().min(1).optional(),
 });
 
@@ -61,4 +61,5 @@ export type GenerateAiMinutesBody = z.infer<typeof GenerateAiMinutesBodySchema>;
 export type GetMinutesDetailParams = z.infer<typeof DetailParamsSchema>;
 export type UpdateMinutesParams = z.infer<typeof DetailParamsSchema>;
 export type UpdateMinutesBody = z.infer<typeof UpdateMinutesBodySchema>;
-export type RefineMinutesParams = z.infer<typeof RefineMinutesBodySchema>;
+export type RefineMinutesParams = z.infer<typeof DetailParamsSchema>;
+export type RefineMinutesBody = z.infer<typeof RefineMinutesBodySchema>;
