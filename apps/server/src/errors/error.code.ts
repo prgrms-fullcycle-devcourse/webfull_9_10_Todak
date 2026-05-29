@@ -168,6 +168,11 @@ export const ERROR_CODES = {
     code: 'MINUTES_GENERATING',
     message: 'AI가 회의록을 생성 중일 때는 수정할 수 없습니다.',
   },
+  MINUTES_ALREADY_EXISTS: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'MINUTES_ALREADY_EXISTS',
+    message: '해당 회의에 대한 회의록이 이미 존재합니다.',
+  },
 
   // 500
   INTERNAL_SERVER_ERROR: {

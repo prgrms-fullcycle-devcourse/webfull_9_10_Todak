@@ -141,6 +141,26 @@ export class MinutesService {
 
     const { meeting_id, title } = body;
 
+    // 회의가 존재하고 해당 룸에 속하는지 검증 (FK 위반으로 인한 500 방지)
+    const meeting = await prisma.meeting.findFirst({
+      where: { id: meeting_id, roomId },
+      select: { id: true },
+    });
+
+    if (!meeting) {
+      throw new AppError('MEETING_NOT_FOUND');
+    }
+
+    // meetingId가 @unique이므로 이미 회의록이 있으면 409로 응답 (unique 위반 500 방지)
+    const existing = await prisma.minutes.findUnique({
+      where: { meetingId: meeting_id },
+      select: { id: true },
+    });
+
+    if (existing) {
+      throw new AppError('MINUTES_ALREADY_EXISTS');
+    }
+
     const finalTitle = title ?? 'AI가 회의록을 생성하고 있습니다...';
 
     const tempMinutes = await prisma.minutes.create({
