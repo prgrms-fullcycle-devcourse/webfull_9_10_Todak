@@ -1,6 +1,7 @@
-import { requireAuth } from '@/middleware/auth.middleware.js';
-import { validate } from '@/middleware/validate.middleware.js';
 import { Router } from 'express';
+
+import { requireAuth } from '../../middleware/auth.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
 
 import { NotificationsController } from './notifications.controller.js';
 import { NotificationsSchema } from './notifications.schema.js';

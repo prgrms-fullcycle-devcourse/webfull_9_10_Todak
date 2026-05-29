@@ -1,5 +1,7 @@
-import { AuthenticatedRequest } from '@/types/index.js';
-import { NextFunction, Response } from 'express';
+import type { NextFunction, Response } from 'express';
+
+import { NotificationsService } from '../../services/notifications.service.js';
+import { AuthenticatedRequest } from '../../types/index.js';
 
 import {
   DeleteNotificationsParams,
@@ -9,7 +11,6 @@ import {
   UpdateNotificationsReadBody,
   UpdateNotificationsReadParams,
 } from './notifications.schema.js';
-import { NotificationsService } from './notifications.service.js';
 
 export class NotificationsController {
   private notificationsService = new NotificationsService();
