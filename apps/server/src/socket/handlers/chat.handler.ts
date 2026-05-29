@@ -38,6 +38,8 @@ export function registerChatHandlers(io: TypedIO, socket: TypedSocket) {
   const { user } = socket.data;
 
   socket.on('chat:send', async (raw, ack) => {
+    // 비정상 클라이언트가 ack 자리에 함수 아닌 값을 보내도 서버가 죽지 않도록 방어
+    const safeAck = typeof ack === 'function' ? ack : undefined;
     try {
       const input = ChatSendSchema.parse(raw);
 
@@ -51,7 +53,7 @@ export function registerChatHandlers(io: TypedIO, socket: TypedSocket) {
       // 본인 포함 broadcast (io.to) → 보낸 사람도 동일 payload 로 수신
       io.to(channel).emit('chat:message', chat);
 
-      ack?.({ ok: true, chat });
+      safeAck?.({ ok: true, chat });
     } catch (err) {
       const code =
         err instanceof AppError
@@ -64,12 +66,13 @@ export function registerChatHandlers(io: TypedIO, socket: TypedSocket) {
 
       console.error(`[chat:send] ${user.login} error:`, err);
 
-      ack?.({ ok: false, code, message });
+      safeAck?.({ ok: false, code, message });
       socket.emit('error', { code, message });
     }
   });
 
   socket.on('chat:react', async (raw, ack) => {
+    const safeAck = typeof ack === 'function' ? ack : undefined;
     try {
       const input = ChatReactSchema.parse(raw);
 
@@ -95,7 +98,7 @@ export function registerChatHandlers(io: TypedIO, socket: TypedSocket) {
 
       io.to(channel).emit('chat:reaction', payload);
 
-      ack?.({ ok: true, reaction: payload });
+      safeAck?.({ ok: true, reaction: payload });
     } catch (err) {
       const code =
         err instanceof AppError
@@ -108,7 +111,7 @@ export function registerChatHandlers(io: TypedIO, socket: TypedSocket) {
 
       console.error(`[chat:react] ${user.login} error:`, err);
 
-      ack?.({ ok: false, code, message });
+      safeAck?.({ ok: false, code, message });
       socket.emit('error', { code, message });
     }
   });
