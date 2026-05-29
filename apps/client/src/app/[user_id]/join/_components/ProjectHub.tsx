@@ -1,7 +1,13 @@
 'use client';
 
-import { Card, Chip, Input, Tabs } from '@heroui/react';
+import { isSystemError, isTodakApiError } from '@/sevice/error';
+import { createRepository } from '@/sevice/repos';
+import { createRooms, fetchMyRooms } from '@/sevice/rooms';
+import { Card, Chip, Input, NumberField, Tabs } from '@heroui/react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { type FormEvent, type ReactNode, useState } from 'react';
 
 const TabOptions = [
   {
@@ -16,26 +22,108 @@ const TabOptions = [
   },
 ];
 
-const teamList = [
-  {
-    repoName: '토닥윗미 웹 앱 개발단',
-    url: 'team/todak-with-me',
-    roomID: 'TODAK-992F',
-  },
-  {
-    repoName: '소켓 통신 프로토콜 스파이크팀',
-    url: 'team/socket-spike',
-    roomID: 'TODAK-881A',
-  },
-];
-
 interface ProjectHubProps {
   userID: string;
 }
 
+function FieldLabel({
+  children,
+  htmlFor,
+  required = false,
+}: {
+  children: ReactNode;
+  htmlFor: string;
+  required?: boolean;
+}) {
+  return (
+    <label
+      className="flex items-center gap-1 text-xs font-black text-slate-700"
+      htmlFor={htmlFor}
+    >
+      <span>{children}</span>
+      {required && (
+        <span aria-hidden="true" className="text-todak-coral-500">
+          *
+        </span>
+      )}
+      {required && <span className="sr-only">필수</span>}
+    </label>
+  );
+}
+
+function getFormString(formData: FormData, name: string) {
+  const value = formData.get(name);
+
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function getValidMaxMembers(value: number) {
+  if (!Number.isFinite(value)) {
+    return 4;
+  }
+
+  return Math.min(Math.max(Math.trunc(value), 2), 20);
+}
+
 export default function ProjectHub({ userID }: ProjectHubProps) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [maxMembers, setMaxMembers] = useState(4);
+
+  const { data: myRooms } = useQuery({
+    queryKey: ['myRooms'],
+    queryFn: fetchMyRooms,
+  });
   const customizeHref = (roomID: string) =>
     `/${encodeURIComponent(userID)}/join/customize?roomID=${encodeURIComponent(roomID)}`;
+
+  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isCreating) {
+      return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    const roomName = getFormString(formData, 'roomName');
+    const repositoryName = getFormString(formData, 'repositoryName');
+
+    if (roomName === '' || repositoryName === '') {
+      setCreateError('프로젝트 룸 이름과 레포지토리 이름을 입력해주세요.');
+      return;
+    }
+
+    setCreateError(null);
+    setIsCreating(true);
+
+    try {
+      const repository = await createRepository({ name: repositoryName });
+      const room = await createRooms({
+        name: roomName,
+        repo_full_name: repository.full_name,
+        max_members: getValidMaxMembers(maxMembers),
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['myRooms'] });
+      router.push(customizeHref(room.id));
+    } catch (error) {
+      if (isTodakApiError(error)) {
+        setCreateError(error.response.data.error);
+        return;
+      }
+
+      if (isSystemError(error)) {
+        setCreateError(error.message);
+        return;
+      }
+
+      setCreateError('프로젝트 룸 생성에 실패했습니다.');
+    } finally {
+      setIsCreating(false);
+    }
+  }
 
   return (
     <section className="flex min-h-dvh w-full items-start justify-center bg-background px-5 pb-8 pt-[max(2rem,calc((100dvh-494px)/2))]">
@@ -77,72 +165,130 @@ export default function ProjectHub({ userID }: ProjectHubProps) {
                 id={option.id}
               >
                 {option.id === 'create' ? (
-                  <div className="space-y-4">
+                  <form className="space-y-4" onSubmit={handleCreateProject}>
                     <div className="space-y-2">
-                      <label
-                        className="block text-xs font-black text-slate-700"
-                        htmlFor="github-repository-url"
-                      >
-                        GitHub 레포지토리 연결
-                      </label>
+                      <FieldLabel htmlFor="project-room-name" required>
+                        프로젝트 룸 이름
+                      </FieldLabel>
                       <Input
-                        aria-label="GitHub 레포지토리 URL"
+                        aria-label="프로젝트 룸 이름"
                         className="h-9 rounded-xl border border-border bg-surface px-3.5 py-0 text-xs font-semibold text-slate-700 shadow-field placeholder:text-slate-400 focus:border-accent"
-                        defaultValue="https://github.com/team/todak-with-me"
+                        disabled={isCreating}
                         fullWidth
-                        id="github-repository-url"
-                        placeholder="레포지토리 URL을 입력하세요"
+                        id="project-room-name"
+                        maxLength={100}
+                        name="roomName"
+                        placeholder="프로젝트 룸 이름을 입력하세요"
+                        required
                       />
+                      <FieldLabel htmlFor="github-repository-name" required>
+                        GitHub 레포지토리 이름
+                      </FieldLabel>
+                      <Input
+                        aria-label="GitHub 레포지토리 이름"
+                        className="h-9 rounded-xl border border-border bg-surface px-3.5 py-0 text-xs font-semibold text-slate-700 shadow-field placeholder:text-slate-400 focus:border-accent"
+                        disabled={isCreating}
+                        fullWidth
+                        id="github-repository-name"
+                        maxLength={100}
+                        name="repositoryName"
+                        pattern="[A-Za-z0-9_.\-]+"
+                        placeholder="레포지토리 이름을 입력하세요"
+                        required
+                        title="영문, 숫자, -, _, . 만 사용할 수 있습니다."
+                      />
+                      <FieldLabel htmlFor="project-max-members">
+                        최대 인원
+                      </FieldLabel>
+                      <NumberField
+                        aria-label="최대 인원"
+                        isDisabled={isCreating}
+                        maxValue={20}
+                        minValue={2}
+                        onChange={value =>
+                          setMaxMembers(Number.isFinite(value) ? value : 4)
+                        }
+                        value={maxMembers}
+                      >
+                        <NumberField.Group>
+                          <NumberField.DecrementButton type="button" />
+                          <NumberField.Input id="project-max-members" />
+                          <NumberField.IncrementButton type="button" />
+                        </NumberField.Group>
+                      </NumberField>
                     </div>
 
                     <div className="space-y-2">
                       <p className="text-[11px] font-black text-slate-400">
                         연결 가능한 기존 팀 리스트
                       </p>
-                      <div className="space-y-2">
-                        {teamList.map(team => (
-                          <Link
-                            className="group flex min-h-[50px] items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3.5 py-2.5 shadow-sm transition-colors hover:border-todak-coral-200 hover:bg-todak-coral-50/60"
-                            key={`existing-team-list-${team.roomID}`}
-                            href={customizeHref(team.roomID)}
-                          >
-                            <span className="min-w-0">
-                              <span className="block truncate text-xs font-black text-slate-800">
-                                {team.repoName}
-                              </span>
-                              <span className="todak-mono mt-0.5 block truncate text-[10px] font-semibold text-slate-400">
-                                {team.url}
-                              </span>
-                            </span>
-                            <Chip
-                              className="rounded-md bg-slate-100 px-2 py-0 text-[10px] font-black text-slate-400"
-                              color="default"
-                              size="sm"
-                              variant="soft"
-                            >
-                              {team.roomID}
-                            </Chip>
-                          </Link>
+                      {!myRooms ||
+                        (myRooms.length === 0 && (
+                          <div className="space-y-2">
+                            참여 중인 프로젝트가 없습니다.
+                          </div>
                         ))}
-                      </div>
+                      {myRooms && (
+                        <div className="space-y-2">
+                          {myRooms.map(room => (
+                            <Link
+                              className="group flex min-h-[50px] items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3.5 py-2.5 shadow-sm transition-colors hover:border-todak-coral-200 hover:bg-todak-coral-50/60"
+                              key={`existing-team-list-${room.id}`}
+                              href={customizeHref(room.id)}
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate text-xs font-black text-slate-800">
+                                  {room.name}
+                                </span>
+                                <span className="todak-mono mt-0.5 block truncate text-[10px] font-semibold text-slate-400">
+                                  {room.repo.full_name}
+                                </span>
+                              </span>
+                              <Chip
+                                className="rounded-md bg-slate-100 px-2 py-0 text-[10px] font-black text-slate-400"
+                                color="default"
+                                size="sm"
+                                variant="soft"
+                              >
+                                {room.invite_code}
+                              </Chip>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    <Link
-                      className="mt-1 flex h-9 w-full items-center justify-center rounded-xl bg-accent text-xs font-black text-accent-foreground shadow-md transition-colors hover:bg-todak-coral-600"
-                      href={customizeHref(teamList[0].roomID)}
+                    {createError !== null && (
+                      <p
+                        className="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600"
+                        role="alert"
+                      >
+                        {createError}
+                      </p>
+                    )}
+
+                    <button
+                      className="mt-1 flex h-9 w-full items-center justify-center rounded-xl bg-accent text-xs font-black text-accent-foreground shadow-md transition-colors hover:bg-todak-coral-600 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isCreating}
+                      type="submit"
                     >
-                      다음 단계로 이동 (프로필 설정)
-                    </Link>
-                  </div>
+                      {isCreating
+                        ? '프로젝트 룸 생성 중...'
+                        : '다음 단계로 이동 (프로필 설정)'}
+                    </button>
+                  </form>
                 ) : (
                   <div className="space-y-4">
-                    <p className="text-xs font-black text-slate-700">
+                    <FieldLabel htmlFor="team-invite-code" required>
                       팀 초대 코드 입력
-                    </p>
+                    </FieldLabel>
                     <Input
+                      aria-label="팀 초대 코드"
                       className="h-9 rounded-xl border border-border bg-surface px-3.5 py-0 text-xs font-semibold text-slate-700 shadow-field placeholder:text-slate-400"
                       fullWidth
+                      id="team-invite-code"
                       placeholder="12자리 초대 코드를 입력하세요"
+                      required
                     />
                     <Link
                       className="flex h-9 w-full items-center justify-center rounded-xl bg-accent text-xs font-black text-accent-foreground shadow-md transition-colors hover:bg-todak-coral-600"
