@@ -49,4 +49,6 @@ export async function deleteGithubRepo(userId: string, repoId: string) {
 
   // 5. DB에서 레포 삭제
   await prisma.repo.delete({ where: { id: repoId } });
+
+  return { roomId: repo.roomId };
 }

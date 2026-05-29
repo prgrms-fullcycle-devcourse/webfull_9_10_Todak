@@ -6,7 +6,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "prisma generate && tsc && cp -R src/generated dist/generated",
+    "build": "prisma generate && tsc && tsc-alias && cp -R src/generated dist/generated",
     "start": "node dist/server.js",
     "lint": "eslint src",
     "db:generate": "prisma generate",
@@ -45,6 +45,7 @@
     "@types/pg": "^8.15.4",
     "@types/swagger-ui-express": "^4.1.8",
     "prisma": "^7.0.0",
+    "tsc-alias": "^1.8.17",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   },
