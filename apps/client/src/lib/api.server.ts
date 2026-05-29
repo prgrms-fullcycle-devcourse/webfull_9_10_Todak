@@ -4,9 +4,10 @@ import axios, {
   AxiosHeaders,
   type AxiosRequestConfig,
   type AxiosResponse,
+  type InternalAxiosRequestConfig,
 } from 'axios';
 
-import { clearAuthToken, getAuthToken } from './auth';
+import { getServerAuthToken } from './auth.server';
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
@@ -17,13 +18,17 @@ function getApiBaseUrl() {
   return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
 }
 
-export const api = axios.create({
+const api = axios.create({
   baseURL: getApiBaseUrl(),
   withCredentials: true,
 });
 
 api.interceptors.request.use(config => {
-  const token = getAuthToken();
+  return attachAuthHeader(config);
+});
+
+async function attachAuthHeader(config: InternalAxiosRequestConfig) {
+  const token = await getServerAuthToken();
 
   if (token !== null) {
     const headers = AxiosHeaders.from(config.headers);
@@ -34,29 +39,7 @@ api.interceptors.request.use(config => {
   }
 
   return config;
-});
-
-api.interceptors.response.use(
-  response => response,
-  error => {
-    if (
-      axios.isAxiosError(error) &&
-      error.response?.status === 401 &&
-      typeof window !== 'undefined'
-    ) {
-      clearAuthToken();
-
-      if (
-        window.location.pathname !== '/' &&
-        !window.location.pathname.startsWith('/auth/callback')
-      ) {
-        window.location.assign('/');
-      }
-    }
-
-    return Promise.reject(error);
-  },
-);
+}
 
 type ApiConfig<TBody = unknown> = AxiosRequestConfig<TBody>;
 type ApiMethodConfig<TBody = unknown> = Omit<
@@ -64,7 +47,7 @@ type ApiMethodConfig<TBody = unknown> = Omit<
   'data' | 'method' | 'url'
 >;
 
-export async function request<TData, TBody = unknown>(
+async function request<TData, TBody = unknown>(
   config: ApiConfig<TBody>,
 ): Promise<TData> {
   const response = await api.request<
@@ -76,7 +59,7 @@ export async function request<TData, TBody = unknown>(
   return response.data.data;
 }
 
-export const apiClient = {
+export const apiServer = {
   get<TData>(url: string, config?: ApiMethodConfig) {
     return request<TData>({ ...config, method: 'GET', url });
   },
