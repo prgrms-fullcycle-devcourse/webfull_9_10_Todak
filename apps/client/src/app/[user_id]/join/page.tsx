@@ -1,3 +1,11 @@
+import { apiServer } from '@/lib/api.server';
+import type { MyRooms } from '@/sevice/rooms';
+import {
+  dehydrate,
+  HydrationBoundary,
+  QueryClient,
+} from '@tanstack/react-query';
+
 import ProjectHub from './_components/ProjectHub';
 
 interface TeamSelectionPageProps {
@@ -10,10 +18,18 @@ export default async function TeamSelectionPage({
   params,
 }: TeamSelectionPageProps) {
   const { user_id: userID } = await params;
+  const queryClient = new QueryClient();
+
+  await queryClient.prefetchQuery({
+    queryKey: ['myRooms'],
+    queryFn: () => apiServer.get<MyRooms>('/rooms'),
+  });
 
   return (
     <main className="min-h-dvh bg-background text-foreground">
-      <ProjectHub userID={userID} />
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <ProjectHub userID={userID} />
+      </HydrationBoundary>
     </main>
   );
 }
