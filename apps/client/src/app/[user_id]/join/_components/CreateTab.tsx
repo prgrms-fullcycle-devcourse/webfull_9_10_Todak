@@ -15,7 +15,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, type ReactNode, useState } from 'react';
+import { type ComponentProps, type ReactNode, useState } from 'react';
 
 const GITHUB_REPOSITORY_NAME_PATTERN = /^[A-Za-z0-9_.-]{1,100}$/;
 const GITHUB_REPOSITORY_NAME_INPUT_PATTERN = '[A-Za-z0-9_.\\-]{1,100}';
@@ -26,6 +26,7 @@ const INVALID_INPUT_CLASS_NAME =
 
 type CreateProjectFieldName = 'roomName' | 'repositoryName';
 type CreateProjectFieldErrors = Partial<Record<CreateProjectFieldName, string>>;
+type FormSubmitHandler = NonNullable<ComponentProps<'form'>['onSubmit']>;
 
 interface CreateTabProps {
   userID: string;
@@ -50,12 +51,6 @@ function FieldLabel({
       isRequired={required}
     >
       <span>{children}</span>
-      {required && (
-        <span aria-hidden="true" className="text-todak-coral-500">
-          *
-        </span>
-      )}
-      {required && <span className="sr-only">필수</span>}
     </Label>
   );
 }
@@ -142,7 +137,7 @@ export default function CreateTab({ userID }: CreateTabProps) {
     });
   }
 
-  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
+  const handleCreateProject: FormSubmitHandler = async event => {
     event.preventDefault();
 
     if (isCreating) {
@@ -189,7 +184,7 @@ export default function CreateTab({ userID }: CreateTabProps) {
     } finally {
       setIsCreating(false);
     }
-  }
+  };
 
   return (
     <form className="space-y-4" noValidate onSubmit={handleCreateProject}>

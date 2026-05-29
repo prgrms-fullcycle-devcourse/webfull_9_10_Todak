@@ -1,6 +1,21 @@
-import { apiClient } from '@/lib/api';
+import { api, apiClient } from '@/lib/api';
 
-import { MyRooms } from '../models/my-room';
+import type {
+  CreatedRoom,
+  CreateRoomsParams,
+  JoinedRoom,
+  JoinRoomParams,
+  MyRooms,
+} from './model';
+
+export type {
+  CreatedRoom,
+  CreateRoomsParams,
+  JoinedRoom,
+  JoinRoomParams,
+  MyRoom,
+  MyRooms,
+} from './model';
 
 export async function fetchMyRooms(): Promise<MyRooms> {
   return apiClient.get<MyRooms>('/rooms');
@@ -8,30 +23,14 @@ export async function fetchMyRooms(): Promise<MyRooms> {
 
 export function fetchRoomInfo() {}
 
-export type CreateRoomsParams = {
-  name: string;
-  repo_full_name: string;
-  max_members?: number;
-};
-
-export type CreatedRoom = {
-  id: string;
-  name: string;
-  invite_code: string;
-  repo_full_name: string;
-  webhook_registered: boolean;
-};
-
 export function createRooms(params: CreateRoomsParams): Promise<CreatedRoom> {
   return apiClient.post<CreatedRoom, CreateRoomsParams>('/rooms', params);
 }
 
-type JoinRoomParams = {
-  invite_code: string;
-};
+export async function joinRooms(params: JoinRoomParams): Promise<JoinedRoom> {
+  const response = await api.post<JoinedRoom>('/rooms/join', params);
 
-export function joinRooms(params: JoinRoomParams) {
-  return apiClient.post('/rooms/join', params);
+  return response.data;
 }
 
 export function updateRoomSettings() {}
