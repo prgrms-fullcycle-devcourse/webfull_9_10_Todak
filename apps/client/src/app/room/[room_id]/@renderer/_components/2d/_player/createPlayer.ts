@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { useSpaceStore } from '@/store/useSpaceStore';
-import type { AnimalAssetPack } from '../_animals/types';
+import type { AnimalAssetPack } from '../_components/2d/_animals/types';
 
 export const CHAR_WIDTH = 50;
 export const CHAR_HEIGHT = 66;
