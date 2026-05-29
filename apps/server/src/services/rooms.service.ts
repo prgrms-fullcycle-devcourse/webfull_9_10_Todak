@@ -117,7 +117,10 @@ export async function getRooms(userId: string) {
       name: room.name,
       status: room.status,
       invite_code: room.inviteCode,
-      repo: linkedRepo !== null ? { full_name: linkedRepo.fullName } : null,
+      repo:
+        linkedRepo !== null
+          ? { id: linkedRepo.id, full_name: linkedRepo.fullName }
+          : null,
       members: room.members.map(({ user }) => ({
         github_username: user.githubUsername,
         avatar_url: user.avatarUrl,
@@ -162,6 +165,7 @@ export async function getRoomById(userId: string, roomId: string) {
     repo:
       linkedRepo !== null
         ? {
+            id: linkedRepo.id,
             full_name: linkedRepo.fullName,
             default_branch: linkedRepo.defaultBranch,
             stats_cache: linkedRepo.statsCache,
