@@ -16,6 +16,7 @@ export const queues: Record<JobName, Queue> = {
       backoff: { type: 'exponential', delay: 5000 },
     },
   }),
+  'chat-cleanup': new Queue('chat-cleanup', { connection }),
 };
 
 export async function addJob<T>(name: JobName, data: T, opts?: object) {
