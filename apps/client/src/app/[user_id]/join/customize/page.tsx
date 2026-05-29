@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { apiServer } from '@/lib/api.server';
-import { isRoomProfileAlreadySetUpError } from '@/sevice/rooms';
+import type { MyRooms } from '@/sevice/rooms/model';
 
 import UserProfileForm from './_components/UserProfileForm';
 
@@ -24,10 +24,9 @@ export default async function CustomizationPage({
   const rawRoomID =
     resolvedSearchParams?.roomID ?? resolvedSearchParams?.roomId;
   const roomID = Array.isArray(rawRoomID) ? rawRoomID[0] : rawRoomID;
-  const result = await apiServer.get('/users/me');
-  console.log(result);
+
   if (roomID !== undefined && roomID !== '') {
-    await redirectIfRoomProfileAlreadySetUp(roomID);
+    await redirectUserWhenSetupComplete(roomID);
   }
 
   return (
@@ -37,15 +36,11 @@ export default async function CustomizationPage({
   );
 }
 
-async function redirectIfRoomProfileAlreadySetUp(roomID: string) {
-  try {
-    await apiServer.post<unknown, object>(
-      `/rooms/${encodeURIComponent(roomID)}/members/setup`,
-      {},
-    );
-  } catch (error) {
-    if (isRoomProfileAlreadySetUpError(error)) {
-      redirect(`/room/${encodeURIComponent(roomID)}`);
-    }
+async function redirectUserWhenSetupComplete(roomID: string) {
+  const rooms = await apiServer.get<MyRooms>('/rooms');
+  const currentRoom = rooms.find(room => room.id === roomID);
+
+  if (currentRoom?.is_setup_completed === true) {
+    redirect(`/room/${encodeURIComponent(roomID)}`);
   }
 }

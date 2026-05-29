@@ -5,7 +5,8 @@ export type MyRoom = {
   name: string;
   status: string;
   invite_code: string;
-  repo: { full_name: string };
+  is_setup_completed: boolean;
+  repo: null | { id: string; full_name: string };
   members: { github_username: string; avatar_url: string }[];
   member_count: number;
   last_synced_at: null | Timestamp;
