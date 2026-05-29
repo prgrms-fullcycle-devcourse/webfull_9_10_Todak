@@ -13,6 +13,7 @@ import usersRoutes from './users/users.routes.js';
 import '../api/rooms/rooms.swagger.js';
 import '../api/rooms/private-room/private-room.swagger.js';
 import '../api/auth/auth.swagger.js';
+import '../api/minutes/minutes.swagger.js';
 import '../api/repos/repos.swagger.js';
 import '../api/users/users.swagger.js';
 
