@@ -75,6 +75,16 @@ export const ERROR_CODES = {
     code: 'ROOM_NOT_FOUND',
     message: '룸을 찾을 수 없습니다.',
   },
+  MEETING_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'MEETING_NOT_FOUND',
+    message: '해당 회의(Meeting) 정보를 찾을 수 없습니다.',
+  },
+  MINUTES_NOT_FOUND: {
+    statusCode: StatusCodes.NOT_FOUND,
+    code: 'MINUTES_NOT_FOUND',
+    message: '해당 회의록을 찾을 수 없거나 접근 권한이 없습니다.',
+  },
   USER_NOT_FOUND: {
     statusCode: StatusCodes.NOT_FOUND,
     code: 'USER_NOT_FOUND',
@@ -152,6 +162,16 @@ export const ERROR_CODES = {
     statusCode: StatusCodes.NOT_FOUND,
     code: 'INVALID_INVITE_CODE',
     message: '유효하지 않은 초대 코드입니다.',
+  },
+  MINUTES_GENERATING: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'MINUTES_GENERATING',
+    message: 'AI가 회의록을 생성 중일 때는 수정할 수 없습니다.',
+  },
+  MINUTES_ALREADY_EXISTS: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'MINUTES_ALREADY_EXISTS',
+    message: '해당 회의에 대한 회의록이 이미 존재합니다.',
   },
 
   // 500

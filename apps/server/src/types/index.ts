@@ -23,4 +23,8 @@ export interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-export type JobName = 'ai-review' | 'github-sync' | 'notification';
+export type JobName =
+  | 'ai-review'
+  | 'github-sync'
+  | 'notification'
+  | 'minutes-generation';
