@@ -20,6 +20,7 @@ export default function PixiCanvas() {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let isMounted = true;
     let app: PIXI.Application | null = null;
     let unsubscribeStatus: (() => void) | null = null;
     let unsubscribeAnimal: (() => void) | null = null;
@@ -31,14 +32,21 @@ export default function PixiCanvas() {
       const container = canvasRef.current;
       if (!container) return;
 
-      app = new PIXI.Application();
-      await app.init({
+      const newApp = new PIXI.Application();
+      await newApp.init({
         width: container.clientWidth,
         height: container.clientHeight,
         backgroundAlpha: 0,
         resolution: window.devicePixelRatio || 1, // 레티나 대응
         autoDensity: true,
       });
+
+      if (!isMounted) {
+        newApp.destroy(true, { children: true, texture: true });
+        return;
+      }
+
+      app = newApp;
 
       if (canvasRef.current) {
         canvasRef.current.innerHTML = '';
@@ -110,10 +118,17 @@ export default function PixiCanvas() {
 
     // 컴포넌트 언마운트 시 호출
     return () => {
+      isMounted = false;
       cleanupCamera?.();
       cleanupMovement?.();
       unsubscribeStatus?.();
       unsubscribeAnimal?.();
+
+      // 메모리 누수 방지 위해 리스너 제거
+      if (handleResize) {
+        window.removeEventListener('resize', handleResize);
+      }
+
       app?.destroy(true, { children: true, texture: true });
     };
   }, []);
