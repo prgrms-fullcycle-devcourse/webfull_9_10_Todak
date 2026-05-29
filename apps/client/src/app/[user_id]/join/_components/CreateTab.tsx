@@ -258,7 +258,7 @@ export default function CreateTab({ userID }: CreateTabProps) {
                     {room.name}
                   </span>
                   <span className="todak-mono mt-0.5 block truncate text-[10px] font-semibold text-slate-400">
-                    {room.repo.full_name}
+                    {room.repo?.full_name ?? '연결된 레포지토리 없음'}
                   </span>
                 </span>
                 <Chip

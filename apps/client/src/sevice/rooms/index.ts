@@ -1,4 +1,5 @@
 import { api, apiClient } from '@/lib/api';
+import { isTodakApiError } from '@/sevice/error';
 
 import type {
   CreatedRoom,
@@ -6,6 +7,8 @@ import type {
   JoinedRoom,
   JoinRoomParams,
   MyRooms,
+  CreateRoomProfileParams,
+  RoomProfile,
 } from './model';
 
 export type {
@@ -15,6 +18,7 @@ export type {
   JoinRoomParams,
   MyRoom,
   MyRooms,
+  RoomProfile,
 } from './model';
 
 export async function fetchMyRooms(): Promise<MyRooms> {
@@ -36,3 +40,18 @@ export async function joinRooms(params: JoinRoomParams): Promise<JoinedRoom> {
 export function updateRoomSettings() {}
 
 export function deleteRooms() {}
+
+export function isRoomProfileAlreadySetUpError(error: unknown) {
+  return isTodakApiError(error) && error.response.status === 409;
+}
+
+export async function createRoomProfile(
+  params: CreateRoomProfileParams,
+): Promise<RoomProfile> {
+  const { roomID, ...profile } = params;
+
+  return apiClient.post<RoomProfile, typeof profile>(
+    `/rooms/${roomID}/members/setup`,
+    profile,
+  );
+}

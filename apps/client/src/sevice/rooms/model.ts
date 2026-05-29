@@ -5,7 +5,8 @@ export type MyRoom = {
   name: string;
   status: string;
   invite_code: string;
-  repo: { full_name: string };
+  is_setup_completed: boolean;
+  repo: null | { id: string; full_name: string };
   members: { github_username: string; avatar_url: string }[];
   member_count: number;
   last_synced_at: null | Timestamp;
@@ -36,4 +37,25 @@ export type JoinedRoom = {
   success: boolean;
   room_id: string;
   name: string;
+};
+
+export type CreateRoomProfileParams = {
+  roomID: string;
+  character_type: string;
+  nickname: string;
+  roles: string[];
+  detailed_role: string;
+};
+
+export type RoomProfile = {
+  github_username: string;
+  avatar_url: string | null;
+  roles: string[];
+  detailed_role: string | null;
+  character_type: string | null;
+  nickname: string | null;
+  status: string;
+  is_host: boolean;
+  pos_x: number;
+  pos_y: number;
 };
