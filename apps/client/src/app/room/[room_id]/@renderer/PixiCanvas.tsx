@@ -10,6 +10,11 @@ import { createBackground } from './_background/createBackground';
 import { createWorld } from './_world/createWorld';
 import { setupCamera } from './_world/setupCamera';
 
+interface CustomWindow extends Window {
+  __PIXI_APP__?: PIXI.Application;
+  __PIXI_PLAYER__?: PIXI.Container;
+}
+
 export default function PixiCanvas() {
   // 캔버스를 마운트할 DOM 컨테이너 참조
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -43,6 +48,8 @@ export default function PixiCanvas() {
       const world = createWorld();
       app.stage.addChild(world);
 
+      (window as CustomWindow).__PIXI_APP__ = app;
+
       const backgroundTexture = await loadBackgroundAsset();
       const background = createBackground(backgroundTexture);
       world.addChild(background);
@@ -58,6 +65,8 @@ export default function PixiCanvas() {
       // 플레이어 생성 (스프라이트 + 이름표 + 상태창 + 클릭 메뉴)
       const player = createPlayer(app, activeTextures);
       world.addChild(player.container);
+
+      (window as CustomWindow).__PIXI_PLAYER__ = player.container;
 
       // Zustand 구독
       // 상태 텍스트 (예: "💻 개발 중") 변경 시 머리 위 텍스트 업데이트
