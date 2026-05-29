@@ -5,6 +5,7 @@ import {
   createGithubRepo,
   deleteGithubRepo,
 } from '../../services/repos.service.js';
+import { getIO } from '../../socket/index.js';
 import { AuthenticatedRequest } from '../../types/index.js';
 
 import { CreateRepoInput } from './repos.schema.js';
@@ -42,7 +43,9 @@ export async function deleteRepoHandler(
 
     const { repoId } = req.params as { repoId: string };
 
-    await deleteGithubRepo(userId, repoId);
+    const { roomId } = await deleteGithubRepo(userId, repoId);
+
+    getIO().to(roomId).emit('repo:deleted', { roomId, repoId });
 
     res.status(200).json({ success: true, data: null });
   } catch (err) {

@@ -9,6 +9,7 @@ import {
   joinRoom,
   updateRoom,
 } from '../../services/rooms.service.js';
+import { getIO } from '../../socket/index.js';
 import { AuthenticatedRequest } from '../../types/index.js';
 
 import {
@@ -90,13 +91,20 @@ export async function joinRoomHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
+    const { user } = req;
+    if (user === undefined) {
       throw new AppError('UNAUTHORIZED');
     }
 
     const input = req.body as JoinRoomInput;
-    const result = await joinRoom(userId, input);
+    const result = await joinRoom(user.id, input);
+
+    getIO().to(result.room_id).emit('room:member-joined', {
+      roomId: result.room_id,
+      userId: user.id,
+      login: user.login,
+      avatarUrl: user.avatarUrl,
+    });
 
     res.status(200).json({ success: true, ...result });
   } catch (err) {
@@ -119,6 +127,8 @@ export async function updateRoomHandler(
     const { roomId } = req.params as { roomId: string };
     const input = req.body as UpdateRoomInput;
     const room = await updateRoom(userId, roomId, input);
+
+    getIO().to(roomId).emit('room:updated', room);
 
     res.status(200).json({ success: true, data: room });
   } catch (err) {
