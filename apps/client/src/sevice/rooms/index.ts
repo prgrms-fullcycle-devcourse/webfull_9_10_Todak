@@ -26,7 +26,13 @@ export function createRooms(params: CreateRoomsParams): Promise<CreatedRoom> {
   return apiClient.post<CreatedRoom, CreateRoomsParams>('/rooms', params);
 }
 
-export function joinRooms() {}
+type JoinRoomParams = {
+  invite_code: string;
+};
+
+export function joinRooms(params: JoinRoomParams) {
+  return apiClient.post('/rooms/join', params);
+}
 
 export function updateRoomSettings() {}
 
