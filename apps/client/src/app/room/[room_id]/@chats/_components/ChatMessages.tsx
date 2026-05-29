@@ -206,7 +206,11 @@ function MessageItem({ msg }: { msg: Message }) {
               <button
                 key={i}
                 onClick={() => handleAddReaction(r.emoji)}
-                className="flex items-center gap-0.5 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] shadow-sm transition-colors hover:bg-slate-50"
+                className={`flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] shadow-sm transition-colors ${
+                  myReactions.has(r.emoji)
+                    ? 'border-todak-coral-200 bg-todak-coral-50 text-todak-coral-500'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
               >
                 {r.emoji}
                 {r.count > 0 && (
