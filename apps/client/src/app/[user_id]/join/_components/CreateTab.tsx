@@ -17,15 +17,20 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ComponentProps, type ReactNode, useState } from 'react';
 
-const GITHUB_REPOSITORY_NAME_PATTERN = /^[A-Za-z0-9_.-]{1,100}$/;
-const GITHUB_REPOSITORY_NAME_INPUT_PATTERN = '[A-Za-z0-9_.\\-]{1,100}';
+import {
+  type CreateProjectFieldErrors,
+  type CreateProjectFieldName,
+  getFormString,
+  getValidMaxMembers,
+  GITHUB_REPOSITORY_NAME_INPUT_PATTERN,
+  validateCreateProjectForm,
+} from '../_utils/formValidation';
+
 const INPUT_CLASS_NAME =
   'h-9 rounded-xl border border-border bg-surface px-3.5 py-0 text-xs font-semibold text-slate-700 shadow-field placeholder:text-slate-400 focus:border-accent';
 const INVALID_INPUT_CLASS_NAME =
   'border-danger focus:border-danger data-[invalid=true]:border-danger';
 
-type CreateProjectFieldName = 'roomName' | 'repositoryName';
-type CreateProjectFieldErrors = Partial<Record<CreateProjectFieldName, string>>;
 type FormSubmitHandler = NonNullable<ComponentProps<'form'>['onSubmit']>;
 
 interface CreateTabProps {
@@ -53,59 +58,6 @@ function FieldLabel({
       <span>{children}</span>
     </Label>
   );
-}
-
-function getFormString(formData: FormData, name: string) {
-  const value = formData.get(name);
-
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function getValidMaxMembers(value: number) {
-  if (!Number.isFinite(value)) {
-    return 4;
-  }
-
-  return Math.min(Math.max(Math.trunc(value), 2), 20);
-}
-
-function validateGithubRepositoryName(name: string) {
-  if (name === '') {
-    return 'GitHub 레포지토리 이름을 입력해주세요.';
-  }
-
-  if (!GITHUB_REPOSITORY_NAME_PATTERN.test(name)) {
-    return 'GitHub 레포지토리 이름은 1~100자의 영문, 숫자, -, _, . 만 사용할 수 있습니다.';
-  }
-
-  if (name === '.' || name === '..') {
-    return 'GitHub 레포지토리 이름으로 . 또는 .. 은 사용할 수 없습니다.';
-  }
-
-  if (name.toLowerCase().endsWith('.git')) {
-    return 'GitHub 레포지토리 이름은 .git 으로 끝날 수 없습니다.';
-  }
-
-  return null;
-}
-
-function validateCreateProjectForm(
-  roomName: string,
-  repositoryName: string,
-): CreateProjectFieldErrors {
-  const errors: CreateProjectFieldErrors = {};
-
-  if (roomName === '') {
-    errors.roomName = '프로젝트 룸 이름을 입력해주세요.';
-  }
-
-  const repositoryNameError = validateGithubRepositoryName(repositoryName);
-
-  if (repositoryNameError !== null) {
-    errors.repositoryName = repositoryNameError;
-  }
-
-  return errors;
 }
 
 export default function CreateTab({ userID }: CreateTabProps) {

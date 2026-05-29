@@ -16,7 +16,8 @@ import {
   useState,
 } from 'react';
 
-const INVITE_CODE_PATTERN = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+import { splitInviteCode, validateInviteCode } from '../_utils/formValidation';
+
 const INPUT_CLASS_NAME =
   'h-9 min-w-0 rounded-xl border border-border bg-surface px-3.5 py-0 text-center text-xs font-black tracking-[0.16em] text-slate-700 uppercase shadow-field placeholder:text-slate-400 focus:border-accent';
 const INVALID_INPUT_CLASS_NAME =
@@ -48,30 +49,6 @@ function FieldLabel({
       <span>{children}</span>
     </Label>
   );
-}
-
-function splitInviteCode(value: string) {
-  const normalized = value
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-    .slice(0, 8);
-
-  return {
-    first: normalized.slice(0, 4),
-    second: normalized.slice(4, 8),
-  };
-}
-
-function validateInviteCode(inviteCode: string) {
-  if (inviteCode === '') {
-    return '초대 코드를 입력해주세요.';
-  }
-
-  if (!INVITE_CODE_PATTERN.test(inviteCode)) {
-    return '초대 코드는 XXXX-XXXX 형식으로 입력해주세요.';
-  }
-
-  return null;
 }
 
 export default function InviteTab({ userID }: InviteTabProps) {
