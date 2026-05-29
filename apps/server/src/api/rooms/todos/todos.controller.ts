@@ -6,6 +6,7 @@ import {
   deleteTodo,
   getTodos,
 } from '../../../services/todos.service.js';
+import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 
 import { CreateTodosInput, GetTodosQuery } from './todos.schema.js';
@@ -25,6 +26,8 @@ export async function createTodosHandler(
     const input = req.body as CreateTodosInput;
 
     const todos = await createTodos(userId, roomId, input);
+
+    getIO().to(roomId).emit('todo:created', { roomId, todos });
 
     res.status(201).json({ success: true, data: { todos } });
   } catch (err) {
@@ -96,6 +99,8 @@ export async function deleteTodoHandler(
     };
 
     await deleteTodo(userId, roomId, todoId);
+
+    getIO().to(roomId).emit('todo:deleted', { roomId, todoId });
 
     res.status(200).json({ success: true, data: null });
   } catch (err) {

@@ -24,9 +24,21 @@ export type ChatSendAck =
   | { ok: true; chat: ChatEventPayload }
   | { ok: false; code: string; message: string };
 
-/*
- * 유저 정보 (JWT 검증 후 socket.data.user 에 저장됨)
- */
+// 이슈 이벤트 페이로드
+export interface TodoEventPayload {
+  id: string;
+  room_id: string;
+  title: string;
+  body: string | null;
+  labels: string[];
+  assignee_id: string | null;
+  minutes_id: string | null;
+  github_issue_number: number | null;
+  is_done: boolean;
+  created_at: Date;
+}
+
+// 유저 정보 (JWT 검증 후 socket.data.user 에 저장됨)
 export interface SocketUser {
   id: string;
   githubId: number;
@@ -55,6 +67,24 @@ export interface ServerToClientEvents {
     posX: number;
     posY: number;
   }) => void;
+  'room:member-joined': (data: {
+    roomId: string;
+    userId: string;
+    login: string;
+    avatarUrl: string;
+  }) => void;
+  'room:updated': (data: {
+    id: string;
+    name: string;
+    max_members: number;
+  }) => void;
+
+  // Repo
+  'repo:deleted': (data: { roomId: string; repoId: string }) => void;
+
+  // 이슈
+  'todo:created': (data: { roomId: string; todos: TodoEventPayload[] }) => void;
+  'todo:deleted': (data: { roomId: string; todoId: string }) => void;
 
   // Private Room
   'room:private-rooms-updated': (data: PrivateRoomInfo[]) => void;
