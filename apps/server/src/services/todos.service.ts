@@ -1,9 +1,13 @@
-import type { CreateTodosInput } from '../api/rooms/todos/todos.schema.js';
+import type {
+  CreateTodosInput,
+  GetTodosQuery,
+} from '../api/rooms/todos/todos.schema.js';
 import { AppError } from '../errors/AppError.js';
 import { prisma } from '../lib/prisma.js';
 
-import { createIssue } from './github.service.js';
+import { closeIssue, createIssue } from './github.service.js';
 
+// 깃 이슈 생성
 export async function createTodos(
   userId: string,
   roomId: string,
@@ -11,7 +15,15 @@ export async function createTodos(
 ) {
   const { todos } = input;
 
-  // 1. 룸 + 레포 조회
+  // 1. 룸 멤버 검증
+  const membership = await prisma.roomMember.findFirst({
+    where: { roomId, userId },
+  });
+  if (membership === null) {
+    throw new AppError('ROOM_MEMBER_NOT_FOUND');
+  }
+
+  // 2. 룸 + 레포 조회
   const room = await prisma.room.findUnique({
     where: { id: roomId },
     include: { repos: true },
@@ -122,4 +134,112 @@ export async function createTodos(
   }
 
   return results;
+}
+
+// 깃 이슈 전체 조회
+export async function getTodos(
+  userId: string,
+  roomId: string,
+  query: GetTodosQuery,
+) {
+  // 룸 멤버 검증
+  const membership = await prisma.roomMember.findFirst({
+    where: { roomId, userId },
+  });
+  if (membership === null) {
+    throw new AppError('ROOM_MEMBER_NOT_FOUND');
+  }
+
+  const { assignee_id, minutes_id, is_issued } = query;
+
+  const todos = await prisma.todo.findMany({
+    where: {
+      roomId,
+      ...(assignee_id !== undefined && { assigneeId: assignee_id }),
+      ...(minutes_id !== undefined && { minutesId: minutes_id }),
+      ...(is_issued === true && { githubIssueNumber: { not: null } }),
+    },
+    include: {
+      assignee: {
+        select: {
+          id: true,
+          githubUsername: true,
+          avatarUrl: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return todos.map(todo => ({
+    id: todo.id,
+    room_id: todo.roomId,
+    title: todo.title,
+    body: todo.body,
+    labels: todo.labels,
+    github_issue_number: todo.githubIssueNumber,
+    is_done: todo.isDone,
+    minutes_id: todo.minutesId,
+    assignee: todo.assignee
+      ? {
+          id: todo.assignee.id,
+          github_username: todo.assignee.githubUsername,
+          avatar_url: todo.assignee.avatarUrl,
+        }
+      : null,
+    created_at: todo.createdAt,
+  }));
+}
+
+// DB에서 이슈 삭제 + GitHub 이슈 Close
+export async function deleteTodo(
+  userId: string,
+  roomId: string,
+  todoId: string,
+) {
+  // 1. 룸 멤버 검증
+  const membership = await prisma.roomMember.findFirst({
+    where: { roomId, userId },
+  });
+  if (membership === null) {
+    throw new AppError('ROOM_MEMBER_NOT_FOUND');
+  }
+
+  // 2. Todo 조회
+  const todo = await prisma.todo.findFirst({
+    where: { id: todoId, roomId },
+  });
+  if (todo === null) {
+    throw new AppError('TODO_NOT_FOUND');
+  }
+
+  // 3. GitHub 이슈가 있으면 Close
+  if (todo.githubIssueNumber !== null) {
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      include: { repos: true },
+    });
+
+    const repo = room?.repos[0] ?? null;
+
+    if (repo !== null) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { accessToken: true },
+      });
+
+      if (user?.accessToken !== null && user?.accessToken !== undefined) {
+        const [owner, repoName] = repo.fullName.split('/');
+        await closeIssue(
+          user.accessToken,
+          owner,
+          repoName,
+          todo.githubIssueNumber,
+        );
+      }
+    }
+  }
+
+  // 4. DB에서 삭제
+  await prisma.todo.delete({ where: { id: todoId } });
 }

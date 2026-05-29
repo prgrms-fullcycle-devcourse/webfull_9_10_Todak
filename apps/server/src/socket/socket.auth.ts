@@ -18,7 +18,9 @@ export function socketAuthMiddleware(
   next: (err?: Error) => void,
 ) {
   try {
-    const raw = socket.handshake.auth['token'] as string | undefined;
+    const raw =
+      (socket.handshake.auth['token'] as string | undefined) ??
+      (socket.handshake.query['token'] as string | undefined);
 
     if (raw === undefined || raw === '') {
       return next(new Error('UNAUTHORIZED'));
