@@ -109,7 +109,8 @@ export async function getRooms(userId: string) {
     },
   });
 
-  return memberships.map(({ room }) => {
+  return memberships.map(membership => {
+    const { room } = membership;
     const linkedRepo = room.repos[0] ?? null;
 
     return {
@@ -117,6 +118,7 @@ export async function getRooms(userId: string) {
       name: room.name,
       status: room.status,
       invite_code: room.inviteCode,
+      is_setup_completed: membership.characterType !== null,
       repo:
         linkedRepo !== null
           ? { id: linkedRepo.id, full_name: linkedRepo.fullName }
