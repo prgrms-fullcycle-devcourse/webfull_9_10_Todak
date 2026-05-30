@@ -26,8 +26,8 @@ export function createPlayer(
   textures: AnimalAssetPack,
 ): Player {
   const container = new PIXI.Container();
-  container.x = app.screen.width / 2;
-  container.y = app.screen.height / 2;
+  container.x = 1365;
+  container.y = 380;
 
   // 플레이어 스프라이트 생성
   const sprite = new PIXI.Sprite(textures.front);
