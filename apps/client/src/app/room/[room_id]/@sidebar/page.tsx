@@ -5,6 +5,7 @@ import ViewSelection from './_components/ViewSelection';
 
 import { apiServer } from '@/lib/api.server';
 import type { AuthUser } from '@/lib/auth';
+import type { MinutesList } from '@/sevice/minutes/model';
 import type { MyRooms, RoomMembers } from '@/sevice/rooms/model';
 
 interface SidebarProps {
@@ -15,10 +16,18 @@ interface SidebarProps {
 
 export default async function Sidebar({ params }: SidebarProps) {
   const roomID = (await params).room_id;
-  const [myInfo, myRooms, roomMembers] = await Promise.all([
+  const minutesSearchParams = new URLSearchParams({
+    type: 'meeting',
+    page: '1',
+    limit: '5',
+  });
+  const [myInfo, myRooms, roomMembers, meetingLogs] = await Promise.all([
     apiServer.get<AuthUser>('/users/me'),
     apiServer.get<MyRooms>('/rooms'),
     apiServer.get<RoomMembers>(`/rooms/${roomID}/members`),
+    apiServer.get<MinutesList>(
+      `/rooms/${roomID}/minutes?${minutesSearchParams.toString()}`,
+    ),
   ]);
   const currentRoom = myRooms.find(room => room.id === roomID);
   const myRoomProfile = roomMembers.members.find(
@@ -34,7 +43,7 @@ export default async function Sidebar({ params }: SidebarProps) {
         roles={myRoomProfile?.roles ?? []}
       />
       <ViewSelection />
-      <RecentMeetingLogs />
+      <RecentMeetingLogs meetingLogs={meetingLogs.minutes} />
       <AIGuide />
     </>
   );
