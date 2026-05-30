@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/cn';
 import { isSystemError, isTodakApiError } from '@/sevice/error';
-import { joinRooms } from '@/sevice/rooms';
+import { joinRooms } from '@/sevice/rooms/api';
 import { FieldError, Input, Label } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';

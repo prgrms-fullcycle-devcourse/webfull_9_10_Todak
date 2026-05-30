@@ -10,7 +10,7 @@ import { isSystemError, isTodakApiError } from '@/sevice/error';
 import {
   createRoomProfile,
   isRoomProfileAlreadySetUpError,
-} from '@/sevice/rooms';
+} from '@/sevice/rooms/api';
 
 const avatars = [
   {

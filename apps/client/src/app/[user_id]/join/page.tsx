@@ -1,5 +1,5 @@
 import { apiServer } from '@/lib/api.server';
-import type { MyRooms } from '@/sevice/rooms';
+import type { MyRooms } from '@/sevice/rooms/model';
 import {
   dehydrate,
   HydrationBoundary,

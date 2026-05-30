@@ -3,7 +3,7 @@
 import { cn } from '@/lib/cn';
 import { isSystemError, isTodakApiError } from '@/sevice/error';
 import { createRepository } from '@/sevice/repos';
-import { createRooms, fetchMyRooms } from '@/sevice/rooms';
+import { createRooms, fetchMyRooms } from '@/sevice/rooms/api';
 import {
   Chip,
   FieldError,
