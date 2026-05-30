@@ -7,7 +7,12 @@ import {
   generateMinutesSummary,
   reviewCode,
 } from '../../services/anthropic.service.js';
+import {
+  deleteExpiredPrivateRoomChats,
+  PRIVATE_ROOM_CHAT_RETENTION_DAYS,
+} from '../../services/chat-cleanup.service.js';
 import { getIO } from '../../socket/index.js';
+import { addJob } from '../queues/index.js';
 
 const connection = redis;
 
@@ -134,6 +139,36 @@ minutesGenerationWorker.on('failed', async (job, err) => {
   }
 });
 
-export function startWorkers() {
-  console.log('✅ BullMQ workers started');
+export const chatCleanupWorker = new Worker(
+  'chat-cleanup',
+  async () => {
+    const deleted = await deleteExpiredPrivateRoomChats();
+    console.log(
+      `[Worker] chat-cleanup removed ${deleted} expired private-room messages`,
+    );
+
+    return { deleted };
+  },
+  { connection },
+);
+
+chatCleanupWorker.on('failed', (job, err) => {
+  console.error(`[Worker] chat-cleanup job ${job?.id} failed:`, err.message);
+});
+
+export async function startWorkers() {
+  // 매일 자정(KST) 프라이빗 룸 채팅 정리 반복 잡 등록 (동일 설정이면 BullMQ가 중복 방지)
+  await addJob(
+    'chat-cleanup',
+    {},
+    {
+      repeat: { pattern: '0 0 * * *', tz: 'Asia/Seoul' },
+      removeOnComplete: true,
+      removeOnFail: 100,
+    },
+  );
+
+  console.log(
+    `✅ BullMQ workers started (private-room chat retention: ${PRIVATE_ROOM_CHAT_RETENTION_DAYS}d)`,
+  );
 }
