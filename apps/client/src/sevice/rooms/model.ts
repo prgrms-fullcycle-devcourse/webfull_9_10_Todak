@@ -59,3 +59,8 @@ export type RoomProfile = {
   pos_x: number;
   pos_y: number;
 };
+
+export type RoomMembers = {
+  members: RoomProfile[];
+  member_count: number;
+};
