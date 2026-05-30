@@ -1,5 +1,4 @@
 import * as PIXI from 'pixi.js';
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../_background/createBackground';
 
 interface CameraTarget {
   container: PIXI.Container;
@@ -18,21 +17,39 @@ export function setupCamera(
   world: PIXI.Container,
   target: CameraTarget,
 ): () => void {
+  world.pivot.set(0, 0);
+
+  const MAP_WIDTH = 2455;
+  const MAP_HEIGHT = 1170;
+
   const updateCamera = () => {
     const screenWidth = app.screen.width;
     const screenHeight = app.screen.height;
+    const zoom = world.scale.x;
 
-    // 카메라 위치 : 캐릭터가 화면 정중앙에 오도록
-    let camX = screenWidth / 2 - target.container.x;
-    let camY = screenHeight / 2 - target.container.y;
+    let camX = screenWidth / 2 - target.container.x * zoom;
+    let camY = screenHeight / 2 - target.container.y * zoom;
 
-    // 클램핑: 카메라가 월드 바깥 빈 공간을 보지 않도록
-    const minX = Math.min(0, screenWidth - WORLD_WIDTH);
-    const minY = Math.min(0, screenHeight - WORLD_HEIGHT);
+    const renderedWidth = MAP_WIDTH * zoom;
+    const renderedHeight = MAP_HEIGHT * zoom;
 
-    camX = Math.max(minX, Math.min(0, camX));
-    camY = Math.max(minY, Math.min(0, camY));
+    // 좌우 경계선 클램핑
+    if (renderedWidth > screenWidth) {
+      const minX = screenWidth - renderedWidth;
+      camX = Math.max(minX, Math.min(0, camX));
+    } else {
+      camX = (screenWidth - renderedWidth) / 2;
+    }
 
+    // 상하 경계선 클램핑
+    if (renderedHeight > screenHeight) {
+      const minY = screenHeight - renderedHeight;
+      camY = Math.max(minY, Math.min(0, camY));
+    } else {
+      camY = (screenHeight - renderedHeight) / 2;
+    }
+
+    // 최종 화면 좌표
     world.x = camX;
     world.y = camY;
   };

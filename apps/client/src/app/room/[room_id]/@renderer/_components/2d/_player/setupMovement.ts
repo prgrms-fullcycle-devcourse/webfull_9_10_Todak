@@ -1,14 +1,16 @@
 import * as PIXI from 'pixi.js';
 import type { AnimalAssetPack } from '../_animals/types';
 import { type Player, CHAR_HEIGHT } from './createPlayer';
+import { MEETING_ROOMS_CONFIG } from '../../metting/_world/createMeetingRoom';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
 
-const SPEED = 5;
+const SPEED = 6;
 
 export function setupMovement(
   app: PIXI.Application,
   player: Player,
   getTextures: () => AnimalAssetPack,
+  darkOverlay: PIXI.Graphics,
 ): () => void {
   const keys: Record<string, boolean> = {};
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -20,7 +22,9 @@ export function setupMovement(
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('keyup', handleKeyUp);
 
-  const tickerCallback = () => {
+  let currentRoomId: string | null = null;
+
+  const ticker = () => {
     const textures = getTextures();
     const { container, sprite, baseScaleX } = player;
     let isMoving = false;
@@ -58,21 +62,72 @@ export function setupMovement(
         sprite.texture = textures.walk[0];
       }
     }
-
     // 캐릭터 크기 고정
     sprite.height = CHAR_HEIGHT;
 
     // 화면 경계 처리
-    container.x = Math.max(30, Math.min(WORLD_WIDTH - 30, container.x));
-    container.y = Math.max(50, Math.min(WORLD_HEIGHT - 50, container.y));
+    container.x = Math.max(30, Math.min(2455 - 30, container.x));
+    container.y = Math.max(50, Math.min(1170 - 50, container.y));
+
+    // 캐릭터 현재 좌표
+    const playerX = player.container.x;
+    const playerY = player.container.y;
+
+    const playerHitbox = new PIXI.Rectangle(playerX - 15, playerY - 30, 30, 50);
+
+    function checkIntersect(r1: PIXI.Rectangle, r2: PIXI.Rectangle) {
+      return (
+        r1.x < r2.x + r2.width &&
+        r1.x + r1.width > r2.x &&
+        r1.y < r2.y + r2.height &&
+        r1.height + r1.y > r2.y
+      );
+    }
+
+    const insideRoom = MEETING_ROOMS_CONFIG.find(room =>
+      checkIntersect(playerHitbox, room.bounds),
+    );
+
+    const newRoomId = insideRoom ? insideRoom.id : null;
+
+    if (newRoomId !== currentRoomId) {
+      // 회의실 입장
+      if (currentRoomId === null && newRoomId !== null) {
+        console.log(
+          `[${insideRoom?.name}] 입장 (소켓 API로 ${newRoomId} 전송)`,
+        );
+        darkOverlay.clear();
+        darkOverlay
+          .rect(0, 0, WORLD_WIDTH, WORLD_HEIGHT)
+          .fill({ color: 0x111111, alpha: 0.65 })
+          .roundRect(
+            insideRoom!.bounds.x,
+            insideRoom!.bounds.y,
+            insideRoom!.bounds.width,
+            insideRoom!.bounds.height,
+            16,
+          )
+          .cut();
+
+        darkOverlay.visible = true;
+      }
+
+      // 회의실 퇴장
+      else if (currentRoomId !== null && newRoomId === null) {
+        console.log(`회의실 퇴장 (원래 상태로 복귀 API 호출)`);
+        darkOverlay.visible = false;
+      }
+
+      currentRoomId = newRoomId;
+    }
   };
 
-  app.ticker.add(tickerCallback);
+  app.ticker.add(ticker);
 
   // cleanup 함수 반환
   return () => {
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('keyup', handleKeyUp);
-    app.ticker.remove(tickerCallback);
+    app.ticker.remove(ticker);
   };
 }

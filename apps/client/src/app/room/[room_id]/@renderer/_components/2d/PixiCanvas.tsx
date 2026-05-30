@@ -81,6 +81,13 @@ export default function PixiCanvas() {
       // store에서 동물 변경 시, 변수만 변경하면 ticker 자동 반영
       let activeTextures = animalAssets[currentType] ?? animalAssets.rabbit;
 
+      // 회의실 입장 시 화면을 어둡게 하는 오버레이
+      const darkOverlay = new PIXI.Graphics();
+      darkOverlay.zIndex = 5;
+      darkOverlay.visible = false;
+      darkOverlay.eventMode = 'none';
+      world.addChild(darkOverlay);
+
       // 플레이어 생성 (스프라이트 + 이름표 + 상태창 + 클릭 메뉴)
       const player = createPlayer(app, activeTextures);
       player.container.zIndex = 10;
@@ -115,7 +122,12 @@ export default function PixiCanvas() {
       });
 
       // 이동 로직 셋업
-      cleanupMovement = setupMovement(app, player, () => activeTextures);
+      cleanupMovement = setupMovement(
+        app,
+        player,
+        () => activeTextures,
+        darkOverlay,
+      );
 
       // 카메라 셋업
       cleanupCamera = setupCamera(app, world, player);
@@ -162,7 +174,7 @@ export default function PixiCanvas() {
         ref={canvasRef}
         className="border-4 border-slate-700 rounded-xl overflow-hidden w-full h-full mt-0"
         style={{
-          width: '95vw',
+          width: '60vw',
           maxWidth: '1400px',
           height: '60vh',
           maxHeight: '800px',
