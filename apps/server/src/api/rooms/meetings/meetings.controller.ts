@@ -7,6 +7,8 @@ import {
   listMeetings,
   startMeeting,
 } from '../../../services/meeting.service.js';
+import { getPrivateRooms } from '../../../services/private-room.service.js';
+import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 
 import { MeetingChatsQuery, StartMeetingBody } from './meetings.schema.js';
@@ -48,6 +50,15 @@ export async function startMeetingHandler(
 
     const meeting = await startMeeting(roomId, private_room_id, userId);
 
+    const io = getIO();
+    io.to(roomId).emit('meeting:started', {
+      meetingId: meeting.id,
+      hostId: meeting.host_id,
+    });
+    // is_meeting_active(false → true) 갱신을 다른 멤버 화면에 즉시 반영
+    const privateRooms = await getPrivateRooms(roomId);
+    io.to(roomId).emit('room:private-rooms-updated', privateRooms);
+
     res.status(201).json(meeting);
   } catch (err) {
     next(err);
@@ -71,6 +82,12 @@ export async function endMeetingHandler(
     };
 
     const meeting = await endMeeting(roomId, meetingId, userId);
+
+    const io = getIO();
+    io.to(roomId).emit('meeting:ended', { meetingId: meeting.id });
+    // is_meeting_active(true → false) 갱신을 다른 멤버 화면에 즉시 반영
+    const privateRooms = await getPrivateRooms(roomId);
+    io.to(roomId).emit('room:private-rooms-updated', privateRooms);
 
     res.json(meeting);
   } catch (err) {

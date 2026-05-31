@@ -66,6 +66,7 @@ export const StartMeetingResponseSchema = registry.register(
       .string()
       .datetime()
       .openapi({ example: '2026-05-18T14:02:00.000Z' }),
+    host_id: z.string().uuid().openapi({ example: 'uuid-user-1' }),
     participants: z
       .array(z.string().uuid())
       .openapi({ example: ['uuid-user-1', 'uuid-user-2'] }),

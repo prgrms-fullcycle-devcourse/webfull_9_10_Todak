@@ -31,6 +31,7 @@ export interface StartMeetingResult {
   id: string;
   status: string;
   started_at: string;
+  host_id: string;
   participants: string[];
 }
 
@@ -127,6 +128,7 @@ export async function startMeeting(
       id: ongoing.id,
       status: ongoing.status,
       started_at: ongoing.startedAt.toISOString(),
+      host_id: ongoing.hostId,
       participants: withHost(chatterIds, ongoing.hostId),
     };
   }
@@ -143,6 +145,7 @@ export async function startMeeting(
     id: meeting.id,
     status: meeting.status,
     started_at: meeting.startedAt.toISOString(),
+    host_id: meeting.hostId,
     participants: [userId],
   };
 }

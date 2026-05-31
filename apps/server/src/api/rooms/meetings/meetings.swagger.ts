@@ -112,6 +112,7 @@ registry.registerPath({
             id: 'uuid-meeting-1',
             status: 'ongoing',
             started_at: '2026-05-18T14:02:00.000Z',
+            host_id: 'uuid-user-1',
             participants: ['uuid-user-1', 'uuid-user-2'],
           },
         },
