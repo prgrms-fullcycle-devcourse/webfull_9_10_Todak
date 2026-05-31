@@ -55,16 +55,16 @@ export class NotificationsController {
   ) => {
     try {
       const { roomId } = req.params as UpdateNotificationsReadParams;
-      const { notification_ids } = req.body as UpdateNotificationsReadBody;
+      const { all, notification_ids } = req.body as UpdateNotificationsReadBody;
       const userId = req.user!.id;
 
-      // ID 배열이 존재하고, 최소 1개 이상의 요소가 들어있을 때만 선택 읽음(false)으로 판별
-      const isBulk = !notification_ids || notification_ids.length === 0;
+      // all=true면 전체 읽음(bulk), 아니면 지정된 ID만 읽음
+      const isBulk = all === true;
 
       const updatedCount = await this.notificationsService.markAsRead(
         roomId,
         userId,
-        { notificationIds: notification_ids },
+        { all, notificationIds: notification_ids },
       );
 
       return res.status(200).json({

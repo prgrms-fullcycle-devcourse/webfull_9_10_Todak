@@ -8,6 +8,7 @@ interface GetNotificationsOptions {
 }
 
 interface MarkAsReadOptions {
+  all?: boolean;
   notificationIds?: string[];
 }
 
@@ -75,7 +76,7 @@ export class NotificationsService {
     userId: string,
     options: MarkAsReadOptions,
   ) => {
-    const { notificationIds } = options;
+    const { all, notificationIds } = options;
 
     const whereClause: Prisma.NotificationWhereInput = {
       roomId,
@@ -83,9 +84,13 @@ export class NotificationsService {
       isRead: false, // 이미 읽은 건 업데이트 대상에서 제외하여 count 최적화
     };
 
-    if (notificationIds && notificationIds.length > 0) {
+    /*
+     * all=true가 아니면 지정된 ID만 대상으로 한정.
+     * (ID가 비어 있으면 in:[]으로 아무것도 매칭되지 않아 실수로 전체가 읽음 처리되지 않음)
+     */
+    if (all !== true) {
       whereClause.id = {
-        in: notificationIds,
+        in: notificationIds ?? [],
       };
     }
 

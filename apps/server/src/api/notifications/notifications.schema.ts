@@ -13,10 +13,22 @@ export const NotificationsSchema = {
     limit: z.coerce.number().int().positive().max(100).optional().default(20),
   }),
 
-  // PATCH / 바디 (읽음 처리할 알림 ID 목록, 없으면 전체 읽음)
-  updateNotificationsReadBody: z.object({
-    notification_ids: z.array(z.uuid()).optional(),
-  }),
+  // PATCH / 바디 (all=true면 전체 읽음, 아니면 notification_ids만 읽음)
+  updateNotificationsReadBody: z
+    .object({
+      all: z.boolean().optional(),
+      notification_ids: z.array(z.uuid()).optional(),
+    })
+    .refine(
+      data =>
+        data.all === true ||
+        (data.notification_ids !== undefined &&
+          data.notification_ids.length > 0),
+      {
+        message:
+          'all=true 이거나, notification_ids에 1개 이상의 ID가 필요합니다.',
+      },
+    ),
 
   // DELETE / 쿼리 (all=true 전체 삭제, 미지정/false면 읽은 것만 — 실수로 전체 삭제 방지)
   deleteNotificationsQuery: z.object({

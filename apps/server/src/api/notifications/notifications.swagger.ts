@@ -99,9 +99,11 @@ registry.registerPath({
   tags: ['Notifications'],
   summary: '알림 읽음 처리',
   description:
-    '알림을 읽음 처리합니다. `notification_ids` 를 전달하면 해당 알림만, ' +
-    '생략하거나 빈 배열이면 해당 룸의 안 읽은 알림 전체를 읽음 처리합니다. ' +
-    '이미 읽은 알림은 대상에서 제외되며, 실제로 변경된 개수만 반환됩니다.',
+    '알림을 읽음 처리합니다. `all: true` 면 해당 룸의 안 읽은 알림 전체를, ' +
+    '`notification_ids` 를 전달하면 해당 알림만 읽음 처리합니다. ' +
+    '둘 중 하나는 반드시 지정해야 하며(둘 다 없으면 400), ' +
+    '이미 읽은 알림은 대상에서 제외되어 실제로 변경된 개수만 반환됩니다. ' +
+    'is_bulk 는 all=true(전체 읽음) 여부를 나타냅니다.',
   security: [{ bearerAuth: [] }],
   request: {
     params: NotificationsSchema.roomParams,
@@ -109,7 +111,16 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: NotificationsSchema.updateNotificationsReadBody,
-          example: { notification_ids: ['uuid-noti-1', 'uuid-noti-2'] },
+          examples: {
+            선택_읽음: {
+              summary: '선택한 알림만 읽음',
+              value: { notification_ids: ['uuid-noti-1', 'uuid-noti-2'] },
+            },
+            전체_읽음: {
+              summary: '안 읽은 알림 전체 읽음',
+              value: { all: true },
+            },
+          },
         },
       },
     },
