@@ -18,9 +18,9 @@ export const NotificationsSchema = {
     notification_ids: z.array(z.uuid()).optional(),
   }),
 
-  // DELETE / 쿼리 (all=true 전체 삭제, false 읽은 것만)
+  // DELETE / 쿼리 (all=true 전체 삭제, 미지정/false면 읽은 것만 — 실수로 전체 삭제 방지)
   deleteNotificationsQuery: z.object({
-    all: z.enum(['true', 'false']).optional().default('true'),
+    all: z.enum(['true', 'false']).optional().default('false'),
   }),
 
   // DELETE /:notificationId params (단건 삭제)

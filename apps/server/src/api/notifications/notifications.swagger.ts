@@ -152,7 +152,8 @@ registry.registerPath({
   summary: '알림 일괄 삭제',
   description:
     '해당 룸의 내 알림을 일괄 삭제(물리 삭제)합니다. ' +
-    '`all=true`(기본값)면 전체, `all=false`면 읽은 알림만 삭제합니다. ' +
+    '`all=true`면 전체, 미지정 또는 `all=false`(기본값)면 읽은 알림만 삭제합니다. ' +
+    '(실수로 전체가 삭제되는 것을 막기 위해 기본값은 읽은 알림만 삭제입니다.) ' +
     '실제로 삭제된 개수를 반환합니다.',
   security: [{ bearerAuth: [] }],
   request: {
