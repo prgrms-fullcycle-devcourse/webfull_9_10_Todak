@@ -18,6 +18,7 @@ export type {
   JoinRoomParams,
   MyRoom,
   MyRooms,
+  RoomMembers,
   RoomProfile,
 } from './model';
 
