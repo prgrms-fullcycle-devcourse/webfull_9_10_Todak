@@ -10,7 +10,7 @@ export const NotificationsSchema = {
   getNotificationsQuery: z.object({
     unread_only: z.enum(['true', 'false']).optional().default('false'),
     page: z.coerce.number().int().positive().optional().default(1),
-    limit: z.coerce.number().int().positive().optional().default(20),
+    limit: z.coerce.number().int().positive().max(100).optional().default(20),
   }),
 
   // PATCH / 바디 (읽음 처리할 알림 ID 목록, 없으면 전체 읽음)
