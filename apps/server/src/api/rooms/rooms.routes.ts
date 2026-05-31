@@ -9,6 +9,7 @@ import membersRoutes from './members/members.routes.js';
 import './private-room/private-room.swagger.js';
 import './chat/chat.swagger.js';
 import privateRoomRoutes from './private-room/private-room.routes.js';
+import prsRoutes from './prs/prs.routes.js';
 import {
   createRoomHandler,
   deleteRoomHandler,
@@ -38,5 +39,6 @@ router.use('/:roomId/members', membersRoutes);
 router.use('/:roomId/private-room', privateRoomRoutes);
 router.use('/:roomId/chats', chatRoutes);
 router.use('/:roomId/todos', todosRoutes);
+router.use('/:roomId/prs', prsRoutes);
 
 export default router;
