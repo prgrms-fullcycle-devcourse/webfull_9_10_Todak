@@ -1,58 +1,56 @@
 import { z } from 'zod';
 
 export const NotificationsSchema = {
-  getNotificationsSchema: z.object({
-    params: z.object({
-      roomId: z.uuid(),
-    }),
-    query: z.object({
-      unread_only: z.enum(['true', 'false']).optional().default('false'),
-      page: z.string().optional().default('1'),
-      limit: z.string().optional().default('20'),
-    }),
+  // 공통 params (부모 라우터에서 전달되는 roomId)
+  roomParams: z.object({
+    roomId: z.uuid(),
   }),
 
-  updateNotificationsReadSchema: z.object({
-    params: z.object({
-      roomId: z.uuid(),
-    }),
-    body: z.object({
-      notification_ids: z.array(z.uuid()).optional(),
-    }),
+  // GET / 쿼리
+  getNotificationsQuery: z.object({
+    unread_only: z.enum(['true', 'false']).optional().default('false'),
+    page: z.coerce.number().int().positive().optional().default(1),
+    limit: z.coerce.number().int().positive().optional().default(20),
   }),
 
-  deleteNotificationsSchema: z.object({
-    params: z.object({
-      roomId: z.uuid(),
-    }),
-    query: z.object({
-      all: z.enum(['true', 'false']).optional().default('true'), // 기본값은 싹 다 삭제
-    }),
+  // PATCH / 바디 (읽음 처리할 알림 ID 목록, 없으면 전체 읽음)
+  updateNotificationsReadBody: z.object({
+    notification_ids: z.array(z.uuid()).optional(),
+  }),
+
+  // DELETE / 쿼리 (all=true 전체 삭제, false 읽은 것만)
+  deleteNotificationsQuery: z.object({
+    all: z.enum(['true', 'false']).optional().default('true'),
+  }),
+
+  // DELETE /:notificationId params (단건 삭제)
+  deleteNotificationParamsSchema: z.object({
+    roomId: z.uuid(),
+    notificationId: z.uuid(),
   }),
 };
 
 export type GetNotificationsParams = z.infer<
-  typeof NotificationsSchema.getNotificationsSchema
->['params'];
-
-export type GetNotificationsQuery = {
-  unread_only?: 'true' | 'false';
-  page?: string;
-  limit?: string;
-};
+  typeof NotificationsSchema.roomParams
+>;
+export type GetNotificationsQuery = z.infer<
+  typeof NotificationsSchema.getNotificationsQuery
+>;
 
 export type UpdateNotificationsReadParams = z.infer<
-  typeof NotificationsSchema.updateNotificationsReadSchema
->['params'];
-
+  typeof NotificationsSchema.roomParams
+>;
 export type UpdateNotificationsReadBody = z.infer<
-  typeof NotificationsSchema.updateNotificationsReadSchema
->['body'];
+  typeof NotificationsSchema.updateNotificationsReadBody
+>;
 
 export type DeleteNotificationsParams = z.infer<
-  typeof NotificationsSchema.deleteNotificationsSchema
->['params'];
+  typeof NotificationsSchema.roomParams
+>;
+export type DeleteNotificationsQuery = z.infer<
+  typeof NotificationsSchema.deleteNotificationsQuery
+>;
 
-export type DeleteNotificationsQuery = {
-  all?: 'true' | 'false';
-};
+export type DeleteNotificationParams = z.infer<
+  typeof NotificationsSchema.deleteNotificationParamsSchema
+>;

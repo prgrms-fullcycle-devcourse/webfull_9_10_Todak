@@ -125,4 +125,23 @@ export class NotificationsService {
 
     return result.count; // 실제로 삭제된 레코드 수 반환
   };
+
+  /**
+   * 특정 알림 1건을 물리 삭제합니다. (본인 소유 + 해당 룸으로 한정)
+   */
+  public deleteNotification = async (
+    roomId: string,
+    userId: string,
+    notificationId: string,
+  ) => {
+    const result = await prisma.notification.deleteMany({
+      where: {
+        id: notificationId,
+        roomId,
+        userId,
+      },
+    });
+
+    return result.count; // 삭제된 레코드 수 (대상이 없으면 0)
+  };
 }

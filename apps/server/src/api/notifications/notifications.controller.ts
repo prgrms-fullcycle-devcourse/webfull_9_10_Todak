@@ -4,6 +4,7 @@ import { NotificationsService } from '../../services/notifications.service.js';
 import { AuthenticatedRequest } from '../../types/index.js';
 
 import {
+  DeleteNotificationParams,
   DeleteNotificationsParams,
   DeleteNotificationsQuery,
   GetNotificationsParams,
@@ -22,18 +23,17 @@ export class NotificationsController {
   ) => {
     try {
       const { roomId } = req.params as GetNotificationsParams;
-      const { unread_only, page, limit } = req.query as GetNotificationsQuery;
+      const { unread_only, page, limit } =
+        req.query as unknown as GetNotificationsQuery;
       const userId = req.user!.id;
 
       const unreadOnly = unread_only === 'true';
-      const parsedPage = parseInt(page ?? '1', 10);
-      const parsedLimit = parseInt(limit ?? '20', 10);
 
       const { notifications, pagination } =
         await this.notificationsService.getNotificationsList(roomId, userId, {
           unreadOnly,
-          page: parsedPage,
-          limit: parsedLimit,
+          page,
+          limit,
         });
 
       return res.status(200).json({
@@ -99,7 +99,36 @@ export class NotificationsController {
 
       return res.status(200).json({
         success: true,
-        message: '모든 알림 내역이 완전히 삭제되었습니다.',
+        message: deleteAll
+          ? '모든 알림 내역이 삭제되었습니다.'
+          : '읽은 알림 내역이 삭제되었습니다.',
+        data: {
+          deleted_count: deletedCount,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public deleteNotification = async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const { roomId, notificationId } = req.params as DeleteNotificationParams;
+      const userId = req.user!.id;
+
+      const deletedCount = await this.notificationsService.deleteNotification(
+        roomId,
+        userId,
+        notificationId,
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: '알림이 성공적으로 삭제되었습니다.',
         data: {
           deleted_count: deletedCount,
         },

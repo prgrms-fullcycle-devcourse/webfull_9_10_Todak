@@ -6,6 +6,7 @@ import aiRoutes from './ai/ai.routes.js';
 import authRoutes from './auth/auth.routes.js';
 import githubRoutes from './github/github.routes.js';
 import minutesRouter from './minutes/minutes.routes.js';
+import notificationsRouter from './notifications/notifications.route.js';
 import reposRoutes from './repos/repos.routes.js';
 import roomsRoutes from './rooms/rooms.routes.js';
 import usersRoutes from './users/users.routes.js';
@@ -38,5 +39,6 @@ router.use('/repos', reposRoutes);
 router.use('/rooms', roomsRoutes);
 router.use('/ai', aiRoutes);
 router.use('/rooms/:roomId/minutes', minutesRouter);
+router.use('/rooms/:roomId/notifications', notificationsRouter);
 
 export default router;
