@@ -10,11 +10,17 @@ import { createBackground } from './_background/createBackground';
 import { createWorld } from './_world/createWorld';
 import { setupCamera } from './_world/setupCamera';
 
+interface CustomWindow extends Window {
+  __PIXI_APP__?: PIXI.Application;
+  __PIXI_PLAYER__?: PIXI.Container;
+}
+
 export default function PixiCanvas() {
   // 캔버스를 마운트할 DOM 컨테이너 참조
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let isMounted = true;
     let app: PIXI.Application | null = null;
     let unsubscribeStatus: (() => void) | null = null;
     let unsubscribeAnimal: (() => void) | null = null;
@@ -26,14 +32,21 @@ export default function PixiCanvas() {
       const container = canvasRef.current;
       if (!container) return;
 
-      app = new PIXI.Application();
-      await app.init({
+      const newApp = new PIXI.Application();
+      await newApp.init({
         width: container.clientWidth,
         height: container.clientHeight,
         backgroundAlpha: 0,
         resolution: window.devicePixelRatio || 1, // 레티나 대응
         autoDensity: true,
       });
+
+      if (!isMounted) {
+        newApp.destroy(true, { children: true, texture: true });
+        return;
+      }
+
+      app = newApp;
 
       if (canvasRef.current) {
         canvasRef.current.innerHTML = '';
@@ -42,6 +55,8 @@ export default function PixiCanvas() {
 
       const world = createWorld();
       app.stage.addChild(world);
+
+      (window as CustomWindow).__PIXI_APP__ = app;
 
       const backgroundTexture = await loadBackgroundAsset();
       const background = createBackground(backgroundTexture);
@@ -58,6 +73,8 @@ export default function PixiCanvas() {
       // 플레이어 생성 (스프라이트 + 이름표 + 상태창 + 클릭 메뉴)
       const player = createPlayer(app, activeTextures);
       world.addChild(player.container);
+
+      (window as CustomWindow).__PIXI_PLAYER__ = player.container;
 
       // Zustand 구독
       // 상태 텍스트 (예: "💻 개발 중") 변경 시 머리 위 텍스트 업데이트
@@ -101,10 +118,17 @@ export default function PixiCanvas() {
 
     // 컴포넌트 언마운트 시 호출
     return () => {
+      isMounted = false;
       cleanupCamera?.();
       cleanupMovement?.();
       unsubscribeStatus?.();
       unsubscribeAnimal?.();
+
+      // 메모리 누수 방지 위해 리스너 제거
+      if (handleResize) {
+        window.removeEventListener('resize', handleResize);
+      }
+
       app?.destroy(true, { children: true, texture: true });
     };
   }, []);

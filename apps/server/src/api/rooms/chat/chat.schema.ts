@@ -26,6 +26,15 @@ const ChatUserSchema = z.object({
     .openapi({ example: 'https://avatars.githubusercontent.com/u/1?v=4' }),
 });
 
+const ChatReactionSummarySchema = z.object({
+  emoji: z.string().openapi({ example: '👍' }),
+  count: z.number().int().openapi({ example: 3 }),
+  me: z.boolean().openapi({
+    description: '요청한 유저가 이 이모지를 눌렀는지',
+    example: true,
+  }),
+});
+
 export const ChatSchema = registry.register(
   'Chat',
   z.object({
@@ -39,5 +48,6 @@ export const ChatSchema = registry.register(
       .string()
       .datetime()
       .openapi({ example: '2026-05-18T14:04:00.000Z' }),
+    reactions: z.array(ChatReactionSummarySchema),
   }),
 );

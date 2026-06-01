@@ -1,10 +1,12 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response, Router } from 'express';
 
 import { generateOpenApiDocument } from '../schema/openapi.js';
 
 import aiRoutes from './ai/ai.routes.js';
 import authRoutes from './auth/auth.routes.js';
 import githubRoutes from './github/github.routes.js';
+import minutesRouter from './minutes/minutes.routes.js';
+import notificationsRouter from './notifications/notifications.route.js';
 import reposRoutes from './repos/repos.routes.js';
 import roomsRoutes from './rooms/rooms.routes.js';
 import usersRoutes from './users/users.routes.js';
@@ -12,6 +14,8 @@ import usersRoutes from './users/users.routes.js';
 import '../api/rooms/rooms.swagger.js';
 import '../api/rooms/private-room/private-room.swagger.js';
 import '../api/auth/auth.swagger.js';
+import '../api/minutes/minutes.swagger.js';
+import '../api/notifications/notifications.swagger.js';
 import '../api/repos/repos.swagger.js';
 import '../api/users/users.swagger.js';
 
@@ -35,5 +39,7 @@ router.use('/github', githubRoutes);
 router.use('/repos', reposRoutes);
 router.use('/rooms', roomsRoutes);
 router.use('/ai', aiRoutes);
+router.use('/rooms/:roomId/minutes', minutesRouter);
+router.use('/rooms/:roomId/notifications', notificationsRouter);
 
 export default router;

@@ -18,6 +18,7 @@ export interface ChatEventPayload {
   content: string | null;
   type: string;
   created_at: string;
+  reactions: { emoji: string; count: number; me: boolean }[];
 }
 
 export type ChatSendAck =
@@ -25,8 +26,41 @@ export type ChatSendAck =
   | { ok: false; code: string; message: string };
 
 /*
- * 유저 정보 (JWT 검증 후 socket.data.user 에 저장됨)
+ * 메시지 이모지 반응 토글 결과 페이로드
+ * action 으로 추가/제거를 구분 → 클라이언트가 카운트/내 반응 상태 갱신
  */
+export interface ChatReactionEventPayload {
+  message_id: string;
+  room_id: string;
+  private_room_id: string | null;
+  emoji: string;
+  user: {
+    id: string;
+    github_username: string;
+    avatar_url: string | null;
+  };
+  action: 'added' | 'removed';
+}
+
+export type ChatReactAck =
+  | { ok: true; reaction: ChatReactionEventPayload }
+  | { ok: false; code: string; message: string };
+
+// 이슈 이벤트 페이로드
+export interface TodoEventPayload {
+  id: string;
+  room_id: string;
+  title: string;
+  body: string | null;
+  labels: string[];
+  assignee_id: string | null;
+  minutes_id: string | null;
+  github_issue_number: number | null;
+  is_done: boolean;
+  created_at: Date;
+}
+
+// 유저 정보 (JWT 검증 후 socket.data.user 에 저장됨)
 export interface SocketUser {
   id: string;
   githubId: number;
@@ -55,18 +89,52 @@ export interface ServerToClientEvents {
     posX: number;
     posY: number;
   }) => void;
+  'room:member-joined': (data: {
+    roomId: string;
+    userId: string;
+    login: string;
+    avatarUrl: string;
+  }) => void;
+  'room:updated': (data: {
+    id: string;
+    name: string;
+    max_members: number;
+  }) => void;
+
+  // Repo
+  'repo:deleted': (data: { roomId: string; repoId: string }) => void;
+
+  // 이슈
+  'todo:created': (data: { roomId: string; todos: TodoEventPayload[] }) => void;
+  'todo:deleted': (data: { roomId: string; todoId: string }) => void;
 
   // Private Room
   'room:private-rooms-updated': (data: PrivateRoomInfo[]) => void;
 
   // Chat
   'chat:message': (data: ChatEventPayload) => void;
+  'chat:reaction': (data: ChatReactionEventPayload) => void;
 
   // Meeting
   'meeting:started': (data: { meetingId: string; hostId: string }) => void;
   'meeting:ended': (data: { meetingId: string }) => void;
   'meeting:user-joined': (data: { userId: string; login: string }) => void;
   'meeting:user-left': (data: { userId: string }) => void;
+
+  // Minutes
+  'minutes:generation-started': (data: {
+    room_id: string;
+    minutes_id: string;
+    meeting_id: string;
+  }) => void;
+  'minutes:generated': (data: {
+    room_id: string;
+    minutes_id: string;
+    meeting_id: string;
+    title: string;
+    action_items: string[];
+    status: 'draft';
+  }) => void;
 
   // System
   error: (data: { message: string; code: string }) => void;
@@ -97,6 +165,15 @@ export interface ClientToServerEvents {
   'chat:send': (
     data: { roomId: string; content: string; privateRoomId?: string },
     ack?: (response: ChatSendAck) => void,
+  ) => void;
+  'chat:react': (
+    data: {
+      roomId: string;
+      privateRoomId?: string;
+      messageId: string;
+      emoji: string;
+    },
+    ack?: (response: ChatReactAck) => void,
   ) => void;
 
   // Meeting

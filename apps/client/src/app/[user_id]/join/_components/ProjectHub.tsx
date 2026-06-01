@@ -1,7 +1,9 @@
 'use client';
 
-import { Button, Card, Chip, Input, Tabs } from '@heroui/react';
-import Link from 'next/link';
+import { Card, Tabs } from '@heroui/react';
+
+import CreateTab from './CreateTab';
+import InviteTab from './InviteTab';
 
 const TabOptions = [
   {
@@ -16,20 +18,11 @@ const TabOptions = [
   },
 ];
 
-const teamList = [
-  {
-    repoName: '토닥윗미 웹 앱 개발단',
-    url: 'team/todak-with-me',
-    id: 'TODAK-992F',
-  },
-  {
-    repoName: '소켓 통신 프로토콜 스파이크팀',
-    url: 'team/socket-spike',
-    id: 'TODAK-881A',
-  },
-];
+interface ProjectHubProps {
+  userID: string;
+}
 
-export default function ProjectHub() {
+export default function ProjectHub({ userID }: ProjectHubProps) {
   return (
     <section className="flex min-h-dvh w-full items-start justify-center bg-background px-5 pb-8 pt-[max(2rem,calc((100dvh-494px)/2))]">
       <Card className="w-full max-w-[386px] gap-0 rounded-[26px] border border-border/80 bg-surface px-7 py-8 shadow-todak-panel">
@@ -70,84 +63,9 @@ export default function ProjectHub() {
                 id={option.id}
               >
                 {option.id === 'create' ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label
-                        className="block text-xs font-black text-slate-700"
-                        htmlFor="github-repository-url"
-                      >
-                        GitHub 레포지토리 연결
-                      </label>
-                      <Input
-                        aria-label="GitHub 레포지토리 URL"
-                        className="h-9 rounded-xl border border-border bg-surface px-3.5 py-0 text-xs font-semibold text-slate-700 shadow-field placeholder:text-slate-400 focus:border-accent"
-                        defaultValue="https://github.com/team/todak-with-me"
-                        fullWidth
-                        id="github-repository-url"
-                        placeholder="레포지토리 URL을 입력하세요"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-[11px] font-black text-slate-400">
-                        연결 가능한 기존 팀 리스트
-                      </p>
-                      <div className="space-y-2">
-                        {teamList.map(team => (
-                          <Link
-                            className="group flex min-h-[50px] items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3.5 py-2.5 shadow-sm transition-colors hover:border-todak-coral-200 hover:bg-todak-coral-50/60"
-                            key={`existing-team-list-${team.id}`}
-                            href={`/room/${team.id}`}
-                          >
-                            <span className="min-w-0">
-                              <span className="block truncate text-xs font-black text-slate-800">
-                                {team.repoName}
-                              </span>
-                              <span className="todak-mono mt-0.5 block truncate text-[10px] font-semibold text-slate-400">
-                                {team.url}
-                              </span>
-                            </span>
-                            <Chip
-                              className="rounded-md bg-slate-100 px-2 py-0 text-[10px] font-black text-slate-400"
-                              color="default"
-                              size="sm"
-                              variant="soft"
-                            >
-                              {team.id}
-                            </Chip>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-
-                    <Button
-                      className="mt-1 h-9 rounded-xl bg-accent text-xs font-black text-accent-foreground shadow-md hover:bg-accent-hover"
-                      fullWidth
-                      type="button"
-                      variant="primary"
-                    >
-                      다음 단계로 이동 (프로필 설정)
-                    </Button>
-                  </div>
+                  <CreateTab userID={userID} />
                 ) : (
-                  <div className="space-y-4">
-                    <p className="text-xs font-black text-slate-700">
-                      팀 초대 코드 입력
-                    </p>
-                    <Input
-                      className="h-9 rounded-xl border border-border bg-surface px-3.5 py-0 text-xs font-semibold text-slate-700 shadow-field placeholder:text-slate-400"
-                      fullWidth
-                      placeholder="12자리 초대 코드를 입력하세요"
-                    />
-                    <Button
-                      className="h-9 rounded-xl bg-accent text-xs font-black text-accent-foreground shadow-md hover:bg-accent-hover"
-                      fullWidth
-                      type="button"
-                      variant="primary"
-                    >
-                      다음 단계로 이동 (프로필 설정)
-                    </Button>
-                  </div>
+                  <InviteTab userID={userID} />
                 )}
               </Tabs.Panel>
             ))}

@@ -143,6 +143,93 @@ export async function unregisterWebhook(
   }
 }
 
+export async function createIssue(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  title: string,
+  body?: string,
+  labels: string[] = [],
+  assignees: string[] = [],
+): Promise<number> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.issues.create({
+      owner,
+      repo,
+      title,
+      body,
+      labels,
+      assignees,
+    });
+
+    return data.number;
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 403) {
+        throw new AppError('REPO_ADMIN_REQUIRED');
+      }
+
+      if (err.status === 404) {
+        throw new AppError('REPO_NOT_FOUND');
+      }
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
+}
+
+export async function deleteRepo(
+  accessToken: string,
+  owner: string,
+  repo: string,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.repos.delete({ owner, repo });
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 403) {
+        throw new AppError('REPO_ADMIN_REQUIRED');
+      }
+
+      if (err.status === 404) {
+        throw new AppError('REPO_NOT_FOUND');
+      }
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
+}
+
+export async function closeIssue(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.issues.update({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      state: 'closed',
+    });
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 404) {
+        throw new AppError('REPO_NOT_FOUND');
+      }
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
+}
+
 export async function getPullRequest(
   accessToken: string,
   owner: string,

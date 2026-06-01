@@ -3,7 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  output          = "../src/generated/prisma/client"
+  output   = "../src/generated/prisma/client"
 }
 
 datasource db {
@@ -18,33 +18,34 @@ model User {
   accessToken    String?  @map("access_token")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  roomMembers          RoomMember[]
-  privateRoomSessions  PrivateRoomSession[]
-  chatMessages         ChatMessage[]
-  hostedMeetings       Meeting[]            @relation("MeetingHost")
-  meetingParticipants  MeetingParticipant[]
-  minutes              Minutes[]            @relation("MinutesAuthor")
-  todos                Todo[]
-  notifications        Notification[]
+  roomMembers         RoomMember[]
+  privateRoomSessions PrivateRoomSession[]
+  chatMessages        ChatMessage[]
+  hostedMeetings      Meeting[]            @relation("MeetingHost")
+  meetingParticipants MeetingParticipant[]
+  minutes             Minutes[]            @relation("MinutesAuthor")
+  assignedTodos       Todo[]
+  notifications       Notification[]
+  chatReactions       ChatReaction[]
 
   @@map("user")
 }
 
 model Room {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String
-  inviteCode  String   @unique @map("invite_code")
-  maxMembers  Int      @default(6) @map("max_members")
-  status      String   @default("active") // active | completed
-  createdAt   DateTime @default(now()) @map("created_at")
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  inviteCode String   @unique @map("invite_code")
+  maxMembers Int      @default(6) @map("max_members")
+  status     String   @default("active") // active | completed
+  createdAt  DateTime @default(now()) @map("created_at")
 
-  members      RoomMember[]
-  repos        Repo[]
-  privateRoom  PrivateRoom[]
-  chatMessages ChatMessage[]
-  meetings     Meeting[]
-  minutes      Minutes[]
-  todos        Todo[]
+  members       RoomMember[]
+  repos         Repo[]
+  privateRoom   PrivateRoom[]
+  chatMessages  ChatMessage[]
+  meetings      Meeting[]
+  minutes       Minutes[]
+  todos         Todo[]
   notifications Notification[]
 
   @@map("room")
@@ -71,14 +72,14 @@ model RoomMember {
 }
 
 model Repo {
-  id              String    @id @default(uuid()) @db.Uuid
-  roomId          String    @map("room_id") @db.Uuid
-  fullName        String    @map("full_name") // owner/repo-name
-  defaultBranch   String    @default("main") @map("default_branch")
-  webhookId       String?   @map("webhook_id")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  statsCache      Json?     @map("stats_cache") // 마지막으로 조회한 stats 저장
-  statsCachedAt   DateTime? @map("stats_cached_at") // 언제 캐싱했는지
+  id            String    @id @default(uuid()) @db.Uuid
+  roomId        String    @map("room_id") @db.Uuid
+  fullName      String    @map("full_name") // owner/repo-name
+  defaultBranch String    @default("main") @map("default_branch")
+  webhookId     String?   @map("webhook_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  statsCache    Json?     @map("stats_cache") // 마지막으로 조회한 stats 저장
+  statsCachedAt DateTime? @map("stats_cached_at") // 언제 캐싱했는지
 
   room Room @relation(fields: [roomId], references: [id])
 
@@ -91,10 +92,10 @@ model PrivateRoom {
   name      String   @default("회의실")
   createdAt DateTime @default(now()) @map("created_at")
 
-  room     Room                 @relation(fields: [roomId], references: [id])
-  sessions PrivateRoomSession[]
+  room         Room                 @relation(fields: [roomId], references: [id])
+  sessions     PrivateRoomSession[]
   chatMessages ChatMessage[]
-  meetings Meeting[]
+  meetings     Meeting[]
 
   @@map("private_room")
 }
@@ -121,11 +122,27 @@ model ChatMessage {
   type          String   @default("text") // text | meeting_start | meeting_end
   createdAt     DateTime @default(now()) @map("created_at")
 
-  room        Room         @relation(fields: [roomId], references: [id])
-  privateRoom PrivateRoom? @relation(fields: [privateRoomId], references: [id])
-  user        User         @relation(fields: [userId], references: [id])
+  room        Room           @relation(fields: [roomId], references: [id])
+  privateRoom PrivateRoom?   @relation(fields: [privateRoomId], references: [id])
+  user        User           @relation(fields: [userId], references: [id])
+  reactions   ChatReaction[]
 
   @@map("chat_message")
+}
+
+model ChatReaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @map("message_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  emoji     String // 유니코드 이모지 그대로 저장 (예: 👍 🔥 ❤️)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id])
+
+  // 같은 유저가 한 메시지에 같은 이모지를 중복으로 누르지 못하게 (토글 보장)
+  @@unique([messageId, userId, emoji])
+  @@map("chat_reaction")
 }
 
 model Meeting {
@@ -137,11 +154,11 @@ model Meeting {
   startedAt     DateTime  @default(now()) @map("started_at")
   endedAt       DateTime? @map("ended_at")
 
-  room        Room                 @relation(fields: [roomId], references: [id])
-  privateRoom PrivateRoom          @relation(fields: [privateRoomId], references: [id])
-  host        User                 @relation("MeetingHost", fields: [hostId], references: [id])
+  room         Room                 @relation(fields: [roomId], references: [id])
+  privateRoom  PrivateRoom          @relation(fields: [privateRoomId], references: [id])
+  host         User                 @relation("MeetingHost", fields: [hostId], references: [id])
   participants MeetingParticipant[]
-  minutes     Minutes?
+  minutes      Minutes?
 
   @@map("meeting")
 }
@@ -160,37 +177,42 @@ model MeetingParticipant {
 }
 
 model Minutes {
-  id                  String    @id @default(uuid()) @db.Uuid
-  meetingId           String?   @unique @map("meeting_id") @db.Uuid // null = 수동 작성
-  roomId              String    @map("room_id") @db.Uuid
-  authorId            String    @map("author_id") @db.Uuid
-  title               String
-  type                String    // meeting | troubleshooting | etc
-  contentMd           String?   @map("content_md")
-  status              String    @default("draft") // draft | confirmed
-  linkedIssueNumbers  Int[]     @map("linked_issue_numbers") // 발행된 GitHub 이슈 번호 배열
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
-  actionItems         Json?     @map("action_items") // 액션 아이템 전체 목록
+  id                 String   @id @default(uuid()) @db.Uuid
+  meetingId          String?  @unique @map("meeting_id") @db.Uuid // null = 수동 작성
+  roomId             String   @map("room_id") @db.Uuid
+  authorId           String   @map("author_id") @db.Uuid
+  title              String
+  type               String // meeting | troubleshooting | etc
+  contentMd          String?  @map("content_md")
+  status             String   @default("draft") // draft | confirmed | generating
+  linkedIssueNumbers Int[]    @map("linked_issue_numbers") // 발행된 GitHub 이슈 번호 배열
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
+  actionItems        Json?    @map("action_items") // 액션 아이템 전체 목록
 
   meeting Meeting? @relation(fields: [meetingId], references: [id])
   room    Room     @relation(fields: [roomId], references: [id])
   author  User     @relation("MinutesAuthor", fields: [authorId], references: [id])
+  todos   Todo[]
 
   @@map("minutes")
 }
 
 model Todo {
   id                String   @id @default(uuid()) @db.Uuid
-  roomId            String?  @map("room_id") @db.Uuid
-  userId            String?  @map("user_id") @db.Uuid
+  roomId            String   @map("room_id") @db.Uuid
+  assigneeId        String?  @map("assignee_id") @db.Uuid
+  minutesId         String?  @map("minutes_id") @db.Uuid
   githubIssueNumber Int?     @map("github_issue_number")
+  title             String
+  body              String?
+  labels            String[]
   isDone            Boolean  @default(false) @map("is_done")
-  date              DateTime @db.Date // 오늘 날짜
   createdAt         DateTime @default(now()) @map("created_at")
 
-  room Room? @relation(fields: [roomId], references: [id])
-  user User? @relation(fields: [userId], references: [id])
+  room     Room     @relation(fields: [roomId], references: [id])
+  assignee User?    @relation(fields: [assigneeId], references: [id])
+  minutes  Minutes? @relation(fields: [minutesId], references: [id])
 
   @@map("todo")
 }
@@ -199,7 +221,7 @@ model Notification {
   id        String   @id @default(uuid()) @db.Uuid
   roomId    String   @map("room_id") @db.Uuid
   userId    String   @map("user_id") @db.Uuid
-  type      String   // pr_opened | pr_merged | minutes_generated | new_issue
+  type      String // pr_opened | pr_merged | minutes_generated | new_issue
   message   String
   link      String?
   isRead    Boolean  @default(false) @map("is_read")

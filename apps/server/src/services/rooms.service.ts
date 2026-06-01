@@ -109,7 +109,8 @@ export async function getRooms(userId: string) {
     },
   });
 
-  return memberships.map(({ room }) => {
+  return memberships.map(membership => {
+    const { room } = membership;
     const linkedRepo = room.repos[0] ?? null;
 
     return {
@@ -117,7 +118,11 @@ export async function getRooms(userId: string) {
       name: room.name,
       status: room.status,
       invite_code: room.inviteCode,
-      repo: linkedRepo !== null ? { full_name: linkedRepo.fullName } : null,
+      is_setup_completed: membership.characterType !== null,
+      repo:
+        linkedRepo !== null
+          ? { id: linkedRepo.id, full_name: linkedRepo.fullName }
+          : null,
       members: room.members.map(({ user }) => ({
         github_username: user.githubUsername,
         avatar_url: user.avatarUrl,
@@ -162,6 +167,7 @@ export async function getRoomById(userId: string, roomId: string) {
     repo:
       linkedRepo !== null
         ? {
+            id: linkedRepo.id,
             full_name: linkedRepo.fullName,
             default_branch: linkedRepo.defaultBranch,
             stats_cache: linkedRepo.statsCache,
