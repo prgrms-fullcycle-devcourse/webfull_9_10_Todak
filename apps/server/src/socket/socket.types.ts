@@ -135,6 +135,12 @@ export interface ServerToClientEvents {
     action_items: string[];
     status: 'draft';
   }) => void;
+  'minutes:generation-failed': (data: {
+    room_id: string;
+    minutes_id: string;
+    meeting_id?: string;
+    status: 'failed';
+  }) => void;
 
   // System
   error: (data: { message: string; code: string }) => void;

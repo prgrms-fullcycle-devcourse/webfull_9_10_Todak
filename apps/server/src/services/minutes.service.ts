@@ -179,6 +179,8 @@ export class MinutesService {
         minutesId: tempMinutes.id,
         meetingId: meeting_id,
         roomId,
+        // 사용자가 지정한 제목(없으면 null). 워커가 AI 생성 제목과 구분하는 데 사용
+        userTitle: title ?? null,
       });
     } catch (error) {
       // 큐 등록 실패 시 'generating' 상태로 남는 고아 레코드 방지
