@@ -8,6 +8,7 @@ import type {
   JoinRoomParams,
   MyRooms,
   CreateRoomProfileParams,
+  RoomInfo,
   RoomProfile,
 } from './model';
 
@@ -18,6 +19,7 @@ export type {
   JoinRoomParams,
   MyRoom,
   MyRooms,
+  RoomInfo,
   RoomMembers,
   RoomProfile,
 } from './model';
@@ -26,7 +28,9 @@ export async function fetchMyRooms(): Promise<MyRooms> {
   return apiClient.get<MyRooms>('/rooms');
 }
 
-export function fetchRoomInfo() {}
+export function fetchRoomInfo(roomID: string): Promise<RoomInfo> {
+  return apiClient.get<RoomInfo>(`/rooms/${roomID}`);
+}
 
 export function createRooms(params: CreateRoomsParams): Promise<CreatedRoom> {
   return apiClient.post<CreatedRoom, CreateRoomsParams>('/rooms', params);
