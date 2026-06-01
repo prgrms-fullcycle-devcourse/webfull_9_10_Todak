@@ -4,6 +4,7 @@ import { STATIC_ROOM_BOUNDS } from '../_constants/roomBounds';
 import { getSocket } from '@/lib/socket';
 import { fetchPrivateRooms } from '@/sevice/rooms/api';
 import { type PrivateRoom } from '@/sevice/rooms/model';
+import { getStoredAuthUser } from '@/lib/auth';
 
 export function useInitRooms(roomId: string) {
   const [isReady, setIsReady] = useState(false);
@@ -48,6 +49,14 @@ export function useInitRooms(roomId: string) {
     fetchAndUpdateRooms().then(() => setIsReady(true));
 
     const socket = getSocket();
+
+    const STATUS_TO_LABEL_MAP: Record<string, string> = {
+      focus: '🔥 집중',
+      rest: '☕ 휴식',
+      meeting: '💬 회의중',
+      away: '💤 부재',
+    };
+
     // 소켓 연결 확인
     if (!socket.connected) {
       socket.connect();
@@ -75,9 +84,23 @@ export function useInitRooms(roomId: string) {
       fetchAndUpdateRooms();
     });
 
-    socket.on('room:member-status-changed', () => {
-      fetchAndUpdateRooms();
-    });
+    socket.on(
+      'room:member-status-changed',
+      (data: { userId: string; status: string }) => {
+        const hangulStatus = STATUS_TO_LABEL_MAP[data.status] || data.status;
+        console.log(
+          `[소켓] 👤 유저(${data.userId})님의 상태가 [${hangulStatus}]로 변경됨`,
+        );
+
+        const authUser = getStoredAuthUser();
+
+        fetchAndUpdateRooms();
+
+        if (authUser && data.userId === authUser.id) {
+          useSpaceStore.getState().setMyStatus(hangulStatus);
+        }
+      },
+    );
 
     // 나 이외의 다른 유저에게만 오는 이벤트 리스너
     socket.on('room:user-joined', () => {

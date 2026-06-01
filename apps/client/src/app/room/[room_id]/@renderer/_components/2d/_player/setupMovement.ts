@@ -98,6 +98,7 @@ export function setupMovement(
       // 회의실 입장
       if (currentRoomId === null && newRoomId !== null) {
         isProcessing = true;
+        const roomToEnter = newRoomId;
 
         enterPrivateRoom(roomId, newRoomId)
           .then(() => {
@@ -105,6 +106,7 @@ export function setupMovement(
               roomId: roomId,
               privateRoomId: newRoomId,
             });
+            currentRoomId = roomToEnter;
           })
           .catch(err => console.error(`입장 실패:`, err))
           .finally(() => {
@@ -130,22 +132,22 @@ export function setupMovement(
       // 회의실 퇴장
       else if (currentRoomId !== null && newRoomId === null) {
         isProcessing = true;
-        leavePrivateRoom(roomId, currentRoomId)
+        const roomToLeave = currentRoomId;
+        getSocket().emit('private-room:leave', {
+          roomId: roomId,
+          privateRoomId: roomToLeave,
+        });
+
+        leavePrivateRoom(roomId, roomToLeave)
           .then(() => {
-            getSocket().emit('private-room:leave', {
-              roomId: roomId,
-              privateRoomId: currentRoomId,
-            });
+            currentRoomId = null;
+            darkOverlay.visible = false;
           })
-          .catch(err => console.error(`퇴장 실패:`, err))
+          .catch(err => console.error(`HTTP 퇴장 API 실패:`, err))
           .finally(() => {
             isProcessing = false;
           });
-
-        darkOverlay.visible = false;
       }
-
-      currentRoomId = newRoomId;
     }
   };
 

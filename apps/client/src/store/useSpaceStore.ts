@@ -6,7 +6,7 @@ export type AnimalType = 'cat' | 'dog' | 'rabbit' | 'bear' | 'hamster';
 export type ViewType = '2d' | 'meeting';
 
 interface SpaceState {
-  myChar: { name: string; status: string };
+  myChar: { id: string; name: string; status: string };
   currentAnimal: AnimalType;
   currentView: ViewType;
   isMenuOpen: boolean;
@@ -26,7 +26,7 @@ interface SpaceState {
 
 export const useSpaceStore = create<SpaceState>()(
   subscribeWithSelector(set => ({
-    myChar: { name: '토끼', status: '💤' },
+    myChar: { id: 'user-uuid-1234', name: '토끼', status: '🔥 집중' },
     currentAnimal: 'rabbit',
     currentView: '2d',
     isMenuOpen: false,
