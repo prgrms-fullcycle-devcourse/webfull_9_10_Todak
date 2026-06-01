@@ -3,14 +3,15 @@
 import { useSpaceStore } from '@/store/useSpaceStore';
 import PixiCanvas from './2d/PixiCanvas';
 import AnimalSwitcher from './2d/AnimalSwitcher';
+import MeetingBoard from './meeting/MeetingBoard';
 
 export default function RendererView() {
   const { currentView } = useSpaceStore();
 
   if (currentView === 'meeting') {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted">회의 보드 준비 중...</p>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <MeetingBoard />
         {/* TODO: 회의 보드 컴포넌트 */}
       </div>
     );
