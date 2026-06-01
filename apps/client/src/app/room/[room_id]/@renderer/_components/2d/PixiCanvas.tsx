@@ -13,7 +13,7 @@ import {
 } from './_background/createBackground';
 import { createWorld } from './_world/createWorld';
 import { setupCamera } from './_world/setupCamera';
-import { createMeetingRoom } from '../../_components/metting/_world/createMeetingRoom';
+import { createMeetingRoom } from '../meeting/_world/createMeetingRoom';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -93,7 +93,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       world.addChild(darkOverlay);
 
       // 플레이어 생성 (스프라이트 + 이름표 + 상태창 + 클릭 메뉴)
-      const player = createPlayer(app, activeTextures);
+      const player = createPlayer(app, activeTextures, roomId);
       player.container.zIndex = 10;
       world.addChild(player.container);
 

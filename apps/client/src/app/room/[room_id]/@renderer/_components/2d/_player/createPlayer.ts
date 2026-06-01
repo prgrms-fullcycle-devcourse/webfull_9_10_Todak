@@ -1,6 +1,8 @@
 import * as PIXI from 'pixi.js';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import type { AnimalAssetPack } from '../_animals/types';
+import { updateMemberStatus } from '@/sevice/rooms/api';
+import { MemberStatus } from '@/sevice/rooms/model';
 
 export const CHAR_WIDTH = 90;
 export const CHAR_HEIGHT = 120;
@@ -21,22 +23,34 @@ const STATUS_OPTIONS = [
   { label: '💤 부재', color: 0xf1f5f9, textColor: 0x475569 },
 ];
 
+const LABEL_TO_STATUS_MAP: Record<string, MemberStatus> = {
+  '🔥 집중': 'focus',
+  '☕ 휴식': 'rest',
+  '💬 회의중': 'meeting',
+  '💤 부재': 'away',
+};
+
 export function createPlayer(
   app: PIXI.Application,
   textures: AnimalAssetPack,
+  roomId: string,
 ): Player {
   const container = new PIXI.Container();
   container.x = 1365;
   container.y = 380;
+  container.eventMode = 'static';
 
   // 플레이어 스프라이트 생성
   const sprite = new PIXI.Sprite(textures.front);
   sprite.anchor.set(0.5);
   sprite.width = CHAR_WIDTH;
   sprite.height = CHAR_HEIGHT;
+  sprite.eventMode = 'static';
+  sprite.cursor = 'pointer';
+  container.addChild(sprite);
+
   const baseScaleX = sprite.scale.x;
   const baseScaleY = sprite.scale.y;
-  container.addChild(sprite);
 
   const getStatusColor = (status: string) => {
     if (status.includes('집중')) return 0xea580c;
@@ -102,7 +116,11 @@ export function createPlayer(
   });
   triggerText.anchor.set(0.5);
 
-  triggerBtn.addChild(triggerBg, triggerText);
+  const triggerBridge = new PIXI.Graphics();
+  triggerBridge.rect(-55, 22, 110, 40);
+  triggerBridge.fill({ color: 0xffffff, alpha: 0.001 });
+
+  triggerBtn.addChild(triggerBg, triggerText, triggerBridge);
   bubbleContainer.addChild(triggerBtn);
 
   // 확장 메뉴
@@ -115,6 +133,11 @@ export function createPlayer(
   const SPACING = 12;
   const TOTAL_WIDTH = BUTTON_WIDTH * 4 + SPACING * 3;
   const START_X = -(TOTAL_WIDTH / 2) + BUTTON_WIDTH / 2;
+
+  const hoverBridge = new PIXI.Graphics();
+  hoverBridge.rect(-250, -30, 500, 150);
+  hoverBridge.fill({ color: 0xffffff, alpha: 0.001 });
+  expandedMenu.addChild(hoverBridge);
 
   STATUS_OPTIONS.forEach((option, index) => {
     const btn = new PIXI.Container();
@@ -136,10 +159,18 @@ export function createPlayer(
     btn.addChild(bg, text);
     expandedMenu.addChild(btn);
 
-    // 개별 상태 버튼 클릭 시 이벤트
-    btn.on('pointerdown', e => {
+    btn.on('pointerdown', async e => {
       e.stopPropagation();
       useSpaceStore.getState().setMyStatus(option.label);
+
+      const apiStatus = LABEL_TO_STATUS_MAP[option.label];
+      if (apiStatus) {
+        try {
+          await updateMemberStatus(roomId, apiStatus);
+        } catch (err) {
+          console.error('상태 변경 API 반영 실패:', err);
+        }
+      }
 
       isExpanded = false;
       triggerBtn.visible = true;
@@ -147,16 +178,6 @@ export function createPlayer(
       bubbleContainer.visible = false;
     });
   });
-
-  // 좁은 영역: 토끼 본체 + 작은 말풍선 크기
-  const defaultHitArea = new PIXI.Rectangle(-60, -170, 120, 240);
-  // 넓은 영역: 양옆으로 펼쳐진 4개의 버튼을 모두 덮을 수 있는 크기
-  const expandedHitArea = new PIXI.Rectangle(-250, -170, 500, 240);
-
-  // 마우스 이동할 때 호버가 풀리지 않도록 HitArea 확장
-  container.eventMode = 'static';
-  container.cursor = 'pointer';
-  container.hitArea = defaultHitArea;
 
   // 캐릭터 위로 마우스가 올라오면 작은 트리거 표시
   container.on('pointerover', () => {
@@ -175,7 +196,6 @@ export function createPlayer(
     isExpanded = true;
     triggerBtn.visible = false;
     expandedMenu.visible = true;
-    container.hitArea = expandedHitArea;
   });
 
   // 캐릭터 자체를 클릭했을 때
@@ -185,6 +205,16 @@ export function createPlayer(
     // (추후 상세 모달 오픈 예정)
     console.log('상세 프로필 모달 오픈!');
 
+    if (isExpanded) {
+      isExpanded = false;
+      triggerBtn.visible = true;
+      expandedMenu.visible = false;
+      bubbleContainer.visible = false;
+    }
+  });
+
+  app.stage.eventMode = 'static';
+  app.stage.on('pointerdown', () => {
     if (isExpanded) {
       isExpanded = false;
       triggerBtn.visible = true;

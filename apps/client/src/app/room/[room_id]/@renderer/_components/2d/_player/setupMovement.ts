@@ -98,7 +98,6 @@ export function setupMovement(
       // 회의실 입장
       if (currentRoomId === null && newRoomId !== null) {
         isProcessing = true;
-        console.log(`[API 호출] ${insideRoom?.name} 입장 요청 중...`);
 
         enterPrivateRoom(roomId, newRoomId)
           .then(() => {

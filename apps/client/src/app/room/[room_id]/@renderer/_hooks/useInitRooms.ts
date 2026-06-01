@@ -66,30 +66,25 @@ export function useInitRooms(roomId: string) {
       joinRoom();
     } else {
       socket.on('connect', () => {
-        console.log('소켓 연결 성공! 내 소켓 ID:', socket.id);
         joinRoom();
       });
     }
 
     // 모두에게 오는 이벤트 리스너
     socket.on('room:private-rooms-updated', () => {
-      console.log('[소켓] 회의실 정보 업데이트 (ON AIR 뱃지 등 변경)');
       fetchAndUpdateRooms();
     });
 
     socket.on('room:member-status-changed', () => {
-      console.log('[소켓] 멤버 상태 변경 (집중, 휴식 등)');
       fetchAndUpdateRooms();
     });
 
     // 나 이외의 다른 유저에게만 오는 이벤트 리스너
     socket.on('room:user-joined', () => {
-      console.log('[소켓] 새로운 유저 입장!');
       fetchAndUpdateRooms();
     });
 
     socket.on('room:user-left', () => {
-      console.log('[소켓] 기존 유저 퇴장!');
       fetchAndUpdateRooms();
     });
 

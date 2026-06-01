@@ -91,3 +91,13 @@ export interface LeavePrivateRoomResponse {
   left_at: string;
   meeting_cancelled: boolean;
 }
+
+// ---- 멤버 상태 ----
+export type MemberStatus = 'focus' | 'rest' | 'meeting' | 'away';
+
+export interface StatusResponse {
+  success: boolean;
+  data: {
+    status: MemberStatus;
+  };
+}

@@ -12,6 +12,8 @@ import type {
   PrivateRoom,
   EnterPrivateRoomResponse,
   LeavePrivateRoomResponse,
+  MemberStatus,
+  StatusResponse,
 } from './model';
 
 export type {
@@ -81,4 +83,14 @@ export async function leavePrivateRoom(roomId: string, privateRoomId: string) {
   return apiClient.post<LeavePrivateRoomResponse>(
     `/rooms/${roomId}/private-room/${privateRoomId}/leave`,
   );
+}
+
+export async function updateMemberStatus(roomId: string, status: MemberStatus) {
+  const response = await apiClient.patch<StatusResponse>(
+    `/rooms/${roomId}/members/me/status`,
+    {
+      status: status,
+    },
+  );
+  return response.data;
 }

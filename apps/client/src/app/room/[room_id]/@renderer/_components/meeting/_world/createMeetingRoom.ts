@@ -3,7 +3,6 @@ import * as PIXI from 'pixi.js';
 export function createMeetingRoom(): PIXI.Container {
   const mainContainer = new PIXI.Container();
   const ROOMS_CONFIG = window.DYNAMIC_ROOMS_CONFIG || [];
-  console.log('회의실 데이터:', ROOMS_CONFIG);
 
   if (ROOMS_CONFIG.length === 0) {
     console.error(
