@@ -14,6 +14,7 @@
     "@heroui/react": "^3.1.0",
     "@heroui/styles": "^3.1.0",
     "@tanstack/react-query": "^5.100.11",
+    "@uiw/react-md-editor": "^4.1.1",
     "axios": "^1.16.1",
     "next": "^16.2.6",
     "pixi.js": "^8.18.1",
