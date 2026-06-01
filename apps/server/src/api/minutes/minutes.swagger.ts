@@ -30,7 +30,7 @@ const MinutesListItemSchema = z.object({
   id: z.string(),
   title: z.string(),
   type: z.enum(['meeting', 'troubleshooting', 'etc']),
-  status: z.enum(['draft', 'confirmed', 'generating']),
+  status: z.enum(['draft', 'confirmed', 'generating', 'failed']),
   author: AuthorSchema,
   linked_issue_numbers: z.array(z.number()),
   created_at: z.string(),
@@ -46,7 +46,7 @@ const MinutesDetailSchema = z.object({
   type: z.enum(['meeting', 'troubleshooting', 'etc']),
   content_md: z.string().nullable(),
   action_items: z.array(z.string()),
-  status: z.enum(['draft', 'confirmed', 'generating']),
+  status: z.enum(['draft', 'confirmed', 'generating', 'failed']),
   linked_issue_numbers: z.array(z.number()),
   author: AuthorSchema,
   created_at: z.string(),
@@ -62,7 +62,7 @@ const MinutesMutationResultSchema = z.object({
   title: z.string(),
   type: z.enum(['meeting', 'troubleshooting', 'etc']),
   content_md: z.string().nullable(),
-  status: z.enum(['draft', 'confirmed', 'generating']),
+  status: z.enum(['draft', 'confirmed', 'generating', 'failed']),
   linked_issue_numbers: z.array(z.number()),
   action_items: z.array(z.string()),
   created_at: z.string(),
@@ -239,7 +239,10 @@ registry.registerPath({
   description:
     '종료된 회의(meeting)를 기반으로 AI 회의록 생성을 백그라운드 작업으로 트리거합니다. ' +
     "즉시 status='generating' 상태의 임시 회의록을 생성해 202로 반환하며, " +
-    '완료 시 소켓 이벤트(minutes:generation-started)로 알립니다. ' +
+    '동시에 소켓 이벤트(minutes:generation-started)를 발행합니다. ' +
+    '백그라운드 작업이 끝나면 성공 시 minutes:generated(status=draft), ' +
+    '실패 시 minutes:generation-failed(status=failed) 소켓 이벤트로 알립니다. ' +
+    '제목을 지정하지 않으면 AI가 회의 내용을 바탕으로 제목을 생성합니다. ' +
     '회의가 존재하지 않거나 다른 룸의 회의면 MEETING_NOT_FOUND(404), ' +
     '해당 회의에 이미 회의록이 있으면 MINUTES_ALREADY_EXISTS(409)를 반환합니다.',
   security: [{ bearerAuth: [] }],
@@ -383,7 +386,7 @@ registry.registerPath({
               type: z.enum(['meeting', 'troubleshooting', 'etc']),
               content_md: z.string().nullable(),
               action_items: z.array(z.string()),
-              status: z.enum(['draft', 'confirmed', 'generating']),
+              status: z.enum(['draft', 'confirmed', 'generating', 'failed']),
               linked_issue_numbers: z.array(z.number()),
               updated_at: z.string(),
             }),
