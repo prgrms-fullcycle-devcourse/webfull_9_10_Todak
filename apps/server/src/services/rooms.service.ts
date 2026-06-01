@@ -80,6 +80,14 @@ export async function createRoom(
         },
       });
 
+      // 룸당 프라이빗 룸(회의실) 2개 자동 생성
+      await tx.privateRoom.createMany({
+        data: [
+          { roomId: newRoom.id, name: '회의실 A' },
+          { roomId: newRoom.id, name: '회의실 B' },
+        ],
+      });
+
       return newRoom;
     },
   );
