@@ -26,12 +26,18 @@ const GenerateAiMinutesBodySchema = z.object({
   title: z.string().min(1).optional(),
 });
 
+const ActionItemSchema = z.object({
+  title: z.string().trim().min(1),
+  body: z.string().optional(),
+  labels: z.array(z.string()).default([]),
+});
+
 const UpdateMinutesBodySchema = z
   .object({
     title: z.string().trim().min(1).optional(),
     type: z.enum(['meeting', 'troubleshooting', 'etc']).optional(),
     content_md: z.string().optional(),
-    action_items: z.array(z.string()).optional(),
+    action_items: z.array(ActionItemSchema).optional(),
     status: z.enum(['draft', 'confirmed']).optional(),
   })
   .refine(data => Object.keys(data).length > 0);

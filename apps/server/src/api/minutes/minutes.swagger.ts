@@ -25,6 +25,13 @@ const AuthorSchema = z.object({
   avatar_url: z.string().nullable(),
 });
 
+// 액션 아이템 (Todo 생성 API와 동일한 title/body/labels 구조)
+const ActionItemSchema = z.object({
+  title: z.string(),
+  body: z.string().optional(),
+  labels: z.array(z.string()),
+});
+
 // 목록 아이템 (작성자 요약 포함, content_md/action_items 제외)
 const MinutesListItemSchema = z.object({
   id: z.string(),
@@ -45,7 +52,7 @@ const MinutesDetailSchema = z.object({
   title: z.string(),
   type: z.enum(['meeting', 'troubleshooting', 'etc']),
   content_md: z.string().nullable(),
-  action_items: z.array(z.string()),
+  action_items: z.array(ActionItemSchema),
   status: z.enum(['draft', 'confirmed', 'generating', 'failed']),
   linked_issue_numbers: z.array(z.number()),
   author: AuthorSchema,
@@ -64,7 +71,7 @@ const MinutesMutationResultSchema = z.object({
   content_md: z.string().nullable(),
   status: z.enum(['draft', 'confirmed', 'generating', 'failed']),
   linked_issue_numbers: z.array(z.number()),
-  action_items: z.array(z.string()),
+  action_items: z.array(ActionItemSchema),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -82,7 +89,18 @@ const detailExample = {
   title: '스프린트 1주차 회의록',
   type: 'meeting',
   content_md: '## 논의 사항\n- socket.io 도입 결정',
-  action_items: ['로그인 API 구현 (지윤)', '디자인 시안 공유 (수아)'],
+  action_items: [
+    {
+      title: '로그인 API 구현',
+      body: 'JWT 기반 인증 로직 작성 (지윤)',
+      labels: ['backend'],
+    },
+    {
+      title: '디자인 시안 공유',
+      body: '로그인 화면 시안 업로드 (수아)',
+      labels: [],
+    },
+  ],
   status: 'confirmed',
   linked_issue_numbers: [12, 15],
   author: authorExample,
@@ -365,7 +383,13 @@ registry.registerPath({
           example: {
             title: '스프린트 1주차 회의록 (확정)',
             status: 'confirmed',
-            action_items: ['로그인 API 구현 (지윤)'],
+            action_items: [
+              {
+                title: '로그인 API 구현',
+                body: 'JWT 인증 로직',
+                labels: ['backend'],
+              },
+            ],
           },
         },
       },
@@ -385,7 +409,7 @@ registry.registerPath({
               title: z.string(),
               type: z.enum(['meeting', 'troubleshooting', 'etc']),
               content_md: z.string().nullable(),
-              action_items: z.array(z.string()),
+              action_items: z.array(ActionItemSchema),
               status: z.enum(['draft', 'confirmed', 'generating', 'failed']),
               linked_issue_numbers: z.array(z.number()),
               updated_at: z.string(),
@@ -400,7 +424,13 @@ registry.registerPath({
               title: '스프린트 1주차 회의록 (확정)',
               type: 'meeting',
               content_md: '## 논의 사항\n- socket.io 도입 결정',
-              action_items: ['로그인 API 구현 (지윤)'],
+              action_items: [
+                {
+                  title: '로그인 API 구현',
+                  body: 'JWT 인증 로직',
+                  labels: ['backend'],
+                },
+              ],
               status: 'confirmed',
               linked_issue_numbers: [12, 15],
               updated_at: '2026-05-18T18:00:00.000Z',

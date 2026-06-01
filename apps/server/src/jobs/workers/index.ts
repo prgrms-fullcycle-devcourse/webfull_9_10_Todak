@@ -1,5 +1,6 @@
 import { UnrecoverableError, Worker } from 'bullmq';
 
+import { Prisma } from '../../generated/prisma/client/index.js';
 import { prisma } from '../../lib/prisma.js';
 import { redis } from '../../lib/redis.js';
 import {
@@ -97,7 +98,7 @@ export const minutesGenerationWorker = new Worker(
       data: {
         title: finalTitle,
         contentMd,
-        actionItems,
+        actionItems: actionItems as unknown as Prisma.InputJsonValue,
         status: 'draft',
       },
     });

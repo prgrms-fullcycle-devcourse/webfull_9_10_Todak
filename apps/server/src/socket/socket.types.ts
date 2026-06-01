@@ -132,7 +132,7 @@ export interface ServerToClientEvents {
     minutes_id: string;
     meeting_id: string;
     title: string;
-    action_items: string[];
+    action_items: { title: string; body?: string; labels: string[] }[];
     status: 'draft';
   }) => void;
   'minutes:generation-failed': (data: {

@@ -32,9 +32,19 @@ type ChatMessageWithUser = Prisma.ChatMessageGetPayload<{
   include: { user: true };
 }>;
 
+interface MinutesActionItem {
+  title: string;
+  body?: string;
+  labels: string[];
+}
+
 export async function generateMinutesSummary(
   chatMessages: ChatMessageWithUser[],
-): Promise<{ title: string; contentMd: string; actionItems: string[] }> {
+): Promise<{
+  title: string;
+  contentMd: string;
+  actionItems: MinutesActionItem[];
+}> {
   const formattedChats = chatMessages
     .map(msg => `[${msg.createdAt}] ${msg.user.githubUsername}: ${msg.content}`)
     .join('\n');
@@ -69,9 +79,29 @@ export async function generateMinutesSummary(
             },
             action_items: {
               type: 'array',
-              items: { type: 'string' },
               description:
-                '대화 중 도출된 구체적인 할 일 리스트. "누가, 언제까지, 무엇을" 하기로 했는지 명확히 추출하고, 할 일이 없으면 빈 배열을 반환합니다.',
+                '대화 중 도출된 구체적인 할 일 리스트. 할 일이 없으면 빈 배열을 반환합니다.',
+              items: {
+                type: 'object',
+                properties: {
+                  title: {
+                    type: 'string',
+                    description:
+                      '할 일을 한 줄로 요약한 제목. "누가, 언제까지, 무엇을" 하기로 했는지 명확히 작성합니다.',
+                  },
+                  body: {
+                    type: 'string',
+                    description: '할 일의 배경/상세 설명 (선택)',
+                  },
+                  labels: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description:
+                      'GitHub 이슈 라벨로 쓸 분류 태그 (예: ["backend", "bug"]). 없으면 빈 배열.',
+                  },
+                },
+                required: ['title'],
+              },
             },
           },
           required: ['title', 'content_md', 'action_items'],
@@ -93,13 +123,26 @@ export async function generateMinutesSummary(
     const result = toolUse.input as {
       title?: string;
       content_md?: string;
-      action_items?: string[];
+      action_items?: Array<{
+        title?: string;
+        body?: string;
+        labels?: string[];
+      }>;
     };
+
+    // 필드 누락에 대비해 정규화 (title은 필수, labels는 항상 배열)
+    const actionItems: MinutesActionItem[] = (result.action_items ?? [])
+      .filter(item => (item.title ?? '') !== '')
+      .map(item => ({
+        title: item.title ?? '',
+        body: item.body,
+        labels: item.labels ?? [],
+      }));
 
     return {
       title: result.title ?? '',
       contentMd: result.content_md ?? '',
-      actionItems: result.action_items ?? [],
+      actionItems,
     };
   }
 
