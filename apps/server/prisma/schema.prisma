@@ -184,7 +184,7 @@ model Minutes {
   title              String
   type               String // meeting | troubleshooting | etc
   contentMd          String?  @map("content_md")
-  status             String   @default("draft") // draft | confirmed | generating
+  status             String   @default("draft") // draft | confirmed | generating | failed
   linkedIssueNumbers Int[]    @map("linked_issue_numbers") // 발행된 GitHub 이슈 번호 배열
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
