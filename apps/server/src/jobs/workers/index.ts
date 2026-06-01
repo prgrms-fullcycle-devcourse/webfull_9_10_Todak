@@ -54,9 +54,14 @@ export const minutesGenerationWorker = new Worker(
     const startTime = meeting.startedAt;
     const endTime = meeting.endedAt || new Date();
 
+    /*
+     * 회의는 프라이빗 룸에서 진행되므로, 메인룸/다른 프라이빗룸 채팅이 섞이지 않도록
+     * 이 회의의 privateRoomId로 한정해 대화 로그를 수집한다.
+     */
     const chatMessages = await prisma.chatMessage.findMany({
       where: {
         roomId,
+        privateRoomId: meeting.privateRoomId,
         type: 'text',
         createdAt: {
           gte: startTime,
