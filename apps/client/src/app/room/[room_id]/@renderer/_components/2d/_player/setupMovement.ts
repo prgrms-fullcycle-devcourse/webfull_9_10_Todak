@@ -1,8 +1,9 @@
 import * as PIXI from 'pixi.js';
 import type { AnimalAssetPack } from '../_animals/types';
 import { type Player, CHAR_HEIGHT } from './createPlayer';
-import { MEETING_ROOMS_CONFIG } from '../../metting/_world/createMeetingRoom';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
+import { enterPrivateRoom, leavePrivateRoom } from '@/sevice/rooms/api';
+import { getSocket } from '@/lib/socket';
 
 const SPEED = 6;
 
@@ -11,6 +12,7 @@ export function setupMovement(
   player: Player,
   getTextures: () => AnimalAssetPack,
   darkOverlay: PIXI.Graphics,
+  roomId: string,
 ): () => void {
   const keys: Record<string, boolean> = {};
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -23,6 +25,7 @@ export function setupMovement(
   window.addEventListener('keyup', handleKeyUp);
 
   let currentRoomId: string | null = null;
+  let isProcessing = false;
 
   const ticker = () => {
     const textures = getTextures();
@@ -84,18 +87,31 @@ export function setupMovement(
       );
     }
 
-    const insideRoom = MEETING_ROOMS_CONFIG.find(room =>
+    const ROOMS_CONFIG = window.DYNAMIC_ROOMS_CONFIG || [];
+    const insideRoom = ROOMS_CONFIG.find(room =>
       checkIntersect(playerHitbox, room.bounds),
     );
 
     const newRoomId = insideRoom ? insideRoom.id : null;
 
-    if (newRoomId !== currentRoomId) {
+    if (newRoomId !== currentRoomId && !isProcessing) {
       // 회의실 입장
       if (currentRoomId === null && newRoomId !== null) {
-        console.log(
-          `[${insideRoom?.name}] 입장 (소켓 API로 ${newRoomId} 전송)`,
-        );
+        isProcessing = true;
+        console.log(`[API 호출] ${insideRoom?.name} 입장 요청 중...`);
+
+        enterPrivateRoom(roomId, newRoomId)
+          .then(() => {
+            getSocket().emit('private-room:enter', {
+              roomId: roomId,
+              privateRoomId: newRoomId,
+            });
+          })
+          .catch(err => console.error(`입장 실패:`, err))
+          .finally(() => {
+            isProcessing = false;
+          });
+
         darkOverlay.clear();
         darkOverlay
           .rect(0, 0, WORLD_WIDTH, WORLD_HEIGHT)
@@ -114,7 +130,19 @@ export function setupMovement(
 
       // 회의실 퇴장
       else if (currentRoomId !== null && newRoomId === null) {
-        console.log(`회의실 퇴장 (원래 상태로 복귀 API 호출)`);
+        isProcessing = true;
+        leavePrivateRoom(roomId, currentRoomId)
+          .then(() => {
+            getSocket().emit('private-room:leave', {
+              roomId: roomId,
+              privateRoomId: currentRoomId,
+            });
+          })
+          .catch(err => console.error(`퇴장 실패:`, err))
+          .finally(() => {
+            isProcessing = false;
+          });
+
         darkOverlay.visible = false;
       }
 

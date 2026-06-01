@@ -20,7 +20,11 @@ interface CustomWindow extends Window {
   __PIXI_PLAYER__?: PIXI.Container;
 }
 
-export default function PixiCanvas() {
+interface PixiCanvasProps {
+  roomId: string;
+}
+
+export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   // 캔버스를 마운트할 DOM 컨테이너 참조
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -127,6 +131,7 @@ export default function PixiCanvas() {
         player,
         () => activeTextures,
         darkOverlay,
+        roomId,
       );
 
       // 카메라 셋업
@@ -166,7 +171,7 @@ export default function PixiCanvas() {
 
       app?.destroy(true, { children: true, texture: true });
     };
-  }, []);
+  }, [roomId]);
 
   return (
     <div className="flex flex-col items-center justify-start gap-2 pt-0 h-full w-full">

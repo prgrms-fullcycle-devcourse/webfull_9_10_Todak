@@ -1,29 +1,20 @@
 import * as PIXI from 'pixi.js';
 
-export const MEETING_ROOMS_CONFIG = [
-  {
-    id: 'room_A',
-    name: '프라이빗 회의실 A',
-    bounds: new PIXI.Rectangle(200, 380, 400, 400),
-    color: 0x666666,
-  },
-  {
-    id: 'room_B',
-    name: '프라이빗 회의실 B',
-    bounds: new PIXI.Rectangle(1950, 450, 350, 350),
-    color: 0x666666,
-  },
-];
-
 export function createMeetingRoom(): PIXI.Container {
   const mainContainer = new PIXI.Container();
+  const ROOMS_CONFIG = window.DYNAMIC_ROOMS_CONFIG || [];
+  console.log('회의실 데이터:', ROOMS_CONFIG);
 
-  MEETING_ROOMS_CONFIG.forEach(room => {
+  if (ROOMS_CONFIG.length === 0) {
+    console.error(
+      '[경고] ROOMS_CONFIG가 비어있어서 회의실 영역을 그릴 수 없습니다!',
+    );
+  }
+
+  ROOMS_CONFIG.forEach(room => {
     const roomContainer = new PIXI.Container();
 
-    // 바닥 타일 그래픽 그리기
     const graphics = new PIXI.Graphics();
-
     graphics
       .roundRect(
         room.bounds.x,
@@ -32,9 +23,37 @@ export function createMeetingRoom(): PIXI.Container {
         room.bounds.height,
         16,
       )
-      .fill({ color: room.color, alpha: 0.15 });
+      .fill({ color: 0xffffff, alpha: 0.1 })
+      .stroke({ color: 0xcbd5e1, width: 2, alpha: 0.8 });
 
     roomContainer.addChild(graphics);
+
+    // '회의 중' 상태 표시
+    if (room.isActive) {
+      const badge = new PIXI.Graphics();
+      badge
+        .roundRect(room.bounds.x + 20, room.bounds.y - 30, 80, 24, 12)
+        .fill({ color: 0xff4d4f, alpha: 1 });
+
+      // 'ON AIR' 텍스트 설정
+      const text = new PIXI.Text({
+        text: 'ON AIR',
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 12,
+          fill: 0xffffff,
+          fontWeight: 'bold',
+        },
+      });
+
+      // 텍스트 위치를 뱃지 중앙에 대략적으로 맞춤
+      text.x = room.bounds.x + 38;
+      text.y = room.bounds.y - 25;
+
+      roomContainer.addChild(badge);
+      roomContainer.addChild(text);
+    }
+
     mainContainer.addChild(roomContainer);
   });
 
