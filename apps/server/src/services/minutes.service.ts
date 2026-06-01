@@ -36,7 +36,7 @@ export class MinutesService {
       whereCondition.type = type;
     }
 
-    if (status) {
+    if (status !== undefined) {
       whereCondition.status = status;
     }
 
