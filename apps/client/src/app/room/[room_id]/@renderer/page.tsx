@@ -2,7 +2,7 @@
 
 import { use } from 'react';
 import { useInitRooms } from './_hooks/useInitRooms';
-import RendererView from './_components/RendererView';
+import RendererView from './_components/meeting/RendererView';
 import BottomInfoContainer from '../_components/BottomInfoContainer';
 
 export default function RendererPage({

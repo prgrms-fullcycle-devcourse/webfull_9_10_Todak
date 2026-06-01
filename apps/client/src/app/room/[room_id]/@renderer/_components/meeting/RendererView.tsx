@@ -1,9 +1,9 @@
 'use client';
 
 import { useSpaceStore } from '@/store/useSpaceStore';
-import PixiCanvas from './2d/PixiCanvas';
-import AnimalSwitcher from './2d/AnimalSwitcher';
-import MeetingBoard from './meeting/MeetingBoard';
+import PixiCanvas from '../2d/PixiCanvas';
+import AnimalSwitcher from '../2d/AnimalSwitcher';
+import MeetingBoard from './MeetingBoard';
 
 interface RendererViewProps {
   roomId: string;
