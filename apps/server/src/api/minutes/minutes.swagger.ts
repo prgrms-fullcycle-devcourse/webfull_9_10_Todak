@@ -261,8 +261,9 @@ registry.registerPath({
     '백그라운드 작업이 끝나면 성공 시 minutes:generated(status=draft), ' +
     '실패 시 minutes:generation-failed(status=failed) 소켓 이벤트로 알립니다. ' +
     '제목을 지정하지 않으면 AI가 회의 내용을 바탕으로 제목을 생성합니다. ' +
-    '회의가 존재하지 않거나 다른 룸의 회의면 MEETING_NOT_FOUND(404), ' +
-    '해당 회의에 이미 회의록이 있으면 MINUTES_ALREADY_EXISTS(409)를 반환합니다.',
+    '회의가 존재하지 않거나 다른 룸의 회의면 MEETING_NOT_FOUND(404)를 반환합니다. ' +
+    '해당 회의에 이미 회의록이 있으면 MINUTES_ALREADY_EXISTS(409)를 반환하되, ' +
+    '직전 생성이 실패(status=failed)한 경우에는 같은 회의록을 재생성합니다.',
   security: [{ bearerAuth: [] }],
   request: {
     params: MinutesSchema.commonParams,

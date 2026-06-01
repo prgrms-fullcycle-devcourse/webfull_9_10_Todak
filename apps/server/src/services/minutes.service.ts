@@ -151,28 +151,40 @@ export class MinutesService {
       throw new AppError('MEETING_NOT_FOUND');
     }
 
-    // meetingId가 @unique이므로 이미 회의록이 있으면 409로 응답 (unique 위반 500 방지)
+    const finalTitle = title ?? 'AI가 회의록을 생성하고 있습니다...';
+
+    /*
+     * meetingId가 @unique이므로 회의당 회의록은 1건이다.
+     * - 정상(draft/confirmed)이거나 생성 중(generating)이면 409로 막는다.
+     * - 직전 생성이 실패(failed)한 경우엔 같은 레코드를 generating으로 되돌려 재생성한다.
+     *   (failed 레코드가 meetingId를 점유한 채 영구히 재생성을 막는 문제 방지)
+     */
     const existing = await prisma.minutes.findUnique({
       where: { meetingId: meeting_id },
-      select: { id: true },
+      select: { id: true, status: true },
     });
 
-    if (existing) {
+    if (existing && existing.status !== 'failed') {
       throw new AppError('MINUTES_ALREADY_EXISTS');
     }
 
-    const finalTitle = title ?? 'AI가 회의록을 생성하고 있습니다...';
+    const isRetry = existing !== null;
 
-    const tempMinutes = await prisma.minutes.create({
-      data: {
-        roomId,
-        authorId,
-        meetingId: meeting_id,
-        title: finalTitle,
-        type: 'meeting',
-        status: 'generating',
-      },
-    });
+    const tempMinutes = existing
+      ? await prisma.minutes.update({
+          where: { id: existing.id },
+          data: { title: finalTitle, contentMd: null, status: 'generating' },
+        })
+      : await prisma.minutes.create({
+          data: {
+            roomId,
+            authorId,
+            meetingId: meeting_id,
+            title: finalTitle,
+            type: 'meeting',
+            status: 'generating',
+          },
+        });
 
     try {
       await addJob('minutes-generation', {
@@ -183,8 +195,20 @@ export class MinutesService {
         userTitle: title ?? null,
       });
     } catch (error) {
-      // 큐 등록 실패 시 'generating' 상태로 남는 고아 레코드 방지
-      await prisma.minutes.delete({ where: { id: tempMinutes.id } });
+      /*
+       * 큐 등록 실패 시: 신규 레코드는 삭제(고아 방지),
+       * 재생성 레코드는 기존 데이터를 보존하기 위해 failed로 되돌린다.
+       */
+      if (isRetry) {
+        await prisma.minutes
+          .update({
+            where: { id: tempMinutes.id },
+            data: { status: 'failed' },
+          })
+          .catch(() => {});
+      } else {
+        await prisma.minutes.delete({ where: { id: tempMinutes.id } });
+      }
       throw error;
     }
 
