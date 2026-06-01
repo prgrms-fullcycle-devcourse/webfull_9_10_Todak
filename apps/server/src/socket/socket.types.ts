@@ -176,9 +176,7 @@ export interface ClientToServerEvents {
     ack?: (response: ChatReactAck) => void,
   ) => void;
 
-  // Meeting
-  'meeting:start': (data: { roomId: string; privateRoomId: string }) => void;
-  'meeting:end': (data: { meetingId: string }) => void;
+  // Meeting (시작/종료는 REST 담당 — 여기선 회의 room 입·퇴장만)
   'meeting:join': (data: { meetingId: string }) => void;
   'meeting:leave': (data: { meetingId: string }) => void;
 }
