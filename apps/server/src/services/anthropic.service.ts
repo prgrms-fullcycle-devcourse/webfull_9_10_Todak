@@ -59,7 +59,9 @@ export async function generateMinutesSummary(
     max_tokens: 8000,
     system: `당신은 개발 팀의 미팅 로그를 분석하는 전문 프로젝트 매니저(PM) AI입니다.
       제공된 채팅 로그를 바탕으로 회의 제목, 회의록 본문, 액션 아이템을 정리하고,
-      반드시 save_minutes 도구를 호출하여 결과를 반환하세요.`,
+      반드시 save_minutes 도구를 호출하여 결과를 반환하세요.
+      액션 아이템은 action_items 필드로만 반환하며,
+      회의록 본문(content_md)에는 별도의 '액션 아이템' 목록 섹션을 중복해서 넣지 마세요.`,
     tools: [
       {
         name: 'save_minutes',
@@ -75,7 +77,7 @@ export async function generateMinutesSummary(
             content_md: {
               type: 'string',
               description:
-                '미팅 내용을 일목요연하게 정리한 마크다운 형식의 회의록 본문',
+                '회의의 논의 사항과 결정 사항을 일목요연하게 정리한 마크다운 본문. 할 일은 action_items로 별도 반환하므로 본문에 액션 아이템 목록을 중복해 나열하지 마세요.',
             },
             action_items: {
               type: 'array',

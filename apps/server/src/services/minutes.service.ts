@@ -29,11 +29,15 @@ export class MinutesService {
   ) {
     await this.assertRoomMember(roomId, userId);
 
-    const { type, page, limit } = query;
+    const { type, status, page, limit } = query;
 
     const whereCondition: Prisma.MinutesWhereInput = { roomId };
     if (type) {
       whereCondition.type = type;
+    }
+
+    if (status) {
+      whereCondition.status = status;
     }
 
     const totalCount = await prisma.minutes.count({
@@ -132,6 +136,40 @@ export class MinutesService {
     };
   }
 
+  /*
+   * generating 상태의 임시 회의록 생성. 동시 요청으로 같은 meetingId가
+   * 먼저 생성되면 unique 위반(P2002)이 나는데, 이를 409로 변환해 500을 방지한다.
+   */
+  private async createGeneratingMinutes(
+    roomId: string,
+    authorId: string,
+    meetingId: string,
+    title: string,
+  ) {
+    try {
+      return await prisma.minutes.create({
+        data: {
+          roomId,
+          authorId,
+          meetingId,
+          title,
+          type: 'meeting',
+          status: 'generating',
+          actionItems: [] as Prisma.JsonArray,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new AppError('MINUTES_ALREADY_EXISTS');
+      }
+
+      throw error;
+    }
+  }
+
   public async triggerAiMinutesGeneration(
     roomId: string,
     authorId: string,
@@ -155,36 +193,42 @@ export class MinutesService {
 
     /*
      * meetingId가 @unique이므로 회의당 회의록은 1건이다.
-     * - 정상(draft/confirmed)이거나 생성 중(generating)이면 409로 막는다.
-     * - 직전 생성이 실패(failed)한 경우엔 같은 레코드를 generating으로 되돌려 재생성한다.
-     *   (failed 레코드가 meetingId를 점유한 채 영구히 재생성을 막는 문제 방지)
+     * - generating(생성 중): 중복 실행 방지 → MINUTES_GENERATING(409)
+     * - confirmed(확정본): 덮어쓰기 방지 → MINUTES_ALREADY_EXISTS(409)
+     * - draft/failed: 같은 레코드를 generating으로 되돌려 재생성한다.
+     *   (회의 중 만든 초안을 종료 후 전체 로그로 재생성하거나, 실패분 재시도)
      */
     const existing = await prisma.minutes.findUnique({
       where: { meetingId: meeting_id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, title: true },
     });
 
-    if (existing && existing.status !== 'failed') {
-      throw new AppError('MINUTES_ALREADY_EXISTS');
+    if (existing) {
+      if (existing.status === 'generating') {
+        throw new AppError('MINUTES_GENERATING');
+      }
+
+      if (existing.status === 'confirmed') {
+        throw new AppError('MINUTES_ALREADY_EXISTS');
+      }
     }
 
-    const isRetry = existing !== null;
-
+    /*
+     * 재생성 시 본문(contentMd)은 비우지 않는다. 워커가 성공 시 덮어쓰므로
+     * 비울 필요가 없고, 미리 비우면 큐 등록 실패 시 기존 초안이 유실된다.
+     * 생성 중에는 기존 본문이 잠시 남아 있다가 완료 시 교체된다.
+     */
     const tempMinutes = existing
       ? await prisma.minutes.update({
           where: { id: existing.id },
-          data: { title: finalTitle, contentMd: null, status: 'generating' },
+          data: { title: finalTitle, status: 'generating' },
         })
-      : await prisma.minutes.create({
-          data: {
-            roomId,
-            authorId,
-            meetingId: meeting_id,
-            title: finalTitle,
-            type: 'meeting',
-            status: 'generating',
-          },
-        });
+      : await this.createGeneratingMinutes(
+          roomId,
+          authorId,
+          meeting_id,
+          finalTitle,
+        );
 
     try {
       await addJob('minutes-generation', {
@@ -197,13 +241,13 @@ export class MinutesService {
     } catch (error) {
       /*
        * 큐 등록 실패 시: 신규 레코드는 삭제(고아 방지),
-       * 재생성 레코드는 기존 데이터를 보존하기 위해 failed로 되돌린다.
+       * 재생성 레코드는 기존 상태/제목으로 정확히 복구해 초안을 보존한다.
        */
-      if (isRetry) {
+      if (existing) {
         await prisma.minutes
           .update({
             where: { id: tempMinutes.id },
-            data: { status: 'failed' },
+            data: { status: existing.status, title: existing.title },
           })
           .catch(() => {});
       } else {
@@ -219,9 +263,11 @@ export class MinutesService {
       author_id: tempMinutes.authorId,
       title: tempMinutes.title,
       type: tempMinutes.type,
-      content_md: tempMinutes.contentMd, // null
+      // 신규는 null, 재생성(draft 초안)이면 기존 본문이 잠시 유지됨
+      content_md: tempMinutes.contentMd,
+      action_items: tempMinutes.actionItems,
       status: tempMinutes.status, // "generating"
-      linked_issue_numbers: tempMinutes.linkedIssueNumbers, // []
+      linked_issue_numbers: tempMinutes.linkedIssueNumbers,
       created_at: tempMinutes.createdAt.toISOString(),
       updated_at: tempMinutes.updatedAt.toISOString(),
     };
