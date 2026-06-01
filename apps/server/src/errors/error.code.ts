@@ -41,6 +41,11 @@ export const ERROR_CODES = {
     code: 'TOKEN_EXPIRED',
     message: '토큰이 만료되었습니다.',
   },
+  WEBHOOK_SIGNATURE_INVALID: {
+    statusCode: StatusCodes.UNAUTHORIZED,
+    code: 'WEBHOOK_SIGNATURE_INVALID',
+    message: 'Webhook 서명 검증에 실패했습니다.',
+  },
 
   // 403
   REPO_ADMIN_REQUIRED: {

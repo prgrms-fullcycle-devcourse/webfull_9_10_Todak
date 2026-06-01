@@ -60,6 +60,34 @@ export interface TodoEventPayload {
   created_at: Date;
 }
 
+/*
+ * GitHub Webhook → PR 이벤트 페이로드 (DB 미저장, GitHub payload 기반)
+ * roomId 는 emit wrapper 에 별도로 실린다.
+ */
+export interface PrEventPayload {
+  number: number;
+  title: string;
+  state: string;
+  merged: boolean;
+  url: string | null;
+}
+
+// GitHub Webhook → push 이벤트의 개별 커밋
+export interface CommitItemPayload {
+  id: string;
+  message: string;
+  url: string;
+  author: string | null;
+}
+
+// GitHub Webhook → push 이벤트 페이로드
+export interface CommitPushedPayload {
+  ref: string;
+  branch: string;
+  pusher: string | null;
+  commits: CommitItemPayload[];
+}
+
 // 유저 정보 (JWT 검증 후 socket.data.user 에 저장됨)
 export interface SocketUser {
   id: string;
@@ -106,7 +134,19 @@ export interface ServerToClientEvents {
 
   // 이슈
   'todo:created': (data: { roomId: string; todos: TodoEventPayload[] }) => void;
+  'todo:updated': (data: { roomId: string; todo: TodoEventPayload }) => void;
   'todo:deleted': (data: { roomId: string; todoId: string }) => void;
+
+  // PR (GitHub Webhook)
+  'pr:opened': (data: { roomId: string; pull_request: PrEventPayload }) => void;
+  'pr:merged': (data: { roomId: string; pull_request: PrEventPayload }) => void;
+  'pr:closed': (data: { roomId: string; pull_request: PrEventPayload }) => void;
+
+  // 커밋 push (GitHub Webhook)
+  'commit:pushed': (data: {
+    roomId: string;
+    push: CommitPushedPayload;
+  }) => void;
 
   // Private Room
   'room:private-rooms-updated': (data: PrivateRoomInfo[]) => void;
