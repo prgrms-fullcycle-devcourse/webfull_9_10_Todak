@@ -92,6 +92,14 @@ export function createPlayer(
   nameText.y = 70;
   container.addChild(nameText);
 
+  // 훅에서 설정된 이름을 비동기로 가져와서 텍스트 업데이트
+  useSpaceStore.subscribe(
+    state => state.myChar.name,
+    newName => {
+      nameText.text = newName;
+    },
+  );
+
   const bubbleContainer = new PIXI.Container();
   bubbleContainer.y = -80;
   bubbleContainer.visible = false;

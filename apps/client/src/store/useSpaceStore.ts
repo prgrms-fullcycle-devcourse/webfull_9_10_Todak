@@ -5,9 +5,17 @@ import { PrivateRoom } from '../sevice/rooms/model';
 export type AnimalType = 'cat' | 'dog' | 'rabbit' | 'bear' | 'hamster';
 export type ViewType = '2d' | 'meeting';
 
+export interface CharacterInfo {
+  id: string;
+  name: string;
+  avatarId: AnimalType;
+  status: string;
+}
+
 interface SpaceState {
-  myChar: { id: string; name: string; status: string };
+  myChar: CharacterInfo;
   currentAnimal: AnimalType;
+  setMyChar: (info: Partial<CharacterInfo>) => void;
   currentView: ViewType;
   isMenuOpen: boolean;
   menuPos: { x: number; y: number };
@@ -26,8 +34,18 @@ interface SpaceState {
 
 export const useSpaceStore = create<SpaceState>()(
   subscribeWithSelector(set => ({
-    myChar: { id: 'user-uuid-1234', name: '토끼', status: '🔥 집중' },
+    myChar: {
+      id: '',
+      name: '로딩 중...',
+      avatarId: 'rabbit',
+      status: '🔥 집중',
+    },
     currentAnimal: 'rabbit',
+    setMyChar: info =>
+      set(state => {
+        const updatedChar = { ...state.myChar, ...info };
+        return { myChar: updatedChar, currentAnimal: updatedChar.avatarId };
+      }),
     currentView: '2d',
     isMenuOpen: false,
     menuPos: { x: 0, y: 0 },
