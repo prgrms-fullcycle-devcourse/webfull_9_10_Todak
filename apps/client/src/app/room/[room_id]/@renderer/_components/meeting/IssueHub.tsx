@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 
+import CompleteModal from './CompleteModal';
+import ReviewModal from './ReviewModal';
+
 interface Issue {
   id: string;
   title: string;
@@ -50,6 +53,7 @@ const MOCK_ISSUES: Issue[] = [
 
 export default function IssueHub() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [modal, setModal] = useState<'none' | 'review' | 'complete'>('none');
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -65,10 +69,10 @@ export default function IssueHub() {
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div>
           <p className="text-[10px] font-bold tracking-widest text-todak-coral-500">
-            GITHUB ISSUE HUB
+            GITHUB ISSUE
           </p>
           <p className="text-xs font-black text-slate-800">
-            🐙 3열 : GitHub 이슈 등록기
+            GitHub 이슈 등록기
           </p>
         </div>
         {selected.size > 0 && (
@@ -140,12 +144,29 @@ export default function IssueHub() {
       {/* 하단 버튼 */}
       <div className="shrink-0 border-t border-border p-3">
         <button
+          onClick={() => setModal('review')}
           disabled={selected.size === 0}
           className="w-full rounded-xl bg-todak-coral-500 py-3 text-xs font-black text-white transition-all hover:bg-todak-coral-600 disabled:opacity-40"
         >
-          🐙 이슈 검토 ({selected.size}개)
+          이슈 검토 ({selected.size}개)
         </button>
       </div>
+
+      {modal === 'review' && (
+        <ReviewModal
+          issues={MOCK_ISSUES}
+          selected={selected}
+          onClose={() => setModal('none')}
+          onUpload={() => setModal('complete')}
+        />
+      )}
+      {modal === 'complete' && (
+        <CompleteModal
+          issues={MOCK_ISSUES}
+          selected={selected}
+          onClose={() => setModal('none')}
+        />
+      )}
     </div>
   );
 }
