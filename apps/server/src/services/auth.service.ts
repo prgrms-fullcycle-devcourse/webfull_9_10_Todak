@@ -3,6 +3,10 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { AppError } from '../errors/AppError.js';
 import { prisma } from '../lib/prisma.js';
+import { redis } from '../lib/redis.js';
+
+export const ACCESS_TOKEN_TTL_SECONDS = 60 * 60; // 1시간
+export const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7; // 7일
 
 interface GithubTokenResponse {
   access_token?: string;
@@ -82,16 +86,69 @@ export async function upsertUser(githubUser: GithubUser, accessToken: string) {
   });
 }
 
-export function signJwt(payload: JwtPayload): string {
-  return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+// Access Token (1시간) — type: 'access' 클레임으로 Refresh Token과 구분
+export function signAccessToken(payload: JwtPayload): string {
+  return jwt.sign({ ...payload, type: 'access' }, env.JWT_SECRET, {
+    expiresIn: ACCESS_TOKEN_TTL_SECONDS,
   });
 }
 
+// Refresh Token (7일) — userId만 담고 type: 'refresh' 클레임 부여
+export function signRefreshToken(userId: string): string {
+  return jwt.sign({ id: userId, type: 'refresh' }, env.JWT_SECRET, {
+    expiresIn: REFRESH_TOKEN_TTL_SECONDS,
+  });
+}
+
+// Access Token 검증 — type이 'access'가 아니면 거부
 export function verifyJwt(token: string): JwtPayload {
+  let decoded: JwtPayload & { type?: string };
   try {
-    return jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+    decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload & {
+      type?: string;
+    };
   } catch {
     throw new AppError('INVALID_TOKEN');
   }
+
+  if (decoded.type !== 'access') {
+    throw new AppError('INVALID_TOKEN');
+  }
+
+  return decoded;
+}
+
+// Refresh Token 검증 — type이 'refresh'가 아니면 거부
+export function verifyRefreshToken(token: string): { id: string } {
+  let decoded: { id: string; type?: string };
+  try {
+    decoded = jwt.verify(token, env.JWT_SECRET) as {
+      id: string;
+      type?: string;
+    };
+  } catch {
+    throw new AppError('INVALID_TOKEN');
+  }
+
+  if (decoded.type !== 'refresh') {
+    throw new AppError('INVALID_TOKEN');
+  }
+
+  return decoded;
+}
+
+// Redis — Refresh Token 저장/조회/삭제
+export async function saveRefreshToken(
+  userId: string,
+  token: string,
+): Promise<void> {
+  await redis.set(`refresh:${userId}`, token, 'EX', REFRESH_TOKEN_TTL_SECONDS);
+}
+
+export async function getRefreshToken(userId: string): Promise<string | null> {
+  return redis.get(`refresh:${userId}`);
+}
+
+export async function deleteRefreshToken(userId: string): Promise<void> {
+  await redis.del(`refresh:${userId}`);
 }
