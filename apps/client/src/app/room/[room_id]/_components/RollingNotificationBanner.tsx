@@ -1,8 +1,7 @@
 'use client';
 
-import { fetchNotifications } from '@/sevice/notifications/api';
 import type { RoomNotification } from '@/sevice/notifications/model';
-import { useQuery } from '@tanstack/react-query';
+import { useNotifications } from '@/sevice/notifications/query';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -25,12 +24,7 @@ export default function RollingNotificationBanner() {
   const { room_id: roomID } = useParams<{ room_id: string }>();
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const { data, isError, isPending } = useQuery({
-    queryKey: ['notifications', roomID],
-    queryFn: () => fetchNotifications(roomID),
-    enabled: roomID !== '',
-    refetchInterval: 30_000,
-  });
+  const { data, isError, isPending } = useNotifications(roomID);
 
   const notifications = data?.notifications ?? [];
   const activeNotification =
