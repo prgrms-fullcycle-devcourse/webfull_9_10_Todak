@@ -171,7 +171,7 @@ export const ERROR_CODES = {
   MINUTES_GENERATING: {
     statusCode: StatusCodes.CONFLICT,
     code: 'MINUTES_GENERATING',
-    message: 'AI가 회의록을 생성 중일 때는 수정할 수 없습니다.',
+    message: 'AI가 회의록을 생성 중입니다. 완료 후 다시 시도해주세요.',
   },
   MINUTES_ALREADY_EXISTS: {
     statusCode: StatusCodes.CONFLICT,
