@@ -100,14 +100,18 @@ export function signRefreshToken(userId: string): string {
   });
 }
 
-// Access Token 검증 — type이 'access'가 아니면 거부
+// Access Token 검증 — 만료는 TOKEN_EXPIRED(401), 그 외 위조/타입 불일치는 INVALID_TOKEN
 export function verifyJwt(token: string): JwtPayload {
   let decoded: JwtPayload & { type?: string };
   try {
     decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload & {
       type?: string;
     };
-  } catch {
+  } catch (err) {
+    // 만료된 토큰 → 프론트가 /auth/refresh 호출하도록 401 TOKEN_EXPIRED로 구분
+    if (err instanceof jwt.TokenExpiredError) {
+      throw new AppError('TOKEN_EXPIRED');
+    }
     throw new AppError('INVALID_TOKEN');
   }
 
@@ -118,7 +122,7 @@ export function verifyJwt(token: string): JwtPayload {
   return decoded;
 }
 
-// Refresh Token 검증 — type이 'refresh'가 아니면 거부
+// Refresh Token 검증 — 만료는 TOKEN_EXPIRED(401), 그 외 위조/타입 불일치는 INVALID_TOKEN
 export function verifyRefreshToken(token: string): { id: string } {
   let decoded: { id: string; type?: string };
   try {
@@ -126,7 +130,10 @@ export function verifyRefreshToken(token: string): { id: string } {
       id: string;
       type?: string;
     };
-  } catch {
+  } catch (err) {
+    if (err instanceof jwt.TokenExpiredError) {
+      throw new AppError('TOKEN_EXPIRED');
+    }
     throw new AppError('INVALID_TOKEN');
   }
 
