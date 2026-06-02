@@ -29,11 +29,15 @@ export class MinutesService {
   ) {
     await this.assertRoomMember(roomId, userId);
 
-    const { type, page, limit } = query;
+    const { type, status, page, limit } = query;
 
     const whereCondition: Prisma.MinutesWhereInput = { roomId };
     if (type) {
       whereCondition.type = type;
+    }
+
+    if (status !== undefined) {
+      whereCondition.status = status;
     }
 
     const totalCount = await prisma.minutes.count({
@@ -132,6 +136,40 @@ export class MinutesService {
     };
   }
 
+  /*
+   * generating 상태의 임시 회의록 생성. 동시 요청으로 같은 meetingId가
+   * 먼저 생성되면 unique 위반(P2002)이 나는데, 이를 409로 변환해 500을 방지한다.
+   */
+  private async createGeneratingMinutes(
+    roomId: string,
+    authorId: string,
+    meetingId: string,
+    title: string,
+  ) {
+    try {
+      return await prisma.minutes.create({
+        data: {
+          roomId,
+          authorId,
+          meetingId,
+          title,
+          type: 'meeting',
+          status: 'generating',
+          actionItems: [] as Prisma.JsonArray,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new AppError('MINUTES_ALREADY_EXISTS');
+      }
+
+      throw error;
+    }
+  }
+
   public async triggerAiMinutesGeneration(
     roomId: string,
     authorId: string,
@@ -151,38 +189,70 @@ export class MinutesService {
       throw new AppError('MEETING_NOT_FOUND');
     }
 
-    // meetingId가 @unique이므로 이미 회의록이 있으면 409로 응답 (unique 위반 500 방지)
+    const finalTitle = title ?? 'AI가 회의록을 생성하고 있습니다...';
+
+    /*
+     * meetingId가 @unique이므로 회의당 회의록은 1건이다.
+     * - generating(생성 중): 중복 실행 방지 → MINUTES_GENERATING(409)
+     * - confirmed(확정본): 덮어쓰기 방지 → MINUTES_ALREADY_EXISTS(409)
+     * - draft/failed: 같은 레코드를 generating으로 되돌려 재생성한다.
+     *   (회의 중 만든 초안을 종료 후 전체 로그로 재생성하거나, 실패분 재시도)
+     */
     const existing = await prisma.minutes.findUnique({
       where: { meetingId: meeting_id },
-      select: { id: true },
+      select: { id: true, status: true, title: true },
     });
 
     if (existing) {
-      throw new AppError('MINUTES_ALREADY_EXISTS');
+      if (existing.status === 'generating') {
+        throw new AppError('MINUTES_GENERATING');
+      }
+
+      if (existing.status === 'confirmed') {
+        throw new AppError('MINUTES_ALREADY_EXISTS');
+      }
     }
 
-    const finalTitle = title ?? 'AI가 회의록을 생성하고 있습니다...';
-
-    const tempMinutes = await prisma.minutes.create({
-      data: {
-        roomId,
-        authorId,
-        meetingId: meeting_id,
-        title: finalTitle,
-        type: 'meeting',
-        status: 'generating',
-      },
-    });
+    /*
+     * 재생성 시 본문(contentMd)은 비우지 않는다. 워커가 성공 시 덮어쓰므로
+     * 비울 필요가 없고, 미리 비우면 큐 등록 실패 시 기존 초안이 유실된다.
+     * 생성 중에는 기존 본문이 잠시 남아 있다가 완료 시 교체된다.
+     */
+    const tempMinutes = existing
+      ? await prisma.minutes.update({
+          where: { id: existing.id },
+          data: { title: finalTitle, status: 'generating' },
+        })
+      : await this.createGeneratingMinutes(
+          roomId,
+          authorId,
+          meeting_id,
+          finalTitle,
+        );
 
     try {
       await addJob('minutes-generation', {
         minutesId: tempMinutes.id,
         meetingId: meeting_id,
         roomId,
+        // 사용자가 지정한 제목(없으면 null). 워커가 AI 생성 제목과 구분하는 데 사용
+        userTitle: title ?? null,
       });
     } catch (error) {
-      // 큐 등록 실패 시 'generating' 상태로 남는 고아 레코드 방지
-      await prisma.minutes.delete({ where: { id: tempMinutes.id } });
+      /*
+       * 큐 등록 실패 시: 신규 레코드는 삭제(고아 방지),
+       * 재생성 레코드는 기존 상태/제목으로 정확히 복구해 초안을 보존한다.
+       */
+      if (existing) {
+        await prisma.minutes
+          .update({
+            where: { id: tempMinutes.id },
+            data: { status: existing.status, title: existing.title },
+          })
+          .catch(() => {});
+      } else {
+        await prisma.minutes.delete({ where: { id: tempMinutes.id } });
+      }
       throw error;
     }
 
@@ -193,9 +263,11 @@ export class MinutesService {
       author_id: tempMinutes.authorId,
       title: tempMinutes.title,
       type: tempMinutes.type,
-      content_md: tempMinutes.contentMd, // null
+      // 신규는 null, 재생성(draft 초안)이면 기존 본문이 잠시 유지됨
+      content_md: tempMinutes.contentMd,
+      action_items: tempMinutes.actionItems,
       status: tempMinutes.status, // "generating"
-      linked_issue_numbers: tempMinutes.linkedIssueNumbers, // []
+      linked_issue_numbers: tempMinutes.linkedIssueNumbers,
       created_at: tempMinutes.createdAt.toISOString(),
       updated_at: tempMinutes.updatedAt.toISOString(),
     };
