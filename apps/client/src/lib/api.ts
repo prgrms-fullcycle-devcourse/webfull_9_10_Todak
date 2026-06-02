@@ -4,9 +4,10 @@ import axios, {
   AxiosHeaders,
   type AxiosRequestConfig,
   type AxiosResponse,
+  type InternalAxiosRequestConfig,
 } from 'axios';
 
-import { clearAuthToken, getAuthToken } from './auth';
+import { clearAuthToken, getAuthToken, refreshAuthToken } from './auth';
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
@@ -21,6 +22,12 @@ export const api = axios.create({
   baseURL: getApiBaseUrl(),
   withCredentials: true,
 });
+
+type RetryableRequestConfig = InternalAxiosRequestConfig & {
+  _authRetry?: boolean;
+};
+
+let refreshAuthTokenPromise: Promise<string | null> | null = null;
 
 api.interceptors.request.use(config => {
   const token = getAuthToken();
@@ -38,25 +45,92 @@ api.interceptors.request.use(config => {
 
 api.interceptors.response.use(
   response => response,
-  error => {
-    if (
-      axios.isAxiosError(error) &&
-      error.response?.status === 401 &&
-      typeof window !== 'undefined'
-    ) {
-      clearAuthToken();
+  async error => {
+    if (!axios.isAxiosError(error)) {
+      return Promise.reject(error);
+    }
 
-      if (
-        window.location.pathname !== '/' &&
-        !window.location.pathname.startsWith('/auth/callback')
-      ) {
-        window.location.assign('/');
+    const originalRequest = error.config as RetryableRequestConfig | undefined;
+
+    if (
+      isRefreshableAuthError(error) &&
+      originalRequest !== undefined &&
+      originalRequest._authRetry !== true &&
+      !isAuthEndpoint(originalRequest.url)
+    ) {
+      originalRequest._authRetry = true;
+
+      const token = await getRefreshAuthTokenPromise();
+
+      if (token !== null) {
+        const headers = AxiosHeaders.from(originalRequest.headers);
+        headers.set('Authorization', `Bearer ${token}`);
+        originalRequest.headers = headers;
+
+        return api.request(originalRequest);
       }
+    }
+
+    if (isRefreshableAuthError(error)) {
+      clearAuthToken();
+      redirectToHome();
     }
 
     return Promise.reject(error);
   },
 );
+
+function getRefreshAuthTokenPromise() {
+  if (refreshAuthTokenPromise === null) {
+    refreshAuthTokenPromise = refreshAuthToken().finally(() => {
+      refreshAuthTokenPromise = null;
+    });
+  }
+
+  return refreshAuthTokenPromise;
+}
+
+function isRefreshableAuthError(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+
+  const status = error.response?.status;
+  const code = getErrorCode(error.response?.data);
+
+  return status === 401 || code === 'INVALID_TOKEN' || code === 'TOKEN_EXPIRED';
+}
+
+function getErrorCode(data: unknown) {
+  if (typeof data !== 'object' || data === null || !('code' in data)) {
+    return null;
+  }
+
+  const { code } = data as { code: unknown };
+
+  return typeof code === 'string' ? code : null;
+}
+
+function isAuthEndpoint(url?: string) {
+  if (url === undefined) {
+    return false;
+  }
+
+  return url.includes('/auth/refresh') || url.includes('/auth/logout');
+}
+
+function redirectToHome() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (
+    window.location.pathname !== '/' &&
+    !window.location.pathname.startsWith('/auth/callback')
+  ) {
+    window.location.assign('/');
+  }
+}
 
 type ApiConfig<TBody = unknown> = AxiosRequestConfig<TBody>;
 type ApiMethodConfig<TBody = unknown> = Omit<
