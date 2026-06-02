@@ -200,6 +200,17 @@ chatCleanupWorker.on('failed', (job, err) => {
   console.error(`[Worker] chat-cleanup job ${job?.id} failed:`, err.message);
 });
 
+const workers = [aiReviewWorker, minutesGenerationWorker, chatCleanupWorker];
+
+/*
+ * 그레이스풀 셧다운 시 호출한다.
+ * worker.close()는 현재 처리 중인 잡이 끝날 때까지 기다린 뒤 새 잡 수신을 멈춘다.
+ */
+export async function closeWorkers() {
+  await Promise.all(workers.map(worker => worker.close()));
+  console.log('✅ BullMQ workers closed');
+}
+
 export async function startWorkers() {
   // 매일 자정(KST) 프라이빗 룸 채팅 정리 반복 잡 등록 (동일 설정이면 BullMQ가 중복 방지)
   await addJob(
