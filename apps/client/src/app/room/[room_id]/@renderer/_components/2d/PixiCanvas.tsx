@@ -178,7 +178,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       if (handleResize) {
         window.removeEventListener('resize', handleResize);
       }
-      app?.destroy(true, { children: true, texture: true });
+      if (app) {
+        app.destroy(true, { children: true, texture: false });
+      }
     };
   }, [roomId]);
 
