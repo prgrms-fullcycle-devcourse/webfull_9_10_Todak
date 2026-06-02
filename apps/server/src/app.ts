@@ -15,6 +15,9 @@ import { generateOpenApiDocument } from './schema/openapi.js';
 
 const app = express();
 
+// 프록시(Railway 등) 뒤에서 실제 클라이언트 IP를 인식하도록 설정 (rate limit IP 기준에 필요)
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
 app.use(cookieParser());
