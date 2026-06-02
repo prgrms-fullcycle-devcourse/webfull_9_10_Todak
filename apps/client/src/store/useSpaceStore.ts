@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import { PrivateRoom } from '../sevice/rooms/model';
 
 export type AnimalType = 'cat' | 'dog' | 'rabbit' | 'bear' | 'hamster';
 export type ViewType = '2d' | 'meeting';
 
 interface SpaceState {
-  myChar: { name: string; status: string };
+  myChar: { id: string; name: string; status: string };
   currentAnimal: AnimalType;
   currentView: ViewType;
   isMenuOpen: boolean;
@@ -17,11 +18,15 @@ interface SpaceState {
   setCurrentView: (view: ViewType) => void;
   setMenuOpen: (open: boolean) => void;
   setMenuPos: (x: number, y: number) => void;
+
+  // 프라이빗 룸 전역 상태
+  privateRooms: PrivateRoom[];
+  setPrivateRooms: (rooms: PrivateRoom[]) => void;
 }
 
 export const useSpaceStore = create<SpaceState>()(
   subscribeWithSelector(set => ({
-    myChar: { name: '토끼', status: '💤' },
+    myChar: { id: 'user-uuid-1234', name: '토끼', status: '🔥 집중' },
     currentAnimal: 'rabbit',
     currentView: '2d',
     isMenuOpen: false,
@@ -33,5 +38,9 @@ export const useSpaceStore = create<SpaceState>()(
     setCurrentView: view => set({ currentView: view }),
     setMenuOpen: open => set({ isMenuOpen: open }),
     setMenuPos: (x, y) => set({ menuPos: { x, y } }),
+
+    // 프라이빗 룸 상태 초기값과 업데이트 액션
+    privateRooms: [],
+    setPrivateRooms: rooms => set({ privateRooms: rooms }),
   })),
 );

@@ -26,11 +26,13 @@ export class MinutesController {
   ) => {
     try {
       const { roomId } = req.params as GetMinutesListParams;
-      const { type, page, limit } = req.query as unknown as GetMinutesListQuery;
+      const { type, status, page, limit } =
+        req.query as unknown as GetMinutesListQuery;
       const userId = req.user!.id;
 
       const result = await this.minutesService.getMinutesList(roomId, userId, {
         type,
+        status,
         page,
         limit,
       });

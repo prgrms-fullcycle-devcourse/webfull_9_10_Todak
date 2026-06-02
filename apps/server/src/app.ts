@@ -1,3 +1,4 @@
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -15,8 +16,12 @@ import { generateOpenApiDocument } from './schema/openapi.js';
 
 const app = express();
 
+// 프록시(Railway 등) 뒤에서 실제 클라이언트 IP를 인식하도록 설정 (rate limit IP 기준에 필요)
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
+app.use(cookieParser());
 
 /*
  * GitHub Webhook 은 서명 검증을 위해 raw body 가 필요하므로
@@ -30,14 +35,6 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-app.get('/health', (_req, res) => {
-  res.json({
-    success: true,
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-  });
-});
 
 app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 

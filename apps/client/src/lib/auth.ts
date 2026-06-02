@@ -4,6 +4,15 @@ const API_BASE_URL =
 const AUTH_TOKEN_STORAGE_KEY = 'todak.auth.token';
 export const AUTH_TOKEN_COOKIE_NAME = AUTH_TOKEN_STORAGE_KEY;
 
+interface AuthApiResponse<TData> {
+  success: boolean;
+  data?: TData;
+}
+
+interface RefreshAuthTokenResponse {
+  accessToken: string;
+}
+
 export interface AuthUser {
   id: string;
   githubId: number;
@@ -17,7 +26,7 @@ interface AuthTokenPayload extends AuthUser {
 }
 
 export function getGithubLoginUrl() {
-  return `${API_BASE_URL}/api/auth/github`;
+  return `${getApiBaseUrl()}/auth/github`;
 }
 
 export function getAuthToken() {
@@ -65,6 +74,52 @@ export function clearAuthToken() {
   clearAuthTokenCookie();
 }
 
+export async function refreshAuthToken() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const body =
+      (await response.json()) as AuthApiResponse<RefreshAuthTokenResponse>;
+    const token = body.data?.accessToken;
+
+    if (typeof token !== 'string' || token === '') {
+      return null;
+    }
+
+    saveAuthToken(token);
+
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+export async function logoutAuth() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    await fetch(`${getApiBaseUrl()}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } finally {
+    clearAuthToken();
+  }
+}
+
 export function getStoredAuthUser() {
   const token = getAuthToken();
 
@@ -110,6 +165,12 @@ export function decodeAuthToken(token: string): AuthTokenPayload | null {
 
 function isExpired(payload: AuthTokenPayload) {
   return typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now();
+}
+
+function getApiBaseUrl() {
+  const baseUrl = API_BASE_URL.replace(/\/$/, '');
+
+  return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
 }
 
 function getAuthTokenCookie() {

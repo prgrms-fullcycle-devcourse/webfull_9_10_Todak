@@ -35,7 +35,8 @@ export const CreateTodosSchema = z.object({
         }),
       }),
     )
-    .min(1, '최소 1개의 Todo를 입력해주세요.'),
+    .min(1, '최소 1개의 Todo를 입력해주세요.')
+    .max(30, '한 번에 최대 30개까지 등록할 수 있습니다.'),
 });
 
 export type CreateTodosInput = z.infer<typeof CreateTodosSchema>;
