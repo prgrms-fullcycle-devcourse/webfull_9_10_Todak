@@ -13,6 +13,7 @@
     "build:client": "pnpm --filter todak-client build",
     "start": "pnpm --filter todak-server start",
     "start:server": "pnpm --filter todak-server start",
+    "test": "pnpm --filter todak-server test",
     "start:client": "pnpm --filter todak-client start",
     "lint": "pnpm --filter todak-server lint && pnpm --filter todak-client lint",
     "lint:fix": "pnpm --filter todak-server lint -- --fix && pnpm --filter todak-client lint -- --fix",
