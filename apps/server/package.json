@@ -9,6 +9,8 @@
     "build": "prisma generate && tsc && tsc-alias && cp -R src/generated dist/generated",
     "start": "node dist/server.js",
     "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
@@ -47,7 +49,8 @@
     "prisma": "^7.0.0",
     "tsc-alias": "^1.8.17",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.7"
   },
   "engines": {
     "node": ">=20.19.0"
