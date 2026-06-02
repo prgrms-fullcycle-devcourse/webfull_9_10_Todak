@@ -1,5 +1,7 @@
 import { Router } from 'express';
 
+import { strictLimiter } from '../../middleware/rateLimit.middleware.js';
+
 import {
   githubCallback,
   githubLogin,
@@ -11,7 +13,7 @@ const router = Router();
 
 router.get('/github', githubLogin);
 router.get('/github/callback', githubCallback);
-router.post('/refresh', refresh);
+router.post('/refresh', strictLimiter, refresh);
 // Access Token이 만료돼도 로그아웃 가능하도록 requireAuth 미적용 (Refresh Cookie 기준 처리)
 router.post('/logout', logout);
 

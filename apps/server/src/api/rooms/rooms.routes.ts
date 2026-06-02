@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { requireAuth } from '../../middleware/auth.middleware.js';
+import { strictLimiter } from '../../middleware/rateLimit.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 
 import './members/members.swagger.js';
@@ -32,7 +33,7 @@ router.use(requireAuth);
 
 router.get('/', getRoomsHandler);
 router.post('/', validate(CreateRoomSchema), createRoomHandler);
-router.post('/join', validate(JoinRoomSchema), joinRoomHandler);
+router.post('/join', strictLimiter, validate(JoinRoomSchema), joinRoomHandler);
 router.get('/:roomId', getRoomByIdHandler);
 router.patch('/:roomId', validate(UpdateRoomSchema), updateRoomHandler);
 router.delete('/:roomId', deleteRoomHandler);
