@@ -33,6 +33,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     let app: PIXI.Application | null = null;
     let unsubscribeStatus: (() => void) | null = null;
     let unsubscribeAnimal: (() => void) | null = null;
+    let unsubscribePlayer: (() => void) | null = null;
     let cleanupMovement: (() => void) | null = null;
     let cleanupCamera: (() => void) | null = null;
     let handleResize: (() => void) | null = null;
@@ -97,6 +98,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       player.container.zIndex = 10;
       world.addChild(player.container);
 
+      // 캐릭터 내부 좀비 리스너 구독
+      unsubscribePlayer = player.unsubscribePlayerStatus;
+
       (window as CustomWindow).__PIXI_PLAYER__ = player.container;
 
       // Zustand 구독
@@ -139,7 +143,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       // 리사이즈 로직 고도화
       handleResize = () => {
-        if (!app || !container) return;
+        if (!app || !app.renderer || !container) return;
 
         const w = container.clientWidth;
         const h = container.clientHeight;
@@ -168,7 +172,12 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       cleanupMovement?.();
       unsubscribeStatus?.();
       unsubscribeAnimal?.();
+      unsubscribePlayer?.();
 
+      // 리사이즈 이벤트 리스너 제거
+      if (handleResize) {
+        window.removeEventListener('resize', handleResize);
+      }
       app?.destroy(true, { children: true, texture: true });
     };
   }, [roomId]);

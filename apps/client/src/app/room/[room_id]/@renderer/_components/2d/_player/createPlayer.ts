@@ -14,6 +14,7 @@ export interface Player {
   baseScaleY: number;
   statusText: PIXI.Text;
   nameText: PIXI.Text;
+  unsubscribePlayerStatus: () => void;
 }
 
 const STATUS_OPTIONS = [
@@ -75,7 +76,7 @@ export function createPlayer(
   statusText.y = -70;
   container.addChild(statusText);
 
-  useSpaceStore.subscribe(
+  const unsubscribePlayerStatus = useSpaceStore.subscribe(
     state => state.myChar.status,
     newStatus => {
       statusText.text = newStatus;
@@ -231,5 +232,13 @@ export function createPlayer(
     }
   });
 
-  return { container, sprite, baseScaleX, baseScaleY, statusText, nameText };
+  return {
+    container,
+    sprite,
+    baseScaleX,
+    baseScaleY,
+    statusText,
+    nameText,
+    unsubscribePlayerStatus,
+  };
 }
