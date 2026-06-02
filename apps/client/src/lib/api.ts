@@ -53,7 +53,7 @@ api.interceptors.response.use(
     const originalRequest = error.config as RetryableRequestConfig | undefined;
 
     if (
-      isRefreshableAuthError(error) &&
+      isAccessTokenExpiredError(error) &&
       originalRequest !== undefined &&
       originalRequest._authRetry !== true &&
       !isAuthEndpoint(originalRequest.url)
@@ -71,7 +71,7 @@ api.interceptors.response.use(
       }
     }
 
-    if (isRefreshableAuthError(error)) {
+    if (isUnauthorizedError(error)) {
       clearAuthToken();
       redirectToHome();
     }
@@ -90,7 +90,7 @@ function getRefreshAuthTokenPromise() {
   return refreshAuthTokenPromise;
 }
 
-function isRefreshableAuthError(error: unknown) {
+function isAccessTokenExpiredError(error: unknown) {
   if (!axios.isAxiosError(error)) {
     return false;
   }
@@ -98,7 +98,11 @@ function isRefreshableAuthError(error: unknown) {
   const status = error.response?.status;
   const code = getErrorCode(error.response?.data);
 
-  return status === 401 || code === 'INVALID_TOKEN' || code === 'TOKEN_EXPIRED';
+  return status === 401 && code === 'TOKEN_EXPIRED';
+}
+
+function isUnauthorizedError(error: unknown) {
+  return axios.isAxiosError(error) && error.response?.status === 401;
 }
 
 function getErrorCode(data: unknown) {
