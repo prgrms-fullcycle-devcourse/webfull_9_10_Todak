@@ -14,7 +14,9 @@ import type {
   LeavePrivateRoomResponse,
   MemberStatus,
   StatusResponse,
+  RoomMembers,
 } from './model';
+import { AuthTokenPayload } from '@/lib/auth';
 
 export type {
   CreatedRoom,
@@ -50,6 +52,14 @@ export function deleteRooms() {}
 
 export function isRoomProfileAlreadySetUpError(error: unknown) {
   return isTodakApiError(error) && error.response.status === 409;
+}
+
+export function fetchMyProfile(): Promise<AuthTokenPayload> {
+  return apiClient.get<AuthTokenPayload>('/users/me');
+}
+
+export function fetchRoomMembers(roomId: string): Promise<RoomMembers> {
+  return apiClient.get<RoomMembers>(`/rooms/${roomId}/members`);
 }
 
 export async function createRoomProfile(
