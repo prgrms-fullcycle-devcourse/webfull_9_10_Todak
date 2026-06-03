@@ -27,6 +27,9 @@ export function setupMovement(
   let currentRoomId: string | null = null;
   let isProcessing = false;
 
+  let lastSentX = player.container.x;
+  let lastSentY = player.container.y;
+
   const ticker = () => {
     const textures = getTextures();
     const { container, sprite, baseScaleX } = player;
@@ -71,6 +74,17 @@ export function setupMovement(
     // 화면 경계 처리
     container.x = Math.max(30, Math.min(2455 - 30, container.x));
     container.y = Math.max(50, Math.min(1170 - 50, container.y));
+
+    if (container.x !== lastSentX || container.y !== lastSentY) {
+      getSocket().emit('room:move', {
+        roomId: roomId,
+        posX: container.x,
+        posY: container.y,
+      });
+
+      lastSentX = container.x;
+      lastSentY = container.y;
+    }
 
     // 캐릭터 현재 좌표
     const playerX = player.container.x;

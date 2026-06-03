@@ -37,6 +37,7 @@ export function useInitRooms(roomId: string) {
             useSpaceStore.getState().setMyChar({
               id: myInfoResponse.id,
               name: myRoomProfile.nickname ?? '로딩 중...',
+              githubUsername: myInfoResponse.login,
               avatarId: (myRoomProfile.character_type ??
                 'rabbit') as AnimalType,
             });
@@ -49,6 +50,8 @@ export function useInitRooms(roomId: string) {
             return false;
           }
         }
+
+        useSpaceStore.getState().setMembers(memberList);
 
         // --- 회의실 매핑 로직 ---
         const response = roomResponse as unknown;

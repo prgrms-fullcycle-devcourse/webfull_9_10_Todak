@@ -37,8 +37,8 @@ export function createPlayer(
   roomId: string,
 ): Player {
   const container = new PIXI.Container();
-  container.x = 1365;
-  container.y = 380;
+  container.x = 1292;
+  container.y = 560;
   container.eventMode = 'static';
 
   // 플레이어 스프라이트 생성

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import * as PIXI from 'pixi.js';
-import { useSpaceStore } from '@/store/useSpaceStore';
+import { AnimalType, useSpaceStore } from '@/store/useSpaceStore';
 import { loadAllAnimalAssets } from './_animals/animalAssets';
 import { createPlayer, CHAR_WIDTH, CHAR_HEIGHT } from './_player/createPlayer';
 import { setupMovement } from './_player/setupMovement';
@@ -14,6 +14,9 @@ import {
 import { createWorld } from './_world/createWorld';
 import { setupCamera } from './_world/setupCamera';
 import { createMeetingRoom } from '../meeting/_world/createMeetingRoom';
+import { createOtherPlayer, RemotePlayer } from './_player/createOtherPlayer';
+import { getSocket } from '@/lib/socket';
+import { RoomProfile } from '@/sevice/rooms/model';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -100,11 +103,40 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       // 캐릭터 내부 좀비 리스너 구독
       unsubscribePlayer = player.unsubscribePlayerStatus;
-
       (window as CustomWindow).__PIXI_PLAYER__ = player.container;
 
+      // 룸 내 팀원 렌더링
+      const remotePlayers = new Map<string, RemotePlayer>();
+      const { members, myChar } = useSpaceStore.getState();
+      members.forEach(member => {
+        if (member.id === myChar.id) return;
+
+        const memberTextures =
+          animalAssets[member.character_type as AnimalType];
+
+        const remotePlayer = createOtherPlayer(memberTextures, member);
+        remotePlayer.container.zIndex = 9;
+        world.addChild(remotePlayer.container);
+
+        remotePlayers.set(member.id, remotePlayer);
+      });
+      world.sortChildren();
+
+      const socket = getSocket();
+
+      // 맴버 소켓 이벤트 수신
+      socket.on(
+        'room:member-moved',
+        (data: { userId: string; posX: number; posY: number }) => {
+          const targetPlayer = remotePlayers.get(data.userId);
+          if (targetPlayer) {
+            targetPlayer.container.x = data.posX;
+            targetPlayer.container.y = data.posY;
+          }
+        },
+      );
+
       // Zustand 구독
-      // 상태 텍스트 (예: "💻 개발 중") 변경 시 머리 위 텍스트 업데이트
       unsubscribeStatus = useSpaceStore.subscribe(
         state => state.myChar.status,
         newStatus => {
@@ -173,6 +205,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       unsubscribeStatus?.();
       unsubscribeAnimal?.();
       unsubscribePlayer?.();
+
+      // 맴버 소켓 이벤트 리스너 제거
+      getSocket().off('room:member-moved');
 
       // 리사이즈 이벤트 리스너 제거
       if (handleResize) {
