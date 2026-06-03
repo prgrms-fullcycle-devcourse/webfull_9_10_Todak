@@ -185,6 +185,7 @@ export async function getRoomById(userId: string, roomId: string) {
     members: room.members
       .filter(m => m.characterType !== null)
       .map(m => ({
+        id: m.user.id,
         github_username: m.user.githubUsername,
         avatar_url: m.user.avatarUrl,
         roles: m.roles,
