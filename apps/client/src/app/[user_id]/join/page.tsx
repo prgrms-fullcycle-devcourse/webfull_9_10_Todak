@@ -1,4 +1,5 @@
-import { apiServer } from '@/lib/api.server';
+import AuthRefreshOnMount from '@/app/_components/AuthRefreshOnMount';
+import { apiServer, isApiServerAuthError } from '@/lib/api.server';
 import type { MyRooms } from '@/sevice/rooms/model';
 import {
   dehydrate,
@@ -19,14 +20,24 @@ export default async function TeamSelectionPage({
 }: TeamSelectionPageProps) {
   const { user_id: userID } = await params;
   const queryClient = new QueryClient();
+  let shouldRefreshAuth = false;
 
-  await queryClient.prefetchQuery({
-    queryKey: ['myRooms'],
-    queryFn: () => apiServer.get<MyRooms>('/rooms'),
-  });
+  try {
+    await queryClient.prefetchQuery({
+      queryKey: ['myRooms'],
+      queryFn: () => apiServer.get<MyRooms>('/rooms'),
+    });
+  } catch (error) {
+    if (!isApiServerAuthError(error)) {
+      throw error;
+    }
+
+    shouldRefreshAuth = true;
+  }
 
   return (
     <main className="min-h-dvh bg-background text-foreground">
+      {shouldRefreshAuth && <AuthRefreshOnMount />}
       <HydrationBoundary state={dehydrate(queryClient)}>
         <ProjectHub userID={userID} />
       </HydrationBoundary>

@@ -245,3 +245,36 @@ export async function getPullRequest(
 
   return data;
 }
+
+export async function listPullRequests(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  state: 'open' | 'closed' | 'all' = 'open',
+  page: number = 1,
+  perPage: number = 30,
+) {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.pulls.list({
+      owner,
+      repo,
+      state,
+      sort: 'created',
+      direction: 'desc',
+      page,
+      per_page: perPage,
+    });
+
+    return data;
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 404) {
+        throw new AppError('REPO_NOT_FOUND');
+      }
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
+}

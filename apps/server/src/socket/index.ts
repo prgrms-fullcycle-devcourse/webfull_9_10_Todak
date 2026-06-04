@@ -77,6 +77,19 @@ export function initSocket(httpServer: HttpServer): TypedIO {
  *   getIO().to(roomId).emit('chat:message', { ... });
  * ────────────────────────────────────────────────────────────
  */
+/*
+ * 그레이스풀 셧다운 시 호출한다.
+ * 연결된 모든 소켓 클라이언트를 끊는다. (HTTP 서버는 server.ts에서 별도로 닫는다)
+ */
+export function closeSocket() {
+  if (io === undefined) {
+    return;
+  }
+  // close: true → 하부 연결까지 강제로 종료해 httpServer가 드레인될 수 있게 한다
+  io.disconnectSockets(true);
+  console.log('✅ Socket connections closed');
+}
+
 export function getIO(): TypedIO {
   if (io === undefined) {
     throw new Error(

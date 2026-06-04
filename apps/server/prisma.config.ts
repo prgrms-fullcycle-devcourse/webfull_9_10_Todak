@@ -14,6 +14,10 @@ const databaseUrl =
   process.env.DATABASE_URL ??
   'postgresql://localhost:5432/todak?schema=public';
 
+// CI의 migration drift 검사(prisma migrate diff --from-migrations)는 마이그레이션을
+// 임시 DB에 재생해야 하므로 shadow DB가 필요. env가 설정된 경우에만 추가(로컬 dev 영향 없음).
+const shadowDatabaseUrl = process.env.SHADOW_DATABASE_URL;
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
@@ -21,5 +25,6 @@ export default defineConfig({
   },
   datasource: {
     url: databaseUrl,
+    ...(shadowDatabaseUrl ? { shadowDatabaseUrl } : {}),
   },
 });
