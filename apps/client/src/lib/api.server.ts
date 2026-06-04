@@ -84,3 +84,29 @@ export const apiServer = {
     return request<TData>({ ...config, method: 'DELETE', url });
   },
 };
+
+export function isApiServerAuthError(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+
+  const status = error.response?.status;
+  const code = getErrorCode(error.response?.data);
+
+  return (
+    status === 401 ||
+    code === 'UNAUTHORIZED' ||
+    code === 'INVALID_TOKEN' ||
+    code === 'TOKEN_EXPIRED'
+  );
+}
+
+function getErrorCode(data: unknown) {
+  if (typeof data !== 'object' || data === null || !('code' in data)) {
+    return null;
+  }
+
+  const { code } = data as { code: unknown };
+
+  return typeof code === 'string' ? code : null;
+}

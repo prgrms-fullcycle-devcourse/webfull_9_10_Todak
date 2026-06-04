@@ -1,13 +1,20 @@
 import { Router } from 'express';
 
-import { requireAuth } from '../../middleware/auth.middleware.js';
+import { strictLimiter } from '../../middleware/rateLimit.middleware.js';
 
-import { githubCallback, githubLogin, logout } from './auth.controller.js';
+import {
+  githubCallback,
+  githubLogin,
+  logout,
+  refresh,
+} from './auth.controller.js';
 
 const router = Router();
 
 router.get('/github', githubLogin);
 router.get('/github/callback', githubCallback);
-router.post('/logout', requireAuth, logout);
+router.post('/refresh', strictLimiter, refresh);
+// Access Token이 만료돼도 로그아웃 가능하도록 requireAuth 미적용 (Refresh Cookie 기준 처리)
+router.post('/logout', logout);
 
 export default router;

@@ -9,7 +9,14 @@ import type {
   MyRooms,
   CreateRoomProfileParams,
   RoomProfile,
+  PrivateRoom,
+  EnterPrivateRoomResponse,
+  LeavePrivateRoomResponse,
+  MemberStatus,
+  StatusResponse,
+  RoomMembers,
 } from './model';
+import { AuthTokenPayload } from '@/lib/auth';
 
 export type {
   CreatedRoom,
@@ -20,6 +27,7 @@ export type {
   MyRooms,
   RoomMembers,
   RoomProfile,
+  PrivateRoom,
 } from './model';
 
 export async function fetchMyRooms(): Promise<MyRooms> {
@@ -46,6 +54,14 @@ export function isRoomProfileAlreadySetUpError(error: unknown) {
   return isTodakApiError(error) && error.response.status === 409;
 }
 
+export function fetchMyProfile(): Promise<AuthTokenPayload> {
+  return apiClient.get<AuthTokenPayload>('/users/me');
+}
+
+export function fetchRoomMembers(roomId: string): Promise<RoomMembers> {
+  return apiClient.get<RoomMembers>(`/rooms/${roomId}/members`);
+}
+
 export async function createRoomProfile(
   params: CreateRoomProfileParams,
 ): Promise<RoomProfile> {
@@ -55,4 +71,36 @@ export async function createRoomProfile(
     `/rooms/${roomID}/members/setup`,
     profile,
   );
+}
+
+export async function fetchPrivateRooms(
+  roomId: string,
+): Promise<PrivateRoom[]> {
+  const response = await api.get<PrivateRoom[]>(
+    `/rooms/${roomId}/private-room`,
+  );
+
+  return response.data;
+}
+
+export async function enterPrivateRoom(roomId: string, privateRoomId: string) {
+  return apiClient.post<EnterPrivateRoomResponse>(
+    `/rooms/${roomId}/private-room/${privateRoomId}/enter`,
+  );
+}
+
+export async function leavePrivateRoom(roomId: string, privateRoomId: string) {
+  return apiClient.post<LeavePrivateRoomResponse>(
+    `/rooms/${roomId}/private-room/${privateRoomId}/leave`,
+  );
+}
+
+export async function updateMemberStatus(roomId: string, status: MemberStatus) {
+  const response = await apiClient.patch<StatusResponse>(
+    `/rooms/${roomId}/members/me/status`,
+    {
+      status: status,
+    },
+  );
+  return response.data;
 }

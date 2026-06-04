@@ -1,12 +1,14 @@
+import { prisma } from '../../lib/prisma.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 
-/*
- * ────────────────────────────────────────────────────────────
- * 룸 관련 소켓 이벤트 핸들러
- * ────────────────────────────────────────────────────────────
- */
+// 이동 좌표 DB 저장 주기 (throttle) — 브로드캐스트는 실시간, 저장만 이 간격으로
+const MOVE_SAVE_INTERVAL_MS = 500;
+
 export function registerRoomHandlers(io: TypedIO, socket: TypedSocket) {
   const { user } = socket.data;
+
+  // 이 소켓의 마지막 좌표 저장 시각 (throttle 기준점)
+  let lastMoveSavedAt = 0;
 
   // 룸 입장
   socket.on('room:join', async (roomId: string) => {
@@ -35,11 +37,26 @@ export function registerRoomHandlers(io: TypedIO, socket: TypedSocket) {
   });
 
   // 캐릭터 위치 이동
-  socket.on('room:move', ({ roomId, posX, posY }) => {
+  socket.on('room:move', async ({ roomId, posX, posY }) => {
+    // 1. 실시간 브로드캐스트 (즉시 — 화면은 부드럽게)
     socket.to(roomId).emit('room:member-moved', {
       userId: user.id,
       posX,
       posY,
     });
+
+    // 2. DB 저장 (0.5초에 1번만 — throttle, 새로고침 시 마지막 위치 복원용)
+    const now = Date.now();
+    if (now - lastMoveSavedAt >= MOVE_SAVE_INTERVAL_MS) {
+      lastMoveSavedAt = now;
+      try {
+        await prisma.roomMember.updateMany({
+          where: { roomId, userId: user.id },
+          data: { posX, posY },
+        });
+      } catch {
+        console.error(`[room:move] 좌표 저장 실패: ${user.login}`);
+      }
+    }
   });
 }

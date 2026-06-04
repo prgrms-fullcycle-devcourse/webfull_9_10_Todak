@@ -9,6 +9,9 @@ import { prisma } from '../lib/prisma.js';
 
 import { registerWebhook, unregisterWebhook } from './github.service.js';
 
+// 멤버 입장 시 초기 좌표 (맵 중앙 의자 위치)
+const SPAWN_POS = { posX: 1292, posY: 560 };
+
 // XXXX-XXXX 형식의 랜덤 초대 코드 생성
 function generateInviteCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -77,6 +80,7 @@ export async function createRoom(
         data: {
           roomId: newRoom.id,
           userId,
+          ...SPAWN_POS,
         },
       });
 
@@ -185,6 +189,7 @@ export async function getRoomById(userId: string, roomId: string) {
     members: room.members
       .filter(m => m.characterType !== null)
       .map(m => ({
+        id: m.user.id,
         github_username: m.user.githubUsername,
         avatar_url: m.user.avatarUrl,
         roles: m.roles,
@@ -258,7 +263,7 @@ export async function joinRoom(userId: string, input: JoinRoomInput) {
   }
 
   await prisma.roomMember.create({
-    data: { roomId: room.id, userId },
+    data: { roomId: room.id, userId, ...SPAWN_POS },
   });
 
   return { room_id: room.id, name: room.name };

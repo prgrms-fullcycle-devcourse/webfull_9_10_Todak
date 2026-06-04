@@ -6,7 +6,7 @@
  */
 
 import { prisma } from '../src/lib/prisma.js';
-import { signJwt } from '../src/services/auth.service.js';
+import { signAccessToken } from '../src/services/auth.service.js';
 
 async function main() {
   console.log('🌱 Seeding...');
@@ -81,7 +81,7 @@ async function main() {
   });
 
   // ── 7. JWT 토큰 발급 ─────────────────────────────────────────
-  const tokenAlice = signJwt({
+  const tokenAlice = signAccessToken({
     id: userA.id,
     githubId: 1,
     login: userA.githubUsername,
@@ -89,7 +89,7 @@ async function main() {
     githubAccessToken: '',
   });
 
-  const tokenBob = signJwt({
+  const tokenBob = signAccessToken({
     id: userB.id,
     githubId: 2,
     login: userB.githubUsername,
