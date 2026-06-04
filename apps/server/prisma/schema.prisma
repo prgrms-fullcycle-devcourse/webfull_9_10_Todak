@@ -68,6 +68,8 @@ model RoomMember {
   room Room @relation(fields: [roomId], references: [id])
   user User @relation(fields: [userId], references: [id])
 
+  @@index([roomId, userId])
+  @@index([userId])
   @@map("room_member")
 }
 
@@ -83,6 +85,8 @@ model Repo {
 
   room Room @relation(fields: [roomId], references: [id])
 
+  @@index([roomId])
+  @@index([fullName])
   @@map("repo")
 }
 
@@ -127,6 +131,7 @@ model ChatMessage {
   user        User           @relation(fields: [userId], references: [id])
   reactions   ChatReaction[]
 
+  @@index([roomId, privateRoomId, createdAt])
   @@map("chat_message")
 }
 
@@ -195,6 +200,7 @@ model Minutes {
   author  User     @relation("MinutesAuthor", fields: [authorId], references: [id])
   todos   Todo[]
 
+  @@index([roomId, createdAt])
   @@map("minutes")
 }
 
@@ -214,6 +220,8 @@ model Todo {
   assignee User?    @relation(fields: [assigneeId], references: [id])
   minutes  Minutes? @relation(fields: [minutesId], references: [id])
 
+  @@index([roomId, githubIssueNumber])
+  @@index([assigneeId])
   @@map("todo")
 }
 
@@ -230,5 +238,6 @@ model Notification {
   room Room @relation(fields: [roomId], references: [id])
   user User @relation(fields: [userId], references: [id])
 
+  @@index([roomId, userId])
   @@map("notification")
 }
