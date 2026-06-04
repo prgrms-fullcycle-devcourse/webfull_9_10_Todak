@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "depcruise:graph": "depcruise src --config .dependency-cruiser.cjs --output-type dot > dependency-graph.dot && node ../../scripts/dot2svg.mjs dependency-graph.dot dependency-graph.svg"
   },
