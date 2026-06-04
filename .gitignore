@@ -42,3 +42,7 @@ apps/server/prisma/migrations/**/migration_lock.toml
 # AI Agent Skills (Caveman, etc.)
 .agents/skills
 skills-lock.json
+# dependency-cruiser 시각화 생성물
+dependency-graph.svg
+dependency-graph.dot
+dependency-graph.html

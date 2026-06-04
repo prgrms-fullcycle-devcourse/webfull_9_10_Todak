@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 정적 검사: install 1번으로 format·lint·typecheck·test를 순차 실행 ──
+  quality:
+    name: lint · typecheck · test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # eslint(타입-aware)·서버 typecheck 모두 generated prisma 타입이 필요
+      - name: Generate Prisma client
+        run: pnpm --filter todak-server exec prisma generate
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck (server)
+        run: pnpm --filter todak-server exec tsc --noEmit
+
+      - name: Typecheck (client)
+        run: pnpm --filter todak-client typecheck
+
+      # 모듈 의존성 검사: 순환 의존 등(server는 error로 차단, client는 warn)
+      - name: Dependency cruiser
+        run: pnpm depcruise
+
+      - name: Test
+        run: pnpm test
+
+  # ── 실제 빌드 검증 (typecheck가 못 잡는 빌드 에러까지) ──
+  build:
+    name: build (server + client)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 서버 build 스크립트가 prisma generate를 자체 수행하므로 별도 단계 불필요
+      - name: Build (server + client)
+        run: pnpm -r build
+
+  # ── Prisma 마이그레이션 정합성 (schema ↔ migrations 드리프트) ──
+  migration-drift:
+    name: prisma migration drift
+    runs-on: ubuntu-latest
+    services:
+      # 마이그레이션을 재생할 임시(shadow) Postgres. 실제 DB와 무관.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shadow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # prisma.config.ts가 이 값을 datasource.shadowDatabaseUrl로 사용
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shadow
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # migrations를 shadow DB에 재생한 결과와 schema.prisma를 비교.
+      # 차이가 있으면(=마이그레이션 누락) exit code 2로 실패.
+      - name: Check schema/migration drift
+        run: >-
+          pnpm --filter todak-server exec prisma migrate diff
+          --from-migrations ./prisma/migrations
+          --to-schema ./prisma/schema.prisma
+          --exit-code
