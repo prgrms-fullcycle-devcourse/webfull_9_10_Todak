@@ -237,6 +237,15 @@ export default function ChatMessages({ tab }: { tab: TabType }) {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+      {tab === 'private' && (
+        <div className="mb-3 flex justify-center">
+          <div className="flex items-center gap-1.5 rounded-full bg-slate-100/80 px-3 py-1 text-[11px] text-slate-500">
+            <span className="text-xs">🔒</span>
+            <span>프라이빗 채팅은 7일 후 자동 삭제됩니다</span>
+          </div>
+        </div>
+      )}
+
       {messages.map(msg => (
         <MessageItem key={msg.id} msg={msg} />
       ))}
