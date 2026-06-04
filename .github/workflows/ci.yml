@@ -49,6 +49,10 @@ jobs:
       - name: Typecheck (client)
         run: pnpm --filter todak-client typecheck
 
+      # 모듈 의존성 검사: 순환 의존 등(server는 error로 차단, client는 warn)
+      - name: Dependency cruiser
+        run: pnpm depcruise
+
       - name: Test
         run: pnpm test
 

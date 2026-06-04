@@ -9,6 +9,8 @@
     "build": "prisma generate && tsc && tsc-alias && cp -R src/generated dist/generated",
     "start": "node dist/server.js",
     "lint": "eslint src",
+    "depcruise": "depcruise src --config .dependency-cruiser.cjs",
+    "depcruise:graph": "depcruise src --config .dependency-cruiser.cjs --output-type dot > dependency-graph.dot && node ../../scripts/dot2svg.mjs dependency-graph.dot dependency-graph.svg",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "prisma generate",
