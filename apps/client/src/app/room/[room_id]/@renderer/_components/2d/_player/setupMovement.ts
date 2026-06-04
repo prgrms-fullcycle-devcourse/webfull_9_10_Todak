@@ -85,6 +85,15 @@ export function setupMovement(
 
       lastSentX = container.x;
       lastSentY = container.y;
+
+      const currentStatus = useSpaceStore.getState().myChar.status;
+      if (currentStatus === '💤 부재' || currentStatus === '☕ 휴식') {
+        useSpaceStore.getState().setMyStatus('🔥 집중');
+        getSocket().emit('room:status-change', {
+          roomId,
+          status: 'focus',
+        });
+      }
     }
 
     // 캐릭터 현재 좌표

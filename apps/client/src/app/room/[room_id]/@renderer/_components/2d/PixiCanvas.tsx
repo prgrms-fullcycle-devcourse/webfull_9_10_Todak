@@ -120,25 +120,42 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       // 룸 내 팀원 렌더링
       const remotePlayers = new Map<string, RemotePlayer>();
       const { members, myChar } = useSpaceStore.getState();
-      members.forEach(member => {
-        if (member.id === myChar.id) return;
+      const syncMembers = (currentMembers: typeof members) => {
+        // 나간 사람 캔버스에서 제거
+        const currentMemberIds = new Set(currentMembers.map(m => m.id));
+        for (const [userId, remotePlayer] of remotePlayers.entries()) {
+          if (!currentMemberIds.has(userId)) {
+            world.removeChild(remotePlayer.container);
+            remotePlayer.container.destroy({ children: true });
+            remotePlayers.delete(userId);
+          }
+        }
 
-        const memberTextures =
-          animalAssets[member.character_type as AnimalType] ??
-          animalAssets.rabbit;
+        // 새로 들어온 사람 캔버스에 추가
+        currentMembers.forEach(member => {
+          if (member.id === myChar.id) return;
 
-        const remotePlayer = createOtherPlayer(memberTextures, member);
-        const initialHangulStatus =
-          STATUS_TO_LABEL_MAP[member.status] || member.status || '🔥 집중';
-        remotePlayer.statusText.text = initialHangulStatus;
-        remotePlayer.statusText.style.fill =
-          getStatusColor(initialHangulStatus);
+          if (!remotePlayers.has(member.id)) {
+            const memberTextures =
+              animalAssets[member.character_type as AnimalType] ??
+              animalAssets.rabbit;
+            const remotePlayer = createOtherPlayer(memberTextures, member);
 
-        remotePlayer.container.zIndex = 9;
-        world.addChild(remotePlayer.container);
-        remotePlayers.set(member.id, remotePlayer);
-      });
-      world.sortChildren();
+            const initialHangulStatus =
+              STATUS_TO_LABEL_MAP[member.status] || member.status || '🔥 집중';
+            remotePlayer.statusText.text = initialHangulStatus;
+            remotePlayer.statusText.style.fill =
+              getStatusColor(initialHangulStatus);
+            remotePlayer.container.zIndex = 9;
+
+            world.addChild(remotePlayer.container);
+            remotePlayers.set(member.id, remotePlayer);
+          }
+        });
+
+        world.sortChildren();
+      };
+      syncMembers(useSpaceStore.getState().members);
 
       const socket = getSocket();
 

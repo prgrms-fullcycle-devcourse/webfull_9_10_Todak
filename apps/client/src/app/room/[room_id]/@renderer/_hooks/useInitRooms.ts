@@ -34,13 +34,22 @@ export function useInitRooms(roomId: string) {
           );
 
           if (myRoomProfile) {
-            useSpaceStore.getState().setMyChar({
-              id: myInfoResponse.id,
-              name: myRoomProfile.nickname ?? '로딩 중...',
-              githubUsername: myInfoResponse.login,
-              avatarId: (myRoomProfile.character_type ??
-                'rabbit') as AnimalType,
-            });
+            const existingMyChar = useSpaceStore.getState().myChar;
+            if (!existingMyChar || !existingMyChar.id) {
+              const initialDbStatus =
+                STATUS_TO_LABEL_MAP[myRoomProfile.status] ||
+                myRoomProfile.status ||
+                '🔥 집중';
+
+              useSpaceStore.getState().setMyChar({
+                id: myInfoResponse.id,
+                name: myRoomProfile.nickname ?? '로딩 중...',
+                githubUsername: myInfoResponse.login,
+                avatarId: (myRoomProfile.character_type ??
+                  'rabbit') as AnimalType,
+                status: initialDbStatus,
+              });
+            }
           } else {
             alert(
               '프로필 설정이 완료되지 않은 유저입니다. 설정 페이지로 이동합니다.',
@@ -51,7 +60,27 @@ export function useInitRooms(roomId: string) {
           }
         }
 
-        useSpaceStore.getState().setMembers(memberList);
+        // --- 멤버 상태 동기화 로직 ---
+        const currentMembers = useSpaceStore.getState().members; // 현재 내 화면의 맴버들
+
+        const mergedMembers = memberList.map(apiMember => {
+          // 이미 내 화면에 존재하던 팀원인지 확인
+          const existingMember = currentMembers.find(
+            m => m.id === apiMember.id,
+          );
+
+          if (existingMember) {
+            return {
+              ...apiMember,
+              status: existingMember.status,
+              pos_x: existingMember.pos_x,
+              pos_y: existingMember.pos_y,
+            };
+          }
+          return apiMember;
+        });
+
+        useSpaceStore.getState().setMembers(mergedMembers);
 
         // --- 회의실 매핑 로직 ---
         const response = roomResponse as unknown;
@@ -142,11 +171,19 @@ export function useInitRooms(roomId: string) {
 
         const authUser = getStoredAuthUser();
 
-        fetchAndUpdateRooms();
-
         if (authUser && data.userId === authUser.id) {
           useSpaceStore.getState().setMyStatus(hangulStatus);
         }
+
+        const { members, setMembers } = useSpaceStore.getState();
+        const updatedMembers = members.map(member =>
+          member.id === data.userId
+            ? { ...member, status: data.status }
+            : member,
+        );
+
+        // 전역 스토어에 업데이트된 배열 저장
+        setMembers(updatedMembers);
       },
     );
 

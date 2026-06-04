@@ -14,13 +14,23 @@ export interface RemotePlayer {
   updateStatus: (hangulStatus: string, color: number) => void;
 }
 
+interface ExtendedRoomProfile extends RoomProfile {
+  posX?: number;
+  posY?: number;
+}
+
 export function createOtherPlayer(
   textures: AnimalAssetPack,
   member: RoomProfile,
 ): RemotePlayer {
   const container = new PIXI.Container();
-  container.x = member.pos_x ?? 1365;
-  container.y = member.pos_y ?? 380;
+  const extendedMember = member as ExtendedRoomProfile;
+
+  const startX = extendedMember.posX ?? extendedMember.pos_x ?? 1365;
+  const startY = extendedMember.posY ?? extendedMember.pos_y ?? 380;
+
+  container.x = startX;
+  container.y = startY;
 
   // 스프라이트 세팅
   const sprite = new PIXI.Sprite(textures.front);
