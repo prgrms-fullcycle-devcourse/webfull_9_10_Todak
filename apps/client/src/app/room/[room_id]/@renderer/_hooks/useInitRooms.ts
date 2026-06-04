@@ -126,6 +126,7 @@ export function useInitRooms(roomId: string) {
 
     initialize();
 
+    const token = getAuthToken();
     const socket = getSocket();
     const STATUS_TO_LABEL_MAP: Record<string, string> = {
       focus: '🔥 집중',

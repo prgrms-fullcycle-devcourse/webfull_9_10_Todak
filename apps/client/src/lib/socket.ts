@@ -9,10 +9,11 @@ export function getSocket() {
       withCredentials: true,
       autoConnect: false,
       transports: ['websocket'],
-      query: {
-        token: getAuthToken() ? `Bearer ${getAuthToken()}` : '',
-      },
     });
+  }
+
+  if (getAuthToken()) {
+    socket.io.opts.query = { token: `Bearer ${getAuthToken()}` };
   }
 
   return socket;
