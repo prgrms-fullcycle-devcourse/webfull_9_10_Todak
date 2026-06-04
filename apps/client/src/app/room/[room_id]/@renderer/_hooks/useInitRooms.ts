@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import { STATIC_ROOM_BOUNDS } from '../_constants/roomBounds';
 import { getSocket } from '@/lib/socket';
-import { fetchPrivateRooms } from '@/sevice/rooms/api';
-import { type PrivateRoom } from '@/sevice/rooms/model';
+import { fetchPrivateRooms } from '@/services/rooms/api';
+import { type PrivateRoom } from '@/services/rooms/model';
 import { getStoredAuthUser } from '@/lib/auth';
 
 export function useInitRooms(roomId: string) {
