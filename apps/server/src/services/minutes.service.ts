@@ -27,8 +27,6 @@ export class MinutesService {
     userId: string,
     query: GetMinutesListQuery,
   ) {
-    await this.assertRoomMember(roomId, userId);
-
     const { type, status, page, limit } = query;
 
     const whereCondition: Prisma.MinutesWhereInput = { roomId };
@@ -40,36 +38,47 @@ export class MinutesService {
       whereCondition.status = status;
     }
 
-    const totalCount = await prisma.minutes.count({
-      where: whereCondition,
-    });
-
     const skip = (page - 1) * limit;
 
-    const minutesData = await prisma.minutes.findMany({
-      where: whereCondition,
-      select: {
-        id: true,
-        title: true,
-        type: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        author: {
-          select: {
-            id: true,
-            githubUsername: true,
-            avatarUrl: true,
+    /*
+     * 멤버 검증 / 카운트 / 목록을 병렬 조회해 왕복을 줄인다.
+     * 비멤버면 조회 결과를 버리고 기존과 동일하게 ROOM_NOT_FOUND 를 던진다(정보 노출 없음).
+     */
+    const [membership, totalCount, minutesData] = await Promise.all([
+      prisma.roomMember.findFirst({
+        where: { roomId, userId },
+        select: { id: true },
+      }),
+      prisma.minutes.count({ where: whereCondition }),
+      prisma.minutes.findMany({
+        where: whereCondition,
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          author: {
+            select: {
+              id: true,
+              githubUsername: true,
+              avatarUrl: true,
+            },
           },
+          linkedIssueNumbers: true,
         },
-        linkedIssueNumbers: true,
-      },
-      skip,
-      take: limit,
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+    ]);
+
+    if (membership === null) {
+      throw new AppError('ROOM_NOT_FOUND');
+    }
 
     const formattedMinutes = minutesData.map(m => ({
       id: m.id,

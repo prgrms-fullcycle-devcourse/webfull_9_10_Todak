@@ -10,19 +10,28 @@ export async function getPullRequests(
   roomId: string,
   query: GetPullRequestsQuery,
 ) {
+  /*
+   * 멤버 검증 / 룸+레포 / 토큰은 서로 독립적이라 병렬 조회해 왕복을 줄인다.
+   * 에러 우선순위는 기존 순차 검증과 동일하게 결과만 순서대로 검사한다.
+   */
+  const [membership, room, user] = await Promise.all([
+    prisma.roomMember.findFirst({ where: { roomId, userId } }),
+    prisma.room.findUnique({
+      where: { id: roomId },
+      include: { repos: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { accessToken: true },
+    }),
+  ]);
+
   // 1. 룸 멤버 검증
-  const membership = await prisma.roomMember.findFirst({
-    where: { roomId, userId },
-  });
   if (membership === null) {
     throw new AppError('ROOM_MEMBER_NOT_FOUND');
   }
 
-  // 2. 룸 + 레포 조회
-  const room = await prisma.room.findUnique({
-    where: { id: roomId },
-    include: { repos: true },
-  });
+  // 2. 룸 + 레포 검증
   if (room === null) {
     throw new AppError('ROOM_NOT_FOUND');
   }
@@ -33,10 +42,6 @@ export async function getPullRequests(
   }
 
   // 3. GitHub 액세스 토큰 확인
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { accessToken: true },
-  });
   if (user?.accessToken === null || user?.accessToken === undefined) {
     throw new AppError('GITHUB_SCOPE_REQUIRED');
   }
