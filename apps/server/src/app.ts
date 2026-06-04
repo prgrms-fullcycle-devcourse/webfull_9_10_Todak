@@ -9,6 +9,7 @@ import {
 } from 'swagger-ui-express';
 
 import apiRouter from './api/index.js';
+import githubWebhookRouter from './api/webhooks/github.webhook.routes.js';
 import { env } from './config/env.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
 import { generateOpenApiDocument } from './schema/openapi.js';
@@ -21,6 +22,17 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
 app.use(cookieParser());
+
+/*
+ * GitHub Webhook 은 서명 검증을 위해 raw body 가 필요하므로
+ * 전역 express.json 보다 먼저 raw 파서로 마운트한다.
+ */
+app.use(
+  '/webhooks/github',
+  express.raw({ type: 'application/json' }),
+  githubWebhookRouter,
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
