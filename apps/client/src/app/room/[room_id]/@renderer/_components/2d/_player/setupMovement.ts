@@ -4,6 +4,7 @@ import { type Player, CHAR_HEIGHT } from './createPlayer';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
 import { enterPrivateRoom, leavePrivateRoom } from '@/sevice/rooms/api';
 import { getSocket } from '@/lib/socket';
+import { useSpaceStore } from '@/store/useSpaceStore';
 
 const SPEED = 6;
 
@@ -121,6 +122,7 @@ export function setupMovement(
               privateRoomId: newRoomId,
             });
             currentRoomId = roomToEnter;
+            useSpaceStore.getState().setMyStatus('💬 회의중');
           })
           .catch(err => console.error(`입장 실패:`, err))
           .finally(() => {
@@ -160,6 +162,7 @@ export function setupMovement(
           .catch(err => console.error(`HTTP 퇴장 API 실패:`, err))
           .finally(() => {
             isProcessing = false;
+            useSpaceStore.getState().setMyStatus('🔥 집중');
           });
       }
     }

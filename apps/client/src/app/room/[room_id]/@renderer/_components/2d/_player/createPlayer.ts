@@ -24,6 +24,11 @@ const STATUS_OPTIONS = [
   { label: '💤 부재', color: 0xf1f5f9, textColor: 0x475569 },
 ];
 
+export function getStatusColor(hangulLabel: string): number {
+  const match = STATUS_OPTIONS.find(opt => opt.label === hangulLabel);
+  return match ? match.textColor : 0xea580c;
+}
+
 const LABEL_TO_STATUS_MAP: Record<string, MemberStatus> = {
   '🔥 집중': 'focus',
   '☕ 휴식': 'rest',

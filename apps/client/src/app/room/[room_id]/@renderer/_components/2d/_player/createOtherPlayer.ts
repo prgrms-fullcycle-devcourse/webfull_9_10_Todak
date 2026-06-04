@@ -8,6 +8,10 @@ export interface RemotePlayer {
   sprite: PIXI.Sprite;
   statusText: PIXI.Text;
   nameText: PIXI.Text;
+  textures: AnimalAssetPack;
+  baseScaleX: number;
+  updatePosition: (newX: number, newY: number) => void;
+  updateStatus: (hangulStatus: string, color: number) => void;
 }
 
 export function createOtherPlayer(
@@ -25,10 +29,38 @@ export function createOtherPlayer(
   sprite.height = CHAR_HEIGHT;
   container.addChild(sprite);
 
+  // 텍스처 스왑 시 방향 유지하기 위한 값
+  const baseScaleX = sprite.scale.x;
+
+  // 스스로 방향을 계산하고 모습을 바꾸는 함수
+  const updatePosition = (newX: number, newY: number) => {
+    const dx = newX - container.x;
+    const dy = newY - container.y;
+    const walkFrame = Math.floor(Date.now() / 150) % 2;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      sprite.texture = textures.walk[walkFrame];
+      sprite.scale.x = dx < 0 ? baseScaleX : -baseScaleX;
+    } else if (Math.abs(dy) > Math.abs(dx)) {
+      sprite.texture = dy < 0 ? textures.back : textures.front;
+      sprite.scale.x = baseScaleX;
+    }
+
+    sprite.height = CHAR_HEIGHT;
+    container.x = newX;
+    container.y = newY;
+  };
+
+  // 상태 텍스트와 색상을 바꾸는 함수
+  const updateStatus = (hangulStatus: string, color: number) => {
+    statusText.text = hangulStatus;
+    statusText.style.fill = color;
+  };
+
   // 상태 텍스트
   const statusText = new PIXI.Text({
     text: member.status || '🔥 집중',
-    style: { fontSize: 20, fill: 0xea580c, fontWeight: 'bold' },
+    style: { fontSize: 20, fontWeight: 'bold' },
   });
   statusText.anchor.set(0.5);
   statusText.y = -70;
@@ -43,5 +75,14 @@ export function createOtherPlayer(
   nameText.y = 70;
   container.addChild(nameText);
 
-  return { container, sprite, statusText, nameText };
+  return {
+    container,
+    sprite,
+    statusText,
+    nameText,
+    textures,
+    baseScaleX,
+    updatePosition,
+    updateStatus,
+  };
 }

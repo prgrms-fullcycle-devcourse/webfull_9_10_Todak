@@ -3,7 +3,12 @@ import { useEffect, useRef } from 'react';
 import * as PIXI from 'pixi.js';
 import { AnimalType, useSpaceStore } from '@/store/useSpaceStore';
 import { loadAllAnimalAssets } from './_animals/animalAssets';
-import { createPlayer, CHAR_WIDTH, CHAR_HEIGHT } from './_player/createPlayer';
+import {
+  createPlayer,
+  CHAR_WIDTH,
+  CHAR_HEIGHT,
+  getStatusColor,
+} from './_player/createPlayer';
 import { setupMovement } from './_player/setupMovement';
 import { loadBackgroundAsset } from './_background/backgroundAssets';
 import {
@@ -16,7 +21,7 @@ import { setupCamera } from './_world/setupCamera';
 import { createMeetingRoom } from '../meeting/_world/createMeetingRoom';
 import { createOtherPlayer, RemotePlayer } from './_player/createOtherPlayer';
 import { getSocket } from '@/lib/socket';
-import { RoomProfile } from '@/sevice/rooms/model';
+import { fetchRoomMembers } from '@/sevice/rooms/api';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -26,6 +31,13 @@ interface CustomWindow extends Window {
 interface PixiCanvasProps {
   roomId: string;
 }
+
+const STATUS_TO_LABEL_MAP: Record<string, string> = {
+  focus: '🔥 집중',
+  rest: '☕ 휴식',
+  meeting: '💬 회의중',
+  away: '💤 부재',
+};
 
 export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   // 캔버스를 마운트할 DOM 컨테이너 참조
@@ -112,12 +124,18 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         if (member.id === myChar.id) return;
 
         const memberTextures =
-          animalAssets[member.character_type as AnimalType];
+          animalAssets[member.character_type as AnimalType] ??
+          animalAssets.rabbit;
 
         const remotePlayer = createOtherPlayer(memberTextures, member);
+        const initialHangulStatus =
+          STATUS_TO_LABEL_MAP[member.status] || member.status || '🔥 집중';
+        remotePlayer.statusText.text = initialHangulStatus;
+        remotePlayer.statusText.style.fill =
+          getStatusColor(initialHangulStatus);
+
         remotePlayer.container.zIndex = 9;
         world.addChild(remotePlayer.container);
-
         remotePlayers.set(member.id, remotePlayer);
       });
       world.sortChildren();
@@ -130,8 +148,27 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         (data: { userId: string; posX: number; posY: number }) => {
           const targetPlayer = remotePlayers.get(data.userId);
           if (targetPlayer) {
-            targetPlayer.container.x = data.posX;
-            targetPlayer.container.y = data.posY;
+            targetPlayer.updatePosition(data.posX, data.posY);
+          } else {
+            fetchRoomMembers(roomId).then(res => {
+              if (res?.members) {
+                useSpaceStore.getState().setMembers(res.members);
+              }
+            });
+          }
+        },
+      );
+
+      // 다른 유저 상태 변경 소켓 리스너
+      socket.on(
+        'room:member-status-changed',
+        (data: { userId: string; status: string }) => {
+          const targetPlayer = remotePlayers.get(data.userId);
+          if (targetPlayer) {
+            const hangulStatus =
+              STATUS_TO_LABEL_MAP[data.status] || data.status;
+            const color = getStatusColor(hangulStatus);
+            targetPlayer.updateStatus(hangulStatus, color);
           }
         },
       );
@@ -208,6 +245,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       // 맴버 소켓 이벤트 리스너 제거
       getSocket().off('room:member-moved');
+      getSocket().off('room:member-status-changed');
 
       // 리사이즈 이벤트 리스너 제거
       if (handleResize) {
