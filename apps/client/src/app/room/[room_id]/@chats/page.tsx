@@ -7,11 +7,17 @@ import ChatMessages from './_components/ChatMessages';
 import ChatTabs from './_components/ChatTabs';
 
 import { useState } from 'react';
+import { use } from 'react';
 
 export type TabType = 'all' | 'private';
 export type MeetingStatus = 'ongoing' | 'ended' | 'cancelled';
 
-export default function Chats() {
+export default function Chats({
+  params,
+}: {
+  params: Promise<{ room_id: string }>;
+}) {
+  const { room_id } = use(params);
   const [tab, setTab] = useState<TabType>('all');
   const [meetingStatus, setMeetingStatus] = useState<MeetingStatus>('ended');
 
@@ -27,7 +33,7 @@ export default function Chats() {
           }
         />
       )}
-      <ChatMessages tab={tab} />
+      <ChatMessages tab={tab} roomId={room_id} />
       <ChatInput />
     </div>
   );
