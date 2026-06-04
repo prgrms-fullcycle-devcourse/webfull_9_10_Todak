@@ -48,6 +48,7 @@ export type CreateRoomProfileParams = {
 };
 
 export type RoomProfile = {
+  id: string;
   github_username: string;
   avatar_url: string | null;
   roles: string[];

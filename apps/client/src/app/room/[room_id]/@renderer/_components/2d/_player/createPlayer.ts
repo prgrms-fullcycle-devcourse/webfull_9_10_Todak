@@ -14,6 +14,7 @@ export interface Player {
   baseScaleY: number;
   statusText: PIXI.Text;
   nameText: PIXI.Text;
+  unsubscribePlayerStatus: () => void;
 }
 
 const STATUS_OPTIONS = [
@@ -22,6 +23,11 @@ const STATUS_OPTIONS = [
   { label: '💬 회의중', color: 0xdbeafe, textColor: 0x2563eb },
   { label: '💤 부재', color: 0xf1f5f9, textColor: 0x475569 },
 ];
+
+export function getStatusColor(hangulLabel: string): number {
+  const match = STATUS_OPTIONS.find(opt => opt.label === hangulLabel);
+  return match ? match.textColor : 0xea580c;
+}
 
 const LABEL_TO_STATUS_MAP: Record<string, MemberStatus> = {
   '🔥 집중': 'focus',
@@ -36,8 +42,8 @@ export function createPlayer(
   roomId: string,
 ): Player {
   const container = new PIXI.Container();
-  container.x = 1365;
-  container.y = 380;
+  container.x = 1292;
+  container.y = 560;
   container.eventMode = 'static';
 
   // 플레이어 스프라이트 생성
@@ -75,7 +81,7 @@ export function createPlayer(
   statusText.y = -70;
   container.addChild(statusText);
 
-  useSpaceStore.subscribe(
+  const unsubscribePlayerStatus = useSpaceStore.subscribe(
     state => state.myChar.status,
     newStatus => {
       statusText.text = newStatus;
@@ -91,6 +97,14 @@ export function createPlayer(
   nameText.anchor.set(0.5);
   nameText.y = 70;
   container.addChild(nameText);
+
+  // 훅에서 설정된 이름을 비동기로 가져와서 텍스트 업데이트
+  useSpaceStore.subscribe(
+    state => state.myChar.name,
+    newName => {
+      nameText.text = newName;
+    },
+  );
 
   const bubbleContainer = new PIXI.Container();
   bubbleContainer.y = -80;
@@ -223,5 +237,13 @@ export function createPlayer(
     }
   });
 
-  return { container, sprite, baseScaleX, baseScaleY, statusText, nameText };
+  return {
+    container,
+    sprite,
+    baseScaleX,
+    baseScaleY,
+    statusText,
+    nameText,
+    unsubscribePlayerStatus,
+  };
 }

@@ -1,13 +1,22 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { PrivateRoom } from '../sevice/rooms/model';
+import { PrivateRoom, RoomProfile } from '../sevice/rooms/model';
 
 export type AnimalType = 'cat' | 'dog' | 'rabbit' | 'bear' | 'hamster';
 export type ViewType = '2d' | 'meeting';
 
+export interface CharacterInfo {
+  id: string;
+  name: string;
+  githubUsername: string;
+  avatarId: AnimalType;
+  status: string;
+}
+
 interface SpaceState {
-  myChar: { id: string; name: string; status: string };
+  myChar: CharacterInfo;
   currentAnimal: AnimalType;
+  setMyChar: (info: Partial<CharacterInfo>) => void;
   currentView: ViewType;
   isMenuOpen: boolean;
   menuPos: { x: number; y: number };
@@ -22,12 +31,27 @@ interface SpaceState {
   // 프라이빗 룸 전역 상태
   privateRooms: PrivateRoom[];
   setPrivateRooms: (rooms: PrivateRoom[]) => void;
+
+  // 룸 맴버 상태와 액션
+  members: RoomProfile[];
+  setMembers: (members: RoomProfile[]) => void;
 }
 
 export const useSpaceStore = create<SpaceState>()(
   subscribeWithSelector(set => ({
-    myChar: { id: 'user-uuid-1234', name: '토끼', status: '🔥 집중' },
+    myChar: {
+      id: '',
+      githubUsername: '',
+      name: '로딩 중...',
+      avatarId: 'rabbit',
+      status: '🔥 집중',
+    },
     currentAnimal: 'rabbit',
+    setMyChar: info =>
+      set(state => {
+        const updatedChar = { ...state.myChar, ...info };
+        return { myChar: updatedChar, currentAnimal: updatedChar.avatarId };
+      }),
     currentView: '2d',
     isMenuOpen: false,
     menuPos: { x: 0, y: 0 },
@@ -42,5 +66,9 @@ export const useSpaceStore = create<SpaceState>()(
     // 프라이빗 룸 상태 초기값과 업데이트 액션
     privateRooms: [],
     setPrivateRooms: rooms => set({ privateRooms: rooms }),
+
+    // 룸 맴버 상태 초기값과 업데이트 액션
+    members: [],
+    setMembers: members => set({ members }),
   })),
 );

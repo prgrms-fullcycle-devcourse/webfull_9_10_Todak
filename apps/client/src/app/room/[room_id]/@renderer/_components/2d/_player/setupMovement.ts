@@ -4,6 +4,7 @@ import { type Player, CHAR_HEIGHT } from './createPlayer';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
 import { enterPrivateRoom, leavePrivateRoom } from '@/sevice/rooms/api';
 import { getSocket } from '@/lib/socket';
+import { useSpaceStore } from '@/store/useSpaceStore';
 
 const SPEED = 6;
 
@@ -26,6 +27,9 @@ export function setupMovement(
 
   let currentRoomId: string | null = null;
   let isProcessing = false;
+
+  let lastSentX = player.container.x;
+  let lastSentY = player.container.y;
 
   const ticker = () => {
     const textures = getTextures();
@@ -72,6 +76,26 @@ export function setupMovement(
     container.x = Math.max(30, Math.min(2455 - 30, container.x));
     container.y = Math.max(50, Math.min(1170 - 50, container.y));
 
+    if (container.x !== lastSentX || container.y !== lastSentY) {
+      getSocket().emit('room:move', {
+        roomId: roomId,
+        posX: container.x,
+        posY: container.y,
+      });
+
+      lastSentX = container.x;
+      lastSentY = container.y;
+
+      const currentStatus = useSpaceStore.getState().myChar.status;
+      if (currentStatus === '💤 부재' || currentStatus === '☕ 휴식') {
+        useSpaceStore.getState().setMyStatus('🔥 집중');
+        getSocket().emit('room:status-change', {
+          roomId,
+          status: 'focus',
+        });
+      }
+    }
+
     // 캐릭터 현재 좌표
     const playerX = player.container.x;
     const playerY = player.container.y;
@@ -107,6 +131,7 @@ export function setupMovement(
               privateRoomId: newRoomId,
             });
             currentRoomId = roomToEnter;
+            useSpaceStore.getState().setMyStatus('💬 회의중');
           })
           .catch(err => console.error(`입장 실패:`, err))
           .finally(() => {
@@ -146,6 +171,7 @@ export function setupMovement(
           .catch(err => console.error(`HTTP 퇴장 API 실패:`, err))
           .finally(() => {
             isProcessing = false;
+            useSpaceStore.getState().setMyStatus('🔥 집중');
           });
       }
     }
