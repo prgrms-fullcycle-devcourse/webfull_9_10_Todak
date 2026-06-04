@@ -21,7 +21,7 @@ import { setupCamera } from './_world/setupCamera';
 import { createMeetingRoom } from '../meeting/_world/createMeetingRoom';
 import { createOtherPlayer, RemotePlayer } from './_player/createOtherPlayer';
 import { getSocket } from '@/lib/socket';
-import { fetchRoomMembers } from '@/sevice/rooms/api';
+import { fetchRoomMembers, RoomProfile } from '@/sevice/rooms/api';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -119,8 +119,8 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       // 룸 내 팀원 렌더링
       const remotePlayers = new Map<string, RemotePlayer>();
-      const { members, myChar } = useSpaceStore.getState();
-      const syncMembers = (currentMembers: typeof members) => {
+      const { myChar } = useSpaceStore.getState();
+      const syncMembers = (currentMembers: RoomProfile[]) => {
         // 나간 사람 캔버스에서 제거
         const currentMemberIds = new Set(currentMembers.map(m => m.id));
         for (const [userId, remotePlayer] of remotePlayers.entries()) {
