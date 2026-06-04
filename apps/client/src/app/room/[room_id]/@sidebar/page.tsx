@@ -6,8 +6,8 @@ import ViewSelection from './_components/ViewSelection';
 import AuthRefreshOnMount from '@/app/_components/AuthRefreshOnMount';
 import { apiServer, isApiServerAuthError } from '@/lib/api.server';
 import type { AuthUser } from '@/lib/auth';
-import type { MinutesList } from '@/sevice/minutes/model';
-import type { MyRooms, RoomMembers } from '@/sevice/rooms/model';
+import type { MinutesList } from '@/services/minutes/model';
+import type { MyRooms, RoomMembers } from '@/services/rooms/model';
 
 interface SidebarProps {
   params: Promise<{

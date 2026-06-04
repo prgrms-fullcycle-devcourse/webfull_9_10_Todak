@@ -1,4 +1,4 @@
-import type { TodakResponse } from '@/sevice/response';
+import type { TodakResponse } from '@/services/response';
 
 import axios, {
   AxiosHeaders,

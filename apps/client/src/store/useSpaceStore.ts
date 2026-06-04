@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { PrivateRoom, RoomProfile } from '../sevice/rooms/model';
+import { PrivateRoom } from '../services/rooms/model';
 
 export type AnimalType = 'cat' | 'dog' | 'rabbit' | 'bear' | 'hamster';
 export type ViewType = '2d' | 'meeting';

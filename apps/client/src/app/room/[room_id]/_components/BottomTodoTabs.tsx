@@ -1,7 +1,7 @@
 'use client';
 
-import { fetchMyTodos, fetchTodos } from '@/sevice/todos/api';
-import type { Todo } from '@/sevice/todos/model';
+import { fetchMyTodos, fetchTodos } from '@/services/todos/api';
+import type { Todo } from '@/services/todos/model';
 import { Tabs } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';

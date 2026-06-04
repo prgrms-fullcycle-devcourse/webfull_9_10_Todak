@@ -1,9 +1,9 @@
 'use client';
 
 import { cn } from '@/lib/cn';
-import { isSystemError, isTodakApiError } from '@/sevice/error';
-import { createRepository } from '@/sevice/repos';
-import { createRooms, fetchMyRooms } from '@/sevice/rooms/api';
+import { isSystemError, isTodakApiError } from '@/services/error';
+import { createRepository } from '@/services/repos';
+import { createRooms, fetchMyRooms } from '@/services/rooms/api';
 import {
   Chip,
   FieldError,
