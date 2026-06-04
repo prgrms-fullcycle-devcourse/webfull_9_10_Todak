@@ -32,56 +32,127 @@ type ChatMessageWithUser = Prisma.ChatMessageGetPayload<{
   include: { user: true };
 }>;
 
+interface MinutesActionItem {
+  title: string;
+  body?: string;
+  labels: string[];
+}
+
 export async function generateMinutesSummary(
   chatMessages: ChatMessageWithUser[],
-): Promise<{ contentMd: string; actionItems: string[] }> {
+): Promise<{
+  title: string;
+  contentMd: string;
+  actionItems: MinutesActionItem[];
+}> {
   const formattedChats = chatMessages
     .map(msg => `[${msg.createdAt}] ${msg.user.githubUsername}: ${msg.content}`)
     .join('\n');
 
+  /*
+   * 응답 형식을 강제하기 위해 tool use(함수 호출)를 사용한다.
+   * tool_choice로 호출을 강제하면 모델이 스키마에 맞는 구조화된 input을 반환하므로,
+   * 자유 텍스트 JSON을 파싱하다 ```json 펜스/잡담/잘림으로 실패하는 문제가 사라진다.
+   */
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
+    max_tokens: 8000,
     system: `당신은 개발 팀의 미팅 로그를 분석하는 전문 프로젝트 매니저(PM) AI입니다.
-      제공된 채팅 로그를 바탕으로 다음 두 가지를 수행하고, 오직 지정된 **JSON 포맷**으로만 답변하세요.
-      텍스트 설명이나 앞뒤 인사말은 절대 포함하지 마세요.
-
-      1. content_md: 미팅 내용을 일목요연하게 정리한 마크다운 형식의 회의록 본문
-      2. action_items: 대화 중 도출된 구체적인 할 일 리스트 (문자열 배열)
-         - "누가, 언제까지, 무엇을" 하기로 했는지 대화 기반으로 명확히 추출하세요.
-         - 만약 할 일이 명확히 없다면 빈 배열([])을 반환하세요.
-
-      [반환 포맷 예시]
+      제공된 채팅 로그를 바탕으로 회의 제목, 회의록 본문, 액션 아이템을 정리하고,
+      반드시 save_minutes 도구를 호출하여 결과를 반환하세요.
+      액션 아이템은 action_items 필드로만 반환하며,
+      회의록 본문(content_md)에는 별도의 '액션 아이템' 목록 섹션을 중복해서 넣지 마세요.`,
+    tools: [
       {
-        "content_md": "# 5월 23일 스크럼 미팅\\n\\n## 1. 진행 상황...",
-        "action_items": [
-          "프론트엔드 소켓 연동 구조 설계 (@홍길동)",
-          "이슈 대량 등록 API 예외 처리 추가 (@신상호)"
-        ]
-      }`,
+        name: 'save_minutes',
+        description: '분석한 회의 제목, 회의록 본문, 액션 아이템을 저장합니다.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              description:
+                '회의 내용을 대표하는 간결한 제목 (예: "5월 23일 스프린트 회의 - 소켓 연동 논의")',
+            },
+            content_md: {
+              type: 'string',
+              description:
+                '회의의 논의 사항과 결정 사항을 일목요연하게 정리한 마크다운 본문. 할 일은 action_items로 별도 반환하므로 본문에 액션 아이템 목록을 중복해 나열하지 마세요.',
+            },
+            action_items: {
+              type: 'array',
+              description:
+                '대화 중 도출된 구체적인 할 일 리스트. 할 일이 없으면 빈 배열을 반환합니다.',
+              items: {
+                type: 'object',
+                properties: {
+                  title: {
+                    type: 'string',
+                    description:
+                      '할 일을 한 줄로 요약한 제목. "누가, 언제까지, 무엇을" 하기로 했는지 명확히 작성합니다.',
+                  },
+                  body: {
+                    type: 'string',
+                    description: '할 일의 배경/상세 설명 (선택)',
+                  },
+                  labels: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description:
+                      'GitHub 이슈 라벨로 쓸 분류 태그 (예: ["backend", "bug"]). 없으면 빈 배열.',
+                  },
+                },
+                required: ['title'],
+              },
+            },
+          },
+          required: ['title', 'content_md', 'action_items'],
+        },
+      },
+    ],
+    tool_choice: { type: 'tool', name: 'save_minutes' },
     messages: [
       {
         role: 'user',
-        content: `다음 대화 로그를 분석해 JSON으로 반환해 주세요:\n\n${formattedChats}`,
+        content: `다음 대화 로그를 분석해 save_minutes 도구로 정리해 주세요:\n\n${formattedChats}`,
       },
     ],
   });
 
-  const responseText =
-    response.content[0].type === 'text' ? response.content[0].text : '';
+  const toolUse = response.content.find(block => block.type === 'tool_use');
 
-  try {
-    const result = JSON.parse(responseText);
-
-    return {
-      contentMd: result.content_md ?? '',
-      actionItems: result.action_items ?? [],
+  if (toolUse?.type === 'tool_use') {
+    const result = toolUse.input as {
+      title?: string;
+      content_md?: string;
+      action_items?: Array<{
+        title?: string;
+        body?: string;
+        labels?: string[];
+      }>;
     };
-  } catch (error) {
-    console.error('❌ Claude 응답 JSON 파싱 실패:', error);
+
+    // 필드 누락에 대비해 정규화 (title은 필수, labels는 항상 배열)
+    const actionItems: MinutesActionItem[] = (result.action_items ?? [])
+      .filter(item => (item.title ?? '') !== '')
+      .map(item => ({
+        title: item.title ?? '',
+        body: item.body,
+        labels: item.labels ?? [],
+      }));
+
     return {
-      contentMd: responseText,
-      actionItems: [],
+      title: result.title ?? '',
+      contentMd: result.content_md ?? '',
+      actionItems,
     };
   }
+
+  // 도구 호출이 없을 경우(이론상 발생하지 않음)의 안전한 기본값
+  console.error('❌ Claude가 save_minutes 도구를 호출하지 않았습니다.');
+  return {
+    title: '',
+    contentMd: '',
+    actionItems: [],
+  };
 }

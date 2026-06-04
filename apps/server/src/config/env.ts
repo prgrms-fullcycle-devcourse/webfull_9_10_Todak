@@ -20,7 +20,6 @@ const EnvSchema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1),
 
   JWT_SECRET: z.string().min(32),
-  JWT_EXPIRES_IN: z.string().default('7d'),
 
   CLIENT_URL: z.string().url().default('http://localhost:3000'),
 

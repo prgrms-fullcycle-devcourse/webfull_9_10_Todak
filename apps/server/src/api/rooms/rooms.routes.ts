@@ -1,14 +1,18 @@
 import { Router } from 'express';
 
 import { requireAuth } from '../../middleware/auth.middleware.js';
+import { strictLimiter } from '../../middleware/rateLimit.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 
 import './members/members.swagger.js';
 import chatRoutes from './chat/chat.routes.js';
+import './meetings/meetings.swagger.js';
+import meetingsRoutes from './meetings/meetings.routes.js';
 import membersRoutes from './members/members.routes.js';
 import './private-room/private-room.swagger.js';
 import './chat/chat.swagger.js';
 import privateRoomRoutes from './private-room/private-room.routes.js';
+import prsRoutes from './prs/prs.routes.js';
 import {
   createRoomHandler,
   deleteRoomHandler,
@@ -30,13 +34,15 @@ router.use(requireAuth);
 
 router.get('/', getRoomsHandler);
 router.post('/', validate(CreateRoomSchema), createRoomHandler);
-router.post('/join', validate(JoinRoomSchema), joinRoomHandler);
+router.post('/join', strictLimiter, validate(JoinRoomSchema), joinRoomHandler);
 router.get('/:roomId', getRoomByIdHandler);
 router.patch('/:roomId', validate(UpdateRoomSchema), updateRoomHandler);
 router.delete('/:roomId', deleteRoomHandler);
 router.use('/:roomId/members', membersRoutes);
 router.use('/:roomId/private-room', privateRoomRoutes);
 router.use('/:roomId/chats', chatRoutes);
+router.use('/:roomId/meetings', meetingsRoutes);
 router.use('/:roomId/todos', todosRoutes);
+router.use('/:roomId/prs', prsRoutes);
 
 export default router;

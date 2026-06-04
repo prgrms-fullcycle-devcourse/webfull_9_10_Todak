@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 
-export const WORLD_WIDTH = 1500;
-export const WORLD_HEIGHT = 750;
+export const WORLD_WIDTH = 2455;
+export const WORLD_HEIGHT = 1170;
 
 export function createBackground(texture: PIXI.Texture): PIXI.Sprite {
   const background = new PIXI.Sprite(texture);

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
-import { apiServer } from '@/lib/api.server';
+import AuthRefreshOnMount from '@/app/_components/AuthRefreshOnMount';
+import { apiServer, isApiServerAuthError } from '@/lib/api.server';
 import type { MyRooms } from '@/sevice/rooms/model';
 
 import UserProfileForm from './_components/UserProfileForm';
@@ -24,23 +25,38 @@ export default async function CustomizationPage({
   const rawRoomID =
     resolvedSearchParams?.roomID ?? resolvedSearchParams?.roomId;
   const roomID = Array.isArray(rawRoomID) ? rawRoomID[0] : rawRoomID;
+  let shouldRefreshAuth = false;
 
   if (roomID !== undefined && roomID !== '') {
-    await redirectUserWhenSetupComplete(roomID);
+    shouldRefreshAuth = await redirectUserWhenSetupComplete(roomID);
   }
 
   return (
     <main className="min-h-dvh bg-background text-foreground">
+      {shouldRefreshAuth && <AuthRefreshOnMount />}
       <UserProfileForm roomID={roomID ?? ''} userID={userID} />
     </main>
   );
 }
 
 async function redirectUserWhenSetupComplete(roomID: string) {
-  const rooms = await apiServer.get<MyRooms>('/rooms');
+  let rooms: MyRooms;
+
+  try {
+    rooms = await apiServer.get<MyRooms>('/rooms');
+  } catch (error) {
+    if (isApiServerAuthError(error)) {
+      return true;
+    }
+
+    throw error;
+  }
+
   const currentRoom = rooms.find(room => room.id === roomID);
 
   if (currentRoom?.is_setup_completed === true) {
     redirect(`/room/${encodeURIComponent(roomID)}`);
   }
+
+  return false;
 }

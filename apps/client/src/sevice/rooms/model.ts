@@ -64,3 +64,40 @@ export type RoomMembers = {
   members: RoomProfile[];
   member_count: number;
 };
+
+// ---- 회의실 ----
+export interface PrivateRoomParticipant {
+  user_id: string;
+  github_username: string;
+  entered_at: string;
+}
+
+export interface PrivateRoom {
+  id: string;
+  name: string;
+  is_meeting_active: boolean;
+  current_participants: PrivateRoomParticipant[];
+}
+
+export interface EnterPrivateRoomResponse {
+  private_room_id: string;
+  user_id: string;
+  entered_at: string;
+}
+
+export interface LeavePrivateRoomResponse {
+  private_room_id: string;
+  user_id: string;
+  left_at: string;
+  meeting_cancelled: boolean;
+}
+
+// ---- 멤버 상태 ----
+export type MemberStatus = 'focus' | 'rest' | 'meeting' | 'away';
+
+export interface StatusResponse {
+  success: boolean;
+  data: {
+    status: MemberStatus;
+  };
+}

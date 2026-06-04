@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 
 import { generateOpenApiDocument } from '../schema/openapi.js';
+import { checkHealth } from '../services/health.service.js';
 
 import aiRoutes from './ai/ai.routes.js';
 import authRoutes from './auth/auth.routes.js';
@@ -21,10 +22,12 @@ import '../api/users/users.swagger.js';
 
 const router = Router();
 
-router.get('/health', (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    status: 'ok',
+router.get('/health', async (_req: Request, res: Response) => {
+  const health = await checkHealth();
+  res.status(health.healthy ? 200 : 503).json({
+    success: health.healthy,
+    status: health.healthy ? 'ok' : 'degraded',
+    services: { db: health.db, redis: health.redis },
     timestamp: new Date().toISOString(),
   });
 });

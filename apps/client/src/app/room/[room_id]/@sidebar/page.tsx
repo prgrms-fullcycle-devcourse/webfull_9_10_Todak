@@ -3,7 +3,8 @@ import MyInformation from './_components/MyInformation';
 import RecentMeetingLogs from './_components/RecentMeetingLogs';
 import ViewSelection from './_components/ViewSelection';
 
-import { apiServer } from '@/lib/api.server';
+import AuthRefreshOnMount from '@/app/_components/AuthRefreshOnMount';
+import { apiServer, isApiServerAuthError } from '@/lib/api.server';
 import type { AuthUser } from '@/lib/auth';
 import type { MinutesList } from '@/sevice/minutes/model';
 import type { MyRooms, RoomMembers } from '@/sevice/rooms/model';
@@ -21,14 +22,28 @@ export default async function Sidebar({ params }: SidebarProps) {
     page: '1',
     limit: '5',
   });
-  const [myInfo, myRooms, roomMembers, meetingLogs] = await Promise.all([
-    apiServer.get<AuthUser>('/users/me'),
-    apiServer.get<MyRooms>('/rooms'),
-    apiServer.get<RoomMembers>(`/rooms/${roomID}/members`),
-    apiServer.get<MinutesList>(
-      `/rooms/${roomID}/minutes?${minutesSearchParams.toString()}`,
-    ),
-  ]);
+  let myInfo: AuthUser;
+  let myRooms: MyRooms;
+  let roomMembers: RoomMembers;
+  let meetingLogs: MinutesList;
+
+  try {
+    [myInfo, myRooms, roomMembers, meetingLogs] = await Promise.all([
+      apiServer.get<AuthUser>('/users/me'),
+      apiServer.get<MyRooms>('/rooms'),
+      apiServer.get<RoomMembers>(`/rooms/${roomID}/members`),
+      apiServer.get<MinutesList>(
+        `/rooms/${roomID}/minutes?${minutesSearchParams.toString()}`,
+      ),
+    ]);
+  } catch (error) {
+    if (isApiServerAuthError(error)) {
+      return <SidebarFallback />;
+    }
+
+    throw error;
+  }
+
   const currentRoom = myRooms.find(room => room.id === roomID);
   const myRoomProfile = roomMembers.members.find(
     member => member.github_username === myInfo.login,
@@ -44,6 +59,23 @@ export default async function Sidebar({ params }: SidebarProps) {
       />
       <ViewSelection />
       <RecentMeetingLogs meetingLogs={meetingLogs.minutes} />
+      <AIGuide />
+    </>
+  );
+}
+
+function SidebarFallback() {
+  return (
+    <>
+      <AuthRefreshOnMount />
+      <MyInformation
+        characterType={null}
+        name="로그인 확인 중"
+        repoName={null}
+        roles={[]}
+      />
+      <ViewSelection />
+      <RecentMeetingLogs meetingLogs={[]} />
       <AIGuide />
     </>
   );

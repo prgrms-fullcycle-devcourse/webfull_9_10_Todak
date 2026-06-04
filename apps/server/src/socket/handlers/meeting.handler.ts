@@ -3,27 +3,14 @@ import { TypedIO, TypedSocket } from '../socket.types.js';
 /*
  * ────────────────────────────────────────────────────────────
  * 회의실 관련 소켓 이벤트 핸들러
+ *
+ * 회의 시작/종료(DB 쓰기 + meeting:started / meeting:ended broadcast)는
+ * REST(POST /rooms/:roomId/meetings, .../:meetingId/end)가 담당한다.
+ * 여기서는 회의 소켓 room 입·퇴장만 처리.
  * ────────────────────────────────────────────────────────────
  */
 export function registerMeetingHandlers(_io: TypedIO, socket: TypedSocket) {
   const { user } = socket.data;
-
-  // 회의 시작
-  socket.on('meeting:start', ({ roomId, privateRoomId }) => {
-    // TODO: DB에 MEETING 레코드 생성
-    socket.to(roomId).emit('meeting:started', {
-      meetingId: privateRoomId, // 임시 - DB 생성 후 실제 meetingId 로 교체
-      hostId: user.id,
-    });
-    console.log(`[meeting:start] ${user.login} → room:${roomId}`);
-  });
-
-  // 회의 종료
-  socket.on('meeting:end', ({ meetingId }) => {
-    // TODO: DB MEETING 상태 ended 로 업데이트
-    socket.to(meetingId).emit('meeting:ended', { meetingId });
-    console.log(`[meeting:end] ${user.login} → meeting:${meetingId}`);
-  });
 
   // 회의 참여
   socket.on('meeting:join', async ({ meetingId }) => {
