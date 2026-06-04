@@ -19,12 +19,14 @@ export default function Chats() {
     <div className="chat-panel-container">
       <ChatHeader meetingStatus={meetingStatus} />
       <ChatTabs tab={tab} onTabChange={setTab} />
-      <ChatMeetingButton
-        meetingStatus={meetingStatus}
-        onToggle={() =>
-          setMeetingStatus(prev => (prev === 'ongoing' ? 'ended' : 'ongoing'))
-        }
-      />
+      {tab === 'private' && (
+        <ChatMeetingButton
+          meetingStatus={meetingStatus}
+          onToggle={() =>
+            setMeetingStatus(prev => (prev === 'ongoing' ? 'ended' : 'ongoing'))
+          }
+        />
+      )}
       <ChatMessages tab={tab} />
       <ChatInput />
     </div>
