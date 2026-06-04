@@ -33,7 +33,6 @@ coverage/
 # Prisma
 apps/server/src/generated/
 server/src/generated/
-apps/server/prisma/migrations/**/migration_lock.toml
 
 # Misc
 .turbo/
