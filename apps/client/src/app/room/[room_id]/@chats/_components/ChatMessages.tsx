@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { TabType } from '../page';
 import { useChatHistory } from '../_hooks/useChatHistory';
+import { TabType } from '../_types';
 
 interface Reaction {
   emoji: string;
