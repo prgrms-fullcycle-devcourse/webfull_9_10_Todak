@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChatHistory } from '../_hooks/useChatHistory';
 import { TabType } from '../_types';
+import { useSpaceStore } from '@/store/useSpaceStore';
 
 interface Reaction {
   emoji: string;
@@ -63,43 +64,43 @@ interface ChatMessagesProps {
 //   },
 // ];
 
-const MOCK_PRIVATE: Message[] = [
-  {
-    id: 'p1',
-    user: {
-      github_username: 'soojung-dev',
-      avatar_url: '🐼',
-    },
-    content: '안녕하세요',
-    type: 'text',
-    created_at: '2026-05-18T16:56:00Z',
-  },
-  {
-    id: 'p2',
-    user: {
-      github_username: 'hyunwoo-dev',
-      avatar_url: '🐻',
-    },
-    content: '미팅룸 B에서는 백엔드 REST API 명세 정리 회의 시작할게요.',
-    type: 'text',
-    created_at: '2026-05-18T16:56:30Z',
-    reactions: [
-      { emoji: '👍', count: 1 },
-      { emoji: '🔥', count: 1 },
-      { emoji: '❤️', count: 1 },
-    ],
-  },
-  {
-    id: 'sys1',
-    user: {
-      github_username: '시스템',
-      avatar_url: '⚙️',
-    },
-    content: null,
-    type: 'meeting_start',
-    created_at: '2026-05-18T16:57:00Z',
-  },
-];
+// const MOCK_PRIVATE: Message[] = [
+//   {
+//     id: 'p1',
+//     user: {
+//       github_username: 'soojung-dev',
+//       avatar_url: '🐼',
+//     },
+//     content: '안녕하세요',
+//     type: 'text',
+//     created_at: '2026-05-18T16:56:00Z',
+//   },
+//   {
+//     id: 'p2',
+//     user: {
+//       github_username: 'hyunwoo-dev',
+//       avatar_url: '🐻',
+//     },
+//     content: '미팅룸 B에서는 백엔드 REST API 명세 정리 회의 시작할게요.',
+//     type: 'text',
+//     created_at: '2026-05-18T16:56:30Z',
+//     reactions: [
+//       { emoji: '👍', count: 1 },
+//       { emoji: '🔥', count: 1 },
+//       { emoji: '❤️', count: 1 },
+//     ],
+//   },
+//   {
+//     id: 'sys1',
+//     user: {
+//       github_username: '시스템',
+//       avatar_url: '⚙️',
+//     },
+//     content: null,
+//     type: 'meeting_start',
+//     created_at: '2026-05-18T16:57:00Z',
+//   },
+// ];
 
 const EMOJI_OPTIONS = ['👍', '🔥', '❤️', '😂', '🙂'];
 
@@ -235,8 +236,15 @@ function MessageItem({ msg }: { msg: Message }) {
 
 export default function ChatMessages({ tab, roomId }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
-  // const messages = tab === 'all' ? MOCK_ALL : MOCK_PRIVATE;
-  const { data: messages, isLoading } = useChatHistory(roomId);
+
+  const currentPrivateRoomId = useSpaceStore(
+    state => state.currentPrivateRoomId,
+  );
+
+  const { data: messages, isLoading } = useChatHistory(
+    roomId,
+    tab === 'private' ? currentPrivateRoomId : null,
+  );
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
