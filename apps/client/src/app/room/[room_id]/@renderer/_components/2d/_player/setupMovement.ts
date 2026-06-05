@@ -2,7 +2,7 @@ import * as PIXI from 'pixi.js';
 import type { AnimalAssetPack } from '../_animals/types';
 import { type Player, CHAR_HEIGHT } from './createPlayer';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
-import { enterPrivateRoom, leavePrivateRoom } from '@/sevice/rooms/api';
+import { enterPrivateRoom, leavePrivateRoom } from '@/services/rooms/api';
 import { getSocket } from '@/lib/socket';
 import { useSpaceStore } from '@/store/useSpaceStore';
 
@@ -121,6 +121,7 @@ export function setupMovement(
     if (newRoomId !== currentRoomId && !isProcessing) {
       // 회의실 입장
       if (currentRoomId === null && newRoomId !== null) {
+        if (newRoomId.startsWith('empty-room')) return;
         isProcessing = true;
         const roomToEnter = newRoomId;
 
@@ -132,6 +133,7 @@ export function setupMovement(
             });
             currentRoomId = roomToEnter;
             useSpaceStore.getState().setMyStatus('💬 회의중');
+            useSpaceStore.getState().setCurrentPrivateRoomId(newRoomId);
           })
           .catch(err => console.error(`입장 실패:`, err))
           .finally(() => {
@@ -167,6 +169,7 @@ export function setupMovement(
           .then(() => {
             currentRoomId = null;
             darkOverlay.visible = false;
+            useSpaceStore.getState().setCurrentPrivateRoomId(null);
           })
           .catch(err => console.error(`HTTP 퇴장 API 실패:`, err))
           .finally(() => {

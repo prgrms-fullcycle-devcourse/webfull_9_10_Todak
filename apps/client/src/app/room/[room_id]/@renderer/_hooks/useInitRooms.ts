@@ -6,9 +6,9 @@ import {
   fetchMyProfile,
   fetchPrivateRooms,
   fetchRoomMembers,
-} from '@/sevice/rooms/api';
-import { type PrivateRoom } from '@/sevice/rooms/model';
-import { getStoredAuthUser } from '@/lib/auth';
+} from '@/services/rooms/api';
+import { type PrivateRoom } from '@/services/rooms/model';
+import { getAuthToken, getStoredAuthUser } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 
 export function useInitRooms(roomId: string) {
@@ -126,7 +126,8 @@ export function useInitRooms(roomId: string) {
 
     initialize();
 
-    const socket = getSocket();
+    const token = getAuthToken();
+    const socket = getSocket(token ?? undefined);
     const STATUS_TO_LABEL_MAP: Record<string, string> = {
       focus: '🔥 집중',
       rest: '☕ 휴식',

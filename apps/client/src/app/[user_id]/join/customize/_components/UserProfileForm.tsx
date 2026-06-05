@@ -6,11 +6,11 @@ import { useRouter } from 'next/navigation';
 import { type ComponentProps, useMemo, useState } from 'react';
 
 import { cn } from '@/lib/cn';
-import { isSystemError, isTodakApiError } from '@/sevice/error';
+import { isSystemError, isTodakApiError } from '@/services/error';
 import {
   createRoomProfile,
   isRoomProfileAlreadySetUpError,
-} from '@/sevice/rooms/api';
+} from '@/services/rooms/api';
 
 const avatars = [
   {

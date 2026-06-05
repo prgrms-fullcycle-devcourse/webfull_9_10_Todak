@@ -7,11 +7,17 @@ import ChatMessages from './_components/ChatMessages';
 import ChatTabs from './_components/ChatTabs';
 
 import { useState } from 'react';
+import { use } from 'react';
 
 export type TabType = 'all' | 'private';
 export type MeetingStatus = 'ongoing' | 'ended' | 'cancelled';
 
-export default function Chats() {
+export default function Chats({
+  params,
+}: {
+  params: Promise<{ room_id: string }>;
+}) {
+  const { room_id } = use(params);
   const [tab, setTab] = useState<TabType>('all');
   const [meetingStatus, setMeetingStatus] = useState<MeetingStatus>('ended');
 
@@ -19,13 +25,15 @@ export default function Chats() {
     <div className="chat-panel-container">
       <ChatHeader meetingStatus={meetingStatus} />
       <ChatTabs tab={tab} onTabChange={setTab} />
-      <ChatMeetingButton
-        meetingStatus={meetingStatus}
-        onToggle={() =>
-          setMeetingStatus(prev => (prev === 'ongoing' ? 'ended' : 'ongoing'))
-        }
-      />
-      <ChatMessages tab={tab} />
+      {tab === 'private' && (
+        <ChatMeetingButton
+          meetingStatus={meetingStatus}
+          onToggle={() =>
+            setMeetingStatus(prev => (prev === 'ongoing' ? 'ended' : 'ongoing'))
+          }
+        />
+      )}
+      <ChatMessages tab={tab} roomId={room_id} />
       <ChatInput />
     </div>
   );

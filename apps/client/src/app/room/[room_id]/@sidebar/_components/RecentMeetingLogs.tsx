@@ -1,6 +1,6 @@
 'use client';
 
-import type { Minute } from '@/sevice/minutes/model';
+import type { Minute } from '@/services/minutes/model';
 
 import { Button } from '@heroui/react';
 
