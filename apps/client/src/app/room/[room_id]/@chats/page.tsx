@@ -8,9 +8,7 @@ import ChatTabs from './_components/ChatTabs';
 
 import { useState } from 'react';
 import { use } from 'react';
-
-export type TabType = 'all' | 'private';
-export type MeetingStatus = 'ongoing' | 'ended' | 'cancelled';
+import { MeetingStatus, TabType } from './_types';
 
 export default function Chats({
   params,

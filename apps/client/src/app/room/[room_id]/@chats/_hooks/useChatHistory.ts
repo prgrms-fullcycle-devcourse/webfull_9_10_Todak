@@ -1,10 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchMainRoomChats } from '@/services/chats/api';
+import {
+  fetchMainRoomChats,
+  fetchPrivateRoomChats,
+} from '@/services/chats/api';
 
-export function useChatHistory(roomId: string) {
+export function useChatHistory(roomId: string, privateRoomId?: string | null) {
   return useQuery({
-    queryKey: ['chats', roomId],
-    queryFn: () => fetchMainRoomChats({ roomId }),
+    queryKey: ['chats', roomId, privateRoomId ?? 'main'],
+    queryFn: () =>
+      privateRoomId
+        ? fetchPrivateRoomChats({ roomId, privateRoomId })
+        : fetchMainRoomChats({ roomId }),
     enabled: !!roomId,
   });
 }
