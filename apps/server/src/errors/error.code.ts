@@ -189,6 +189,13 @@ export const ERROR_CODES = {
     message: '해당 회의에 대한 회의록이 이미 존재합니다.',
   },
 
+  // 429
+  TOO_MANY_REQUESTS: {
+    statusCode: StatusCodes.TOO_MANY_REQUESTS,
+    code: 'TOO_MANY_REQUESTS',
+    message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
+  },
+
   // 500
   INTERNAL_SERVER_ERROR: {
     statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
