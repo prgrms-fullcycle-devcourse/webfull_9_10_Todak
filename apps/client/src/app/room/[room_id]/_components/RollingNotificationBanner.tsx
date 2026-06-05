@@ -65,24 +65,32 @@ export default function RollingNotificationBanner() {
     statusText = '알림 싱크 확인 필요';
   }
 
+  const rollingItemKey =
+    activeNotification?.id ?? `${roomID}-${label}-${statusText}`;
+
   return (
     <>
       <div className="flex min-w-0 items-center gap-3">
         <span className="rounded-lg bg-accent px-3 py-1.5 font-todak-mono text-[11px] font-black text-accent-foreground">
           {label}
         </span>
-        {activeNotification?.link ? (
-          <a
-            className="truncate text-xs font-semibold underline-offset-2 hover:underline"
-            href={activeNotification.link}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {message}
-          </a>
-        ) : (
-          <p className="truncate text-xs font-semibold">{message}</p>
-        )}
+        <div aria-live="polite" className="notification-roll-window">
+          {activeNotification?.link ? (
+            <a
+              className="notification-roll-item underline-offset-2 hover:underline"
+              href={activeNotification.link}
+              key={rollingItemKey}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {message}
+            </a>
+          ) : (
+            <span className="notification-roll-item" key={rollingItemKey}>
+              {message}
+            </span>
+          )}
+        </div>
       </div>
       <span className="font-todak-mono text-[10px] text-slate-400">
         {statusText}
