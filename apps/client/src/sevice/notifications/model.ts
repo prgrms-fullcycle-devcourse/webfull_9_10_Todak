@@ -13,6 +13,7 @@ export interface RoomNotification {
   link: string | null;
   is_read: boolean;
   created_at: string;
+  is_sample?: boolean;
 }
 
 export interface NotificationsResponse {

@@ -44,11 +44,16 @@ export default function RollingNotificationBanner() {
     return () => window.clearInterval(intervalId);
   }, [notifications.length]);
 
-  const label = activeNotification
+  const notificationLabel = activeNotification
     ? getNotificationLabel(activeNotification.type)
     : 'GITHUB NEWS';
+  const label = activeNotification?.is_sample
+    ? `SAMPLE | ${notificationLabel}`
+    : notificationLabel;
   let message = activeNotification?.message ?? '새로운 GitHub 알림이 없습니다.';
-  let statusText = '이슈 실시간 싱크 활성';
+  let statusText = activeNotification?.is_sample
+    ? '샘플 알림 표시 중'
+    : '이슈 실시간 싱크 활성';
 
   if (isPending) {
     message = 'GitHub 알림을 불러오는 중입니다...';
