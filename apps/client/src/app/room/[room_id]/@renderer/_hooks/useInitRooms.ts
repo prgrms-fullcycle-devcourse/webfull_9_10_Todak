@@ -8,7 +8,7 @@ import {
   fetchRoomMembers,
 } from '@/services/rooms/api';
 import { type PrivateRoom } from '@/services/rooms/model';
-import { getStoredAuthUser } from '@/lib/auth';
+import { getAuthToken, getStoredAuthUser } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 
 export function useInitRooms(roomId: string) {
