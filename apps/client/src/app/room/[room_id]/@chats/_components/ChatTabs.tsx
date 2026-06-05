@@ -1,7 +1,7 @@
 'use client';
 
 import { Tabs } from '@heroui/react';
-import { TabType } from '../page';
+import { TabType } from '../_types';
 
 interface Props {
   tab: TabType;
