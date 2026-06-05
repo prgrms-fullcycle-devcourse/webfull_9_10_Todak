@@ -2,12 +2,26 @@ import {
   CreateManualMinutesBody,
   GenerateAiMinutesBody,
   GetMinutesListQuery,
+  RefineMinutesBody,
   UpdateMinutesBody,
 } from '../api/minutes/minutes.schema.js';
 import { AppError } from '../errors/AppError.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 import { addJob } from '../jobs/queues/index.js';
 import { prisma } from '../lib/prisma.js';
+
+import { refineMinutesContent } from './anthropic.service.js';
+
+/*
+ * 프리셋 다듬기 지시문(서버 소유). 프론트는 refine_type 만 보내고,
+ * 실제 지시 문구는 여기서 관리해 프롬프트 개선이 백엔드에 집중되게 한다.
+ */
+const REFINE_INSTRUCTIONS: Record<'SHORTEN' | 'BULLET', string> = {
+  SHORTEN:
+    '전체 내용을 핵심만 남겨 훨씬 짧고 간결하게 요약해줘. 중요한 결정사항과 액션 아이템은 빠뜨리지 마.',
+  BULLET:
+    '전체 내용을 글머리 기호(bullet points) 위주의 개조식으로 정리해줘. 장황한 문장은 짧은 항목으로 변환해.',
+};
 
 export class MinutesService {
   // 호출자가 해당 룸의 멤버인지 검증 (멤버가 아니면 룸 존재 여부를 숨기기 위해 ROOM_NOT_FOUND)
@@ -370,6 +384,58 @@ export class MinutesService {
       status: updated.status,
       linked_issue_numbers: updated.linkedIssueNumbers,
       updated_at: updated.updatedAt.toISOString(),
+    };
+  }
+
+  /*
+   * 기존 회의록 본문을 지시사항대로 AI가 재가공해 즉시 반환(동기).
+   * DB에는 저장하지 않으며, 사용자가 확인 후 PATCH 로 확정한다.
+   */
+  public async refineMinutes(
+    roomId: string,
+    userId: string,
+    minutesId: string,
+    body: RefineMinutesBody,
+  ) {
+    await this.assertRoomMember(roomId, userId);
+
+    const minutes = await prisma.minutes.findFirst({
+      where: { id: minutesId, roomId },
+      select: { id: true, contentMd: true, status: true },
+    });
+
+    if (!minutes) {
+      throw new AppError('MINUTES_NOT_FOUND');
+    }
+
+    // 생성 중이면 본문이 불완전하므로 다듬기 불가
+    if (minutes.status === 'generating') {
+      throw new AppError('MINUTES_GENERATING');
+    }
+
+    if (minutes.contentMd === null || minutes.contentMd.trim() === '') {
+      throw new AppError('MINUTES_NO_CONTENT');
+    }
+
+    let instruction: string;
+    if (body.refine_type === 'CUSTOM') {
+      // 스키마에서 보장되지만 타입 안전을 위해 한 번 더 방어
+      if (body.custom_message === undefined) {
+        throw new AppError('BAD_REQUEST');
+      }
+      instruction = body.custom_message;
+    } else {
+      instruction = REFINE_INSTRUCTIONS[body.refine_type];
+    }
+
+    const refinedContentMd = await refineMinutesContent(
+      minutes.contentMd,
+      instruction,
+    );
+
+    return {
+      id: minutes.id,
+      refined_content_md: refinedContentMd,
     };
   }
 }
