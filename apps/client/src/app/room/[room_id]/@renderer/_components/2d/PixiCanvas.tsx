@@ -21,7 +21,7 @@ import { setupCamera } from './_world/setupCamera';
 import { createMeetingRoom } from '../meeting/_world/createMeetingRoom';
 import { createOtherPlayer, RemotePlayer } from './_player/createOtherPlayer';
 import { getSocket } from '@/lib/socket';
-import { fetchRoomMembers, RoomProfile } from '@/sevice/rooms/api';
+import { fetchRoomMembers, RoomProfile } from '@/services/rooms/api';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
