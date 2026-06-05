@@ -289,14 +289,20 @@ export class MinutesService {
   ) {
     await this.assertRoomMember(roomId, userId);
 
-    // 1. 회의록 단건 조회 (User 테이블 include 및 해당 룸 검증)
+    // 1. 회의록 단건 조회 (author 는 노출 필드만 select — accessToken 등 민감컬럼 미조회)
     const minutes = await prisma.minutes.findFirst({
       where: {
         id: minutesId,
         roomId,
       },
       include: {
-        author: true,
+        author: {
+          select: {
+            id: true,
+            githubUsername: true,
+            avatarUrl: true,
+          },
+        },
       },
     });
 
