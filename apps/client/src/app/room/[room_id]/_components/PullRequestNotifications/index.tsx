@@ -8,59 +8,6 @@ import PullRequestModal, {
   type PullRequestModalData,
 } from './PullRequestModal';
 
-const TEMP_PULL_REQUESTS = [
-  {
-    id: 142,
-    title: '채팅 이모지 반응 UI 수정',
-    updatedAt: '10분 전',
-    author: '지윤',
-    additions: 128,
-    deletions: 42,
-    url: 'https://github.com/team/todak-with-me/pull/142',
-    reviewKind: 'mine',
-  },
-  {
-    id: 138,
-    title: '웹소켓 자동 재연결 로직 개선',
-    updatedAt: '1시간 전',
-    author: '민호',
-    additions: 86,
-    deletions: 19,
-    url: 'https://github.com/team/todak-with-me/pull/138',
-    reviewKind: 'team',
-  },
-  {
-    id: 135,
-    title: '메인 대시보드 마일스톤 위젯 추가',
-    updatedAt: '3시간 전',
-    author: '수아',
-    additions: 214,
-    deletions: 73,
-    url: 'https://github.com/team/todak-with-me/pull/135',
-    reviewKind: 'team',
-  },
-  {
-    id: 129,
-    title: '회의실 입장 상태 동기화 패치',
-    updatedAt: '어제',
-    author: '현우',
-    additions: 57,
-    deletions: 11,
-    url: 'https://github.com/team/todak-with-me/pull/129',
-    reviewKind: 'mine',
-  },
-  {
-    id: 124,
-    title: '투두 카드 담당자 라벨 정렬',
-    updatedAt: '2일 전',
-    author: '수정',
-    additions: 33,
-    deletions: 8,
-    url: 'https://github.com/team/todak-with-me/pull/124',
-    reviewKind: 'team',
-  },
-] as const;
-
 interface PullRequestNotificationsProps {
   className?: string;
   pullRequests?: readonly PullRequestModalData[];
@@ -68,7 +15,7 @@ interface PullRequestNotificationsProps {
 
 export default function PullRequestNotifications({
   className,
-  pullRequests = TEMP_PULL_REQUESTS,
+  pullRequests = [],
 }: PullRequestNotificationsProps) {
   const [selectedPullRequest, setSelectedPullRequest] =
     useState<PullRequestModalData | null>(null);
@@ -106,13 +53,19 @@ export default function PullRequestNotifications({
         </Card.Header>
 
         <Card.Content className="max-h-[116px] gap-1.5 overflow-y-auto px-3.5 pb-3.5 pt-0 pr-2">
-          {pullRequests.map(pullRequest => (
-            <PullRequestItem
-              key={`pull-request-notification-${pullRequest.id}`}
-              onSelect={setSelectedPullRequest}
-              pullRequest={pullRequest}
-            />
-          ))}
+          {pullRequests.length > 0 ? (
+            pullRequests.map(pullRequest => (
+              <PullRequestItem
+                key={`pull-request-notification-${pullRequest.id}`}
+                onSelect={setSelectedPullRequest}
+                pullRequest={pullRequest}
+              />
+            ))
+          ) : (
+            <p className="rounded-md border border-slate-700/80 bg-slate-800/60 px-2.5 py-2 text-[10px] font-bold text-slate-400">
+              표시할 PR이 없습니다.
+            </p>
+          )}
         </Card.Content>
       </Card>
 
