@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { AnimalAssetPack } from '../_animals/types';
 import { CHAR_WIDTH, CHAR_HEIGHT } from './createPlayer';
-import { RoomProfile } from '@/sevice/rooms/api';
+import { RoomProfile } from '@/services/rooms/api';
 
 export interface RemotePlayer {
   container: PIXI.Container;
