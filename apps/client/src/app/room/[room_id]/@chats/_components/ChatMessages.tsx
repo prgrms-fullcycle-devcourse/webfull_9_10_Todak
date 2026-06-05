@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { TabType } from '../page';
+import { useChatHistory } from '../_hooks/useChatHistory';
 
 interface Reaction {
   emoji: string;
@@ -20,42 +21,47 @@ interface Message {
   reactions?: Reaction[];
 }
 
+interface ChatMessagesProps {
+  tab: TabType;
+  roomId: string;
+}
+
 // 목업 데이터
-const MOCK_ALL: Message[] = [
-  {
-    id: '1',
-    user: {
-      github_username: 'jiyun-dev',
-      avatar_url: '🐱',
-    },
-    content: '민호님, 오늘 새로운 피그마 안 보셨으면 확인 부탁드려요!',
-    type: 'text',
-    created_at: '2026-05-18T16:10:00Z',
-    reactions: [{ emoji: '👍', count: 2 }],
-  },
-  {
-    id: '2',
-    user: {
-      github_username: 'minho-dev',
-      avatar_url: '🐶',
-    },
-    content: '아, 라운지 소파 쪽에 계시네요. 확인해 보겠습니다!',
-    type: 'text',
-    created_at: '2026-05-18T16:11:00Z',
-    reactions: [{ emoji: '🔥', count: 1 }],
-  },
-  {
-    id: '3',
-    user: {
-      github_username: 'sooah-dev',
-      avatar_url: '🦊',
-    },
-    content: '다들 쾌적한 가상 공간에 모여있으니 소통하기 훨씬 편하네요. ☕',
-    type: 'text',
-    created_at: '2026-05-18T16:12:00Z',
-    reactions: [{ emoji: '❤️', count: 3 }],
-  },
-];
+// const MOCK_ALL: Message[] = [
+//   {
+//     id: '1',
+//     user: {
+//       github_username: 'jiyun-dev',
+//       avatar_url: '🐱',
+//     },
+//     content: '민호님, 오늘 새로운 피그마 안 보셨으면 확인 부탁드려요!',
+//     type: 'text',
+//     created_at: '2026-05-18T16:10:00Z',
+//     reactions: [{ emoji: '👍', count: 2 }],
+//   },
+//   {
+//     id: '2',
+//     user: {
+//       github_username: 'minho-dev',
+//       avatar_url: '🐶',
+//     },
+//     content: '아, 라운지 소파 쪽에 계시네요. 확인해 보겠습니다!',
+//     type: 'text',
+//     created_at: '2026-05-18T16:11:00Z',
+//     reactions: [{ emoji: '🔥', count: 1 }],
+//   },
+//   {
+//     id: '3',
+//     user: {
+//       github_username: 'sooah-dev',
+//       avatar_url: '🦊',
+//     },
+//     content: '다들 쾌적한 가상 공간에 모여있으니 소통하기 훨씬 편하네요. ☕',
+//     type: 'text',
+//     created_at: '2026-05-18T16:12:00Z',
+//     reactions: [{ emoji: '❤️', count: 3 }],
+//   },
+// ];
 
 const MOCK_PRIVATE: Message[] = [
   {
@@ -227,9 +233,10 @@ function MessageItem({ msg }: { msg: Message }) {
   );
 }
 
-export default function ChatMessages({ tab }: { tab: TabType }) {
+export default function ChatMessages({ tab, roomId }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const messages = tab === 'all' ? MOCK_ALL : MOCK_PRIVATE;
+  // const messages = tab === 'all' ? MOCK_ALL : MOCK_PRIVATE;
+  const { data: messages, isLoading } = useChatHistory(roomId);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -237,7 +244,16 @@ export default function ChatMessages({ tab }: { tab: TabType }) {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-      {messages.map(msg => (
+      {tab === 'private' && (
+        <div className="mb-3 flex justify-center">
+          <div className="flex items-center gap-1.5 rounded-full bg-slate-100/80 px-3 py-1 text-[11px] text-slate-500">
+            <span className="text-xs">🔒</span>
+            <span>프라이빗 채팅은 7일 후 자동 삭제됩니다</span>
+          </div>
+        </div>
+      )}
+
+      {messages?.map(msg => (
         <MessageItem key={msg.id} msg={msg} />
       ))}
       <div ref={bottomRef} />

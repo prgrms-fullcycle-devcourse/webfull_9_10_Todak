@@ -1,6 +1,6 @@
 import AuthRefreshOnMount from '@/app/_components/AuthRefreshOnMount';
 import { apiServer, isApiServerAuthError } from '@/lib/api.server';
-import type { MyRooms } from '@/sevice/rooms/model';
+import type { MyRooms } from '@/services/rooms/model';
 import {
   dehydrate,
   HydrationBoundary,

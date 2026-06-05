@@ -2,7 +2,7 @@ import * as PIXI from 'pixi.js';
 import type { AnimalAssetPack } from '../_animals/types';
 import { type Player, CHAR_HEIGHT } from './createPlayer';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
-import { enterPrivateRoom, leavePrivateRoom } from '@/sevice/rooms/api';
+import { enterPrivateRoom, leavePrivateRoom } from '@/services/rooms/api';
 import { getSocket } from '@/lib/socket';
 import { useSpaceStore } from '@/store/useSpaceStore';
 

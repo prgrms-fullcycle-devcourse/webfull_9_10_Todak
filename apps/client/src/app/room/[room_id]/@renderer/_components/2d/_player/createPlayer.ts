@@ -1,8 +1,8 @@
 import * as PIXI from 'pixi.js';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import type { AnimalAssetPack } from '../_animals/types';
-import { updateMemberStatus } from '@/sevice/rooms/api';
-import { MemberStatus } from '@/sevice/rooms/model';
+import { updateMemberStatus } from '@/services/rooms/api';
+import { MemberStatus } from '@/services/rooms/model';
 
 export const CHAR_WIDTH = 90;
 export const CHAR_HEIGHT = 120;

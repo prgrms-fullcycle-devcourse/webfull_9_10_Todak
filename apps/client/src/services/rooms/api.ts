@@ -1,5 +1,5 @@
 import { api, apiClient } from '@/lib/api';
-import { isTodakApiError } from '@/sevice/error';
+import { isTodakApiError } from '@/services/error';
 
 import type {
   CreatedRoom,
