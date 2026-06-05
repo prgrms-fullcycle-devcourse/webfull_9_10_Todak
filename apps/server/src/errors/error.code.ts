@@ -24,6 +24,11 @@ export const ERROR_CODES = {
     code: 'NOT_IN_PRIVATE_ROOM',
     message: '현재 입장 중인 프라이빗 룸이 아닙니다.',
   },
+  MINUTES_NO_CONTENT: {
+    statusCode: StatusCodes.BAD_REQUEST,
+    code: 'MINUTES_NO_CONTENT',
+    message: '다듬을 회의록 본문이 비어 있습니다.',
+  },
 
   // 401
   UNAUTHORIZED: {

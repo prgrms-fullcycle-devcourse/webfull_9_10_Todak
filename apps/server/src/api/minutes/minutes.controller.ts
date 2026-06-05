@@ -12,6 +12,8 @@ import {
   GetMinutesDetailParams,
   GetMinutesListParams,
   GetMinutesListQuery,
+  RefineMinutesBody,
+  RefineMinutesParams,
   UpdateMinutesBody,
   UpdateMinutesParams,
 } from './minutes.schema.js';
@@ -164,16 +166,21 @@ export class MinutesController {
     next: NextFunction,
   ) => {
     try {
-      /*
-       *   const { roomId, minutesId } = req.params;
-       *   const { prompt } = req.body;
-       */
+      const { roomId, minutesId } = req.params as RefineMinutesParams;
+      const body = req.body as RefineMinutesBody;
+      const userId = req.user!.id;
+
+      const result = await this.minutesService.refineMinutes(
+        roomId,
+        userId,
+        minutesId,
+        body,
+      );
 
       return res.status(200).json({
         success: true,
-        data: {
-          refined_content_md: 'AI 재생성 회의록',
-        },
+        message: 'AI가 요청사항을 반영하여 회의록을 성공적으로 다듬었습니다.',
+        data: result,
       });
     } catch (error) {
       next(error);
