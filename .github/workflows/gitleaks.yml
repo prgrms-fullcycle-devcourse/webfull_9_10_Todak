@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # 전체 git 히스토리를 스캔 (node_modules 등 추적되지 않는 파일은 자동 제외)
           fetch-depth: 0
