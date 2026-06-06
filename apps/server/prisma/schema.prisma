@@ -220,7 +220,8 @@ model Todo {
   assignee User?    @relation(fields: [assigneeId], references: [id])
   minutes  Minutes? @relation(fields: [minutesId], references: [id])
 
-  @@index([roomId, githubIssueNumber])
+  // 회의당 GitHub 이슈는 룸 내에서 유일 (웹훅 echo 경쟁 시 중복 Todo 생성 방지)
+  @@unique([roomId, githubIssueNumber])
   @@index([assigneeId])
   @@map("todo")
 }
