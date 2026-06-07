@@ -1,17 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Modal, Input, Select, ListBox, Button } from '@heroui/react';
+import { Modal, Input, Button } from '@heroui/react';
 import Image from 'next/image';
-import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'next/navigation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useParams, useRouter } from 'next/navigation';
 import {
   useSpaceStore,
   type AnimalType,
   type CharacterInfo,
 } from '@/store/useSpaceStore';
 import { type RoomProfile } from '@/services/rooms/model';
-import { fetchRoomMembers } from '@/services/rooms/api';
+import { fetchRoomMembers, updateRoomProfile } from '@/services/rooms/api';
 import ModalTodoTabs from './ModalTodoTabs';
 import {
   detailJobs,
@@ -98,27 +98,25 @@ export default function CharacterDetailModal() {
   return (
     <Modal isOpen={isCharacterModalOpen} onOpenChange={closeCharacterModal}>
       <Modal.Container>
-        {() => (
-          <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4">
-            <div className="absolute inset-0" onClick={closeCharacterModal} />
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4">
+          <div className="absolute inset-0" onClick={closeCharacterModal} />
 
-            <div className="relative z-10 bg-white rounded-[26px] border border-slate-100 shadow-xl max-w-115 w-full px-5 py-5 pointer-events-auto max-h-[95vh] overflow-y-auto">
-              <button
-                onClick={closeCharacterModal}
-                aria-label="모달 닫기"
-                className="absolute top-5 right-6 text-slate-400 hover:text-slate-600 text-sm font-bold transition-colors z-50"
-              >
-                ✕
-              </button>
+          <div className="relative z-10 bg-white rounded-[26px] border border-slate-100 shadow-xl max-w-115 w-full px-5 py-5 pointer-events-auto max-h-[95vh] overflow-y-auto">
+            <button
+              onClick={closeCharacterModal}
+              aria-label="모달 닫기"
+              className="absolute top-5 right-6 text-slate-400 hover:text-slate-600 text-sm font-bold transition-colors z-50"
+            >
+              ✕
+            </button>
 
-              <ModalFormContent
-                key={unifiedMember.id}
-                member={unifiedMember}
-                closeCharacterModal={closeCharacterModal}
-              />
-            </div>
+            <ModalFormContent
+              key={unifiedMember.id}
+              member={unifiedMember}
+              closeCharacterModal={closeCharacterModal}
+            />
           </div>
-        )}
+        </div>
       </Modal.Container>
     </Modal>
   );
@@ -134,6 +132,10 @@ function ModalFormContent({
   closeCharacterModal,
 }: ModalFormContentProps) {
   const { myChar, setMyChar } = useSpaceStore();
+  const { room_id: roomID } = useParams<{ room_id: string }>();
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
   const [isEditing, setIsEditing] = useState(false);
   const [editNickname, setEditNickname] = useState(member.nickname ?? '미지정');
   const [editAvatar, setEditAvatar] = useState<AnimalType>(
@@ -155,23 +157,61 @@ function ModalFormContent({
     String(member.id) === String(myChar.id) ||
     member.github_username === myChar.githubUsername;
 
+  const mutation = useMutation({
+    mutationFn: (body: {
+      character_type: string;
+      nickname: string;
+      roles: string[];
+      detailed_role: string | null;
+    }) => updateRoomProfile(roomID, body),
+    onSuccess: response => {
+      const profile =
+        response && 'data' in response
+          ? (response as { data: RoomProfile }).data
+          : (response as RoomProfile);
+
+      queryClient.invalidateQueries({ queryKey: ['room-members', roomID] });
+
+      router.refresh();
+
+      setMyChar({
+        name: profile.nickname ?? '미지정',
+        avatarId: profile.character_type as AnimalType,
+        roles: profile.roles ?? ['frontend'],
+        detailedRole: profile.detailed_role ?? 'Team Member',
+      });
+
+      setIsEditing(false);
+      closeCharacterModal();
+    },
+    onError: error => {
+      console.error('❌ 프로필 수정 통신 에러:', error);
+      alert('프로필 수정 중 오류가 발생했습니다.');
+    },
+  });
+
   const handleProfileSave = () => {
     if (!isMe) return;
-    setMyChar({
-      name: editNickname,
-      avatarId: editAvatar,
+
+    const profileUpdateBody = {
+      character_type: editAvatar,
+      nickname: editNickname.trim(),
       roles: [editRole],
-      detailedRole: editDetailedRole,
-    });
-    setIsEditing(false);
-    closeCharacterModal();
+      detailed_role:
+        editDetailedRole.trim() === 'Team Member' ||
+        editDetailedRole.trim() === ''
+          ? null
+          : editDetailedRole.trim(),
+    };
+
+    mutation.mutate(profileUpdateBody);
   };
 
   return (
     <>
       <Modal.Header className="pt-3 pb-3 px-0">
         <h3 className="text-[16px] font-black text-slate-800 flex items-center gap-1.5">
-          🪪 {editNickname}님의 상세 프로필
+          🪪 {member.nickname}님의 상세 프로필
         </h3>
       </Modal.Header>
 
@@ -249,136 +289,96 @@ function ModalFormContent({
                     <label className="text-[10px] font-black text-slate-400">
                       아바타
                     </label>
-                    <Select
-                      variant="primary"
-                      aria-label="아바타"
-                      placeholder="선택"
-                      className="w-full"
-                    >
-                      <Select.Trigger className="w-full bg-white border border-slate-200 rounded-xl h-10 px-3.5 flex items-center justify-between">
-                        <Select.Value>
-                          {AVATAR_MAP[editAvatar]?.label ?? '선택'}
-                        </Select.Value>
-                      </Select.Trigger>
-                      <Select.Popover>
-                        <ListBox
-                          selectionMode="single"
-                          selectedKeys={new Set([editAvatar])}
-                          onSelectionChange={keys => {
-                            const selectedKey = Array.from(
-                              keys,
-                            )[0] as AnimalType;
-                            if (selectedKey) setEditAvatar(selectedKey);
-                          }}
-                        >
-                          {Object.entries(AVATAR_MAP).map(([key, value]) => (
-                            <ListBox.Item
-                              key={key}
-                              id={key}
-                              textValue={value.label}
-                              className="text-xs font-bold"
-                            >
-                              {value.label}
-                            </ListBox.Item>
-                          ))}
-                        </ListBox>
-                      </Select.Popover>
-                    </Select>
+                    <div className="relative">
+                      <select
+                        id="modal-avatar"
+                        className="w-full h-10 appearance-none rounded-xl border border-slate-200 bg-white px-3.5 py-0 pr-10 text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-800"
+                        onChange={e =>
+                          setEditAvatar(e.target.value as AnimalType)
+                        }
+                        value={editAvatar}
+                      >
+                        {Object.entries(AVATAR_MAP).map(([key, value]) => (
+                          <option key={key} value={key}>
+                            {value.label}
+                          </option>
+                        ))}
+                      </select>
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500"
+                      >
+                        ˅
+                      </span>
+                    </div>
                   </div>
 
                   <div className="w-full flex flex-col gap-1">
                     <label className="text-[10px] font-black text-slate-400">
                       파트
                     </label>
-                    <Select
-                      variant="primary"
-                      aria-label="파트 소속"
-                      placeholder="선택"
-                      className="w-full"
-                    >
-                      <Select.Trigger className="w-full bg-white border border-slate-200 rounded-xl h-10 px-3.5 flex items-center justify-between">
-                        <Select.Value>
-                          {ROLE_OPTIONS.find(o => o.key === editRole)?.label ??
-                            '선택'}
-                        </Select.Value>
-                      </Select.Trigger>
-                      <Select.Popover>
-                        <ListBox
-                          selectionMode="single"
-                          selectedKeys={new Set([editRole])}
-                          onSelectionChange={keys => {
-                            const selectedKey = Array.from(keys)[0] as string;
-                            if (selectedKey) {
-                              setEditRole(selectedKey);
+                    <div className="relative">
+                      <select
+                        id="modal-role"
+                        className="w-full h-10 appearance-none rounded-xl border border-slate-200 bg-white px-3.5 py-0 pr-10 text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-800"
+                        onChange={e => {
+                          const selectedKey = e.target.value;
+                          setEditRole(selectedKey);
+                          const mappedPartKey = Object.keys(
+                            roleValueByPart,
+                          ).find(
+                            k =>
+                              roleValueByPart[
+                                k as keyof typeof roleValueByPart
+                              ] === selectedKey,
+                          ) as keyof typeof detailJobs | undefined;
 
-                              const mappedPartKey = Object.keys(
-                                roleValueByPart,
-                              ).find(
-                                key =>
-                                  roleValueByPart[
-                                    key as keyof typeof roleValueByPart
-                                  ] === selectedKey,
-                              ) as keyof typeof detailJobs | undefined;
-
-                              const defaultJob = mappedPartKey
-                                ? (detailJobs[mappedPartKey]?.[0] ?? '')
-                                : '';
-                              setEditDetailedRole(defaultJob);
-                            }
-                          }}
-                        >
-                          {ROLE_OPTIONS.map(opt => (
-                            <ListBox.Item
-                              key={opt.key}
-                              id={opt.key}
-                              textValue={opt.label}
-                              className="text-xs font-bold"
-                            >
-                              {opt.label}
-                            </ListBox.Item>
-                          ))}
-                        </ListBox>
-                      </Select.Popover>
-                    </Select>
+                          const defaultJob = mappedPartKey
+                            ? (detailJobs[mappedPartKey]?.[0] ?? '')
+                            : '';
+                          setEditDetailedRole(defaultJob);
+                        }}
+                        value={editRole}
+                      >
+                        {ROLE_OPTIONS.map(opt => (
+                          <option key={opt.key} value={opt.key}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500"
+                      >
+                        ˅
+                      </span>
+                    </div>
                   </div>
 
                   <div className="w-full flex flex-col gap-1">
                     <label className="text-[10px] font-black text-slate-400">
                       세부 직군
                     </label>
-                    <Select
-                      variant="primary"
-                      aria-label="상세 역할"
-                      placeholder="선택"
-                      className="w-full"
-                    >
-                      <Select.Trigger className="w-full bg-white border border-slate-200 rounded-xl h-10 px-3.5 flex items-center justify-between">
-                        <Select.Value>
-                          {editDetailedRole || '선택'}
-                        </Select.Value>
-                      </Select.Trigger>
-                      <Select.Popover>
-                        <ListBox
-                          selectionMode="single"
-                          selectedKeys={new Set([editDetailedRole])}
-                          onSelectionChange={keys => {
-                            const selectedKey = Array.from(keys)[0] as string;
-                            if (selectedKey) setEditDetailedRole(selectedKey);
-                          }}
-                        >
-                          {availableJobs.map(job => (
-                            <ListBox.Item
-                              key={job}
-                              id={job}
-                              textValue={job}
-                              className="text-xs font-bold"
-                            >
-                              {job}
-                            </ListBox.Item>
-                          ))}
-                        </ListBox>
-                      </Select.Popover>
-                    </Select>
+                    <div className="relative">
+                      <select
+                        id="modal-detail-job"
+                        className="w-full h-10 appearance-none rounded-xl border border-slate-200 bg-white px-3.5 py-0 pr-10 text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-800"
+                        onChange={e => setEditDetailedRole(e.target.value)}
+                        value={editDetailedRole}
+                      >
+                        {availableJobs.map(job => (
+                          <option key={job} value={job}>
+                            {job}
+                          </option>
+                        ))}
+                      </select>
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500"
+                      >
+                        ˅
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
