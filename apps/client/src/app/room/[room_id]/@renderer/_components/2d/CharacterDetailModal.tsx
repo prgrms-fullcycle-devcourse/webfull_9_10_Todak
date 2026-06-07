@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Modal, Input, Button } from '@heroui/react';
 import Image from 'next/image';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import {
   useSpaceStore,
@@ -45,7 +45,6 @@ interface RoomMembersResponse {
   member_count: number;
 }
 
-// 식별자 매핑 및 데이터 단일화 함수
 function getUnifiedMember(
   selected: CharacterInfo | RoomProfile,
   serverMembers: RoomProfile[],
@@ -56,13 +55,12 @@ function getUnifiedMember(
       ? selected.githubUsername
       : selected.github_username;
 
-  // 맴버 식별 객체
   const realMember = serverMembers.find(
     m => String(m.id) === targetId || m.github_username === targetGithub,
   );
 
   if (realMember) return realMember;
-  // 서버 데이터와 매칭되는 맴버가 아닐 경우, 클라이언트 데이터 반환
+
   if ('githubUsername' in selected) {
     return {
       id: selected.id,
@@ -97,27 +95,25 @@ export default function CharacterDetailModal() {
 
   return (
     <Modal isOpen={isCharacterModalOpen} onOpenChange={closeCharacterModal}>
-      <Modal.Container>
-        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4">
-          <div className="absolute inset-0" onClick={closeCharacterModal} />
+      <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4">
+        <div className="absolute inset-0" onClick={closeCharacterModal} />
 
-          <div className="relative z-10 bg-white rounded-[26px] border border-slate-100 shadow-xl max-w-115 w-full px-5 py-5 pointer-events-auto max-h-[95vh] overflow-y-auto">
-            <button
-              onClick={closeCharacterModal}
-              aria-label="모달 닫기"
-              className="absolute top-5 right-6 text-slate-400 hover:text-slate-600 text-sm font-bold transition-colors z-50"
-            >
-              ✕
-            </button>
+        <div className="relative bg-white rounded-[26px] border border-slate-100 shadow-xl max-w-115 w-full px-5 py-5 max-h-[95vh] overflow-y-auto pointer-events-auto mx-auto my-auto focus:outline-none z-10">
+          <button
+            onClick={closeCharacterModal}
+            aria-label="모달 닫기"
+            className="absolute top-5 right-6 text-slate-400 hover:text-slate-600 text-sm font-bold transition-colors z-50"
+          >
+            ✕
+          </button>
 
-            <ModalFormContent
-              key={unifiedMember.id}
-              member={unifiedMember}
-              closeCharacterModal={closeCharacterModal}
-            />
-          </div>
+          <ModalFormContent
+            key={unifiedMember.id}
+            member={unifiedMember}
+            closeCharacterModal={closeCharacterModal}
+          />
         </div>
-      </Modal.Container>
+      </div>
     </Modal>
   );
 }
@@ -147,6 +143,7 @@ function ModalFormContent({
   const [editDetailedRole, setEditDetailedRole] = useState(
     member.detailed_role ?? 'Team Member',
   );
+
   const currentPartKey = Object.keys(roleValueByPart).find(
     key => roleValueByPart[key as keyof typeof roleValueByPart] === editRole,
   ) as keyof typeof detailJobs | undefined;
@@ -243,7 +240,7 @@ function ModalFormContent({
                 <>
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-[15px] font-black text-slate-800 truncate">
-                      {editNickname}
+                      {member.nickname}
                     </span>
                     <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-slate-200/80 text-slate-600 shrink-0">
                       {isMe
@@ -266,7 +263,7 @@ function ModalFormContent({
                   <p className="text-[11px] font-bold text-slate-400 tracking-tight">
                     상세 역할:{' '}
                     <span className="text-slate-700 font-extrabold">
-                      {editDetailedRole}
+                      {member.detailed_role}
                     </span>
                   </p>
                 </>
@@ -286,7 +283,10 @@ function ModalFormContent({
                   </div>
 
                   <div className="w-full flex flex-col gap-1">
-                    <label className="text-[10px] font-black text-slate-400">
+                    <label
+                      className="text-[10px] font-black text-slate-400"
+                      htmlFor="modal-avatar"
+                    >
                       아바타
                     </label>
                     <div className="relative">
@@ -314,7 +314,10 @@ function ModalFormContent({
                   </div>
 
                   <div className="w-full flex flex-col gap-1">
-                    <label className="text-[10px] font-black text-slate-400">
+                    <label
+                      className="text-[10px] font-black text-slate-400"
+                      htmlFor="modal-role"
+                    >
                       파트
                     </label>
                     <div className="relative">
@@ -356,7 +359,10 @@ function ModalFormContent({
                   </div>
 
                   <div className="w-full flex flex-col gap-1">
-                    <label className="text-[10px] font-black text-slate-400">
+                    <label
+                      className="text-[10px] font-black text-slate-400"
+                      htmlFor="modal-detail-job"
+                    >
                       세부 직군
                     </label>
                     <div className="relative">
@@ -396,10 +402,11 @@ function ModalFormContent({
               </Button>
               <Button
                 size="sm"
-                className="bg-slate-900 text-white font-black text-[11px] rounded-lg px-3 h-7 shadow-sm hover:bg-slate-800"
+                isDisabled={mutation.isPending}
+                className="bg-slate-900 text-white font-black text-[11px] rounded-lg px-3 h-7 shadow-sm hover:bg-slate-800 disabled:opacity-50"
                 onPress={handleProfileSave}
               >
-                저장하기
+                {mutation.isPending ? '저장 중...' : '저장하기'}
               </Button>
             </div>
           )}
