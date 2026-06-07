@@ -18,7 +18,7 @@ export async function fetchMainRoomChats({
   const response = await api.get<ChatMessage[]>(
     `/rooms/${roomId}/chats?${params}`,
   );
-  console.log(response.data);
+  console.log(`메인룸 채팅 : ${response.data}`);
   return response.data;
 }
 
@@ -36,6 +36,6 @@ export async function fetchPrivateRoomChats({
   const response = await api.get<ChatMessage[]>(
     `/rooms/${roomId}/private-room/${privateRoomId}/chats?${params}`,
   );
-  console.log(response.data);
+  console.log(`프라이빗룸 채팅 : ${response.data}`);
   return response.data;
 }

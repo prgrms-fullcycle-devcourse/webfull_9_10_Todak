@@ -1,9 +1,14 @@
 import crypto from 'node:crypto';
 
 import { env } from '../config/env.js';
+import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
+import { redis } from '../lib/redis.js';
 import { getIO } from '../socket/index.js';
 import { TodoEventPayload } from '../socket/socket.types.js';
+
+// 같은 배달(X-GitHub-Delivery) 재처리 방지용 멱등 키 TTL (초)
+const WEBHOOK_DEDUP_TTL_SEC = 600;
 
 /*
  * GitHub Webhook payload 의 일부 필드만 사용하므로 필요한 형태만 정의한다.
@@ -138,21 +143,37 @@ async function handleIssuesEvent(
       return;
     }
 
-    const created = await prisma.todo.create({
-      data: {
-        roomId,
-        title: issue.title,
-        body: issue.body ?? null,
-        labels: normalizeLabels(issue.labels),
-        githubIssueNumber: issue.number,
-        isDone: false,
-      },
-    });
+    try {
+      const created = await prisma.todo.create({
+        data: {
+          roomId,
+          title: issue.title,
+          body: issue.body ?? null,
+          labels: normalizeLabels(issue.labels),
+          githubIssueNumber: issue.number,
+          isDone: false,
+        },
+      });
 
-    io.to(roomId).emit('todo:created', {
-      roomId,
-      todos: [toTodoPayload(created)],
-    });
+      io.to(roomId).emit('todo:created', {
+        roomId,
+        todos: [toTodoPayload(created)],
+      });
+    } catch (error) {
+      /*
+       * unique(roomId, githubIssueNumber) 위반(P2002) = 앱 생성과 echo 웹훅이
+       * 거의 동시에 들어와 이미 같은 이슈의 Todo가 만들어진 경우. 멱등하게 무시한다.
+       */
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        return;
+      }
+
+      throw error;
+    }
+
     return;
   }
 
@@ -248,42 +269,70 @@ function handlePushEvent(roomId: string, payload: PushEventPayload): void {
  */
 export async function handleGithubEvent(
   event: string | undefined,
+  deliveryId: string | undefined,
   payload: unknown,
 ): Promise<void> {
   if (event === undefined) {
     return;
   }
 
-  const { repository } = payload as { repository?: GithubRepository };
-  if (repository === undefined) {
-    return;
+  /*
+   * 멱등성: 같은 X-GitHub-Delivery 가 중복 배달돼도 한 번만 처리한다.
+   * SET NX 로 키를 선점하고, 처리 실패 시 키를 해제해 GitHub 재시도가 다시 처리하게 한다.
+   */
+  const dedupKey = deliveryId !== undefined ? `webhook:gh:${deliveryId}` : null;
+  if (dedupKey !== null) {
+    const acquired = await redis.set(
+      dedupKey,
+      '1',
+      'EX',
+      WEBHOOK_DEDUP_TTL_SEC,
+      'NX',
+    );
+    if (acquired === null) {
+      return;
+    }
   }
 
-  const fullName = `${repository.owner.login}/${repository.name}`;
-  const repo = await prisma.repo.findFirst({
-    where: { fullName },
-    select: { roomId: true },
-  });
+  try {
+    const { repository } = payload as { repository?: GithubRepository };
+    if (repository === undefined) {
+      return;
+    }
 
-  if (repo === null) {
-    return;
-  }
+    const fullName = `${repository.owner.login}/${repository.name}`;
+    const repo = await prisma.repo.findFirst({
+      where: { fullName },
+      select: { roomId: true },
+    });
 
-  const { roomId } = repo;
+    if (repo === null) {
+      return;
+    }
 
-  switch (event) {
-    case 'issues':
-      await handleIssuesEvent(roomId, payload as IssuesEventPayload);
-      break;
+    const { roomId } = repo;
 
-    case 'pull_request':
-      handlePullRequestEvent(roomId, payload as PullRequestEventPayload);
-      break;
+    switch (event) {
+      case 'issues':
+        await handleIssuesEvent(roomId, payload as IssuesEventPayload);
+        break;
 
-    case 'push':
-      handlePushEvent(roomId, payload as PushEventPayload);
-      break;
-    default:
-      break;
+      case 'pull_request':
+        handlePullRequestEvent(roomId, payload as PullRequestEventPayload);
+        break;
+
+      case 'push':
+        handlePushEvent(roomId, payload as PushEventPayload);
+        break;
+      default:
+        break;
+    }
+  } catch (error) {
+    // 처리 실패 시 멱등 키를 해제해 GitHub 재시도가 다시 처리하도록 한다.
+    if (dedupKey !== null) {
+      await redis.del(dedupKey).catch(() => {});
+    }
+
+    throw error;
   }
 }

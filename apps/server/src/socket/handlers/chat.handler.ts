@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { AppError } from '../../errors/AppError.js';
+import { consumeRateLimit } from '../../middleware/rateLimit.middleware.js';
 import { createChat } from '../../services/chat.service.js';
 import { toggleReaction } from '../../services/reaction.service.js';
 import {
@@ -8,6 +9,10 @@ import {
   TypedIO,
   TypedSocket,
 } from '../socket.types.js';
+
+// chat:send 폭주 방지 — 유저당 10초에 10개 (초과 시 TOO_MANY_REQUESTS)
+const CHAT_RATE_LIMIT = 10;
+const CHAT_RATE_WINDOW_MS = 10_000;
 
 const ChatSendSchema = z.object({
   roomId: z.string().uuid(),
@@ -41,6 +46,16 @@ export function registerChatHandlers(io: TypedIO, socket: TypedSocket) {
     // 비정상 클라이언트가 ack 자리에 함수 아닌 값을 보내도 서버가 죽지 않도록 방어
     const safeAck = typeof ack === 'function' ? ack : undefined;
     try {
+      // 검증보다 먼저 체크 — 잘못된 메시지로 도배하는 경우도 함께 제한
+      const { allowed } = await consumeRateLimit(
+        `ratelimit:chat:${user.id}`,
+        CHAT_RATE_LIMIT,
+        CHAT_RATE_WINDOW_MS,
+      );
+      if (!allowed) {
+        throw new AppError('TOO_MANY_REQUESTS');
+      }
+
       const input = ChatSendSchema.parse(raw);
 
       const chat = await createChat(user.id, input);

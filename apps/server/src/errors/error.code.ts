@@ -24,6 +24,11 @@ export const ERROR_CODES = {
     code: 'NOT_IN_PRIVATE_ROOM',
     message: '현재 입장 중인 프라이빗 룸이 아닙니다.',
   },
+  MINUTES_NO_CONTENT: {
+    statusCode: StatusCodes.BAD_REQUEST,
+    code: 'MINUTES_NO_CONTENT',
+    message: '다듬을 회의록 본문이 비어 있습니다.',
+  },
 
   // 401
   UNAUTHORIZED: {
@@ -182,6 +187,13 @@ export const ERROR_CODES = {
     statusCode: StatusCodes.CONFLICT,
     code: 'MINUTES_ALREADY_EXISTS',
     message: '해당 회의에 대한 회의록이 이미 존재합니다.',
+  },
+
+  // 429
+  TOO_MANY_REQUESTS: {
+    statusCode: StatusCodes.TOO_MANY_REQUESTS,
+    code: 'TOO_MANY_REQUESTS',
+    message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
   },
 
   // 500

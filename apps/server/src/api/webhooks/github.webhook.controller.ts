@@ -25,9 +25,10 @@ export async function githubWebhookHandler(
     }
 
     const event = req.header('X-GitHub-Event');
+    const deliveryId = req.header('X-GitHub-Delivery');
     const payload = JSON.parse(rawBody.toString('utf8')) as unknown;
 
-    await handleGithubEvent(event, payload);
+    await handleGithubEvent(event, deliveryId, payload);
 
     return res.status(200).json({
       success: true,

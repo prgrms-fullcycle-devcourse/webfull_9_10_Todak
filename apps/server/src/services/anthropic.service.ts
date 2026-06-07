@@ -1,9 +1,49 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 import { env } from '../config/env.js';
+import { AppError } from '../errors/AppError.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 
 const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+
+/*
+ * 기존 회의록 본문을 지시문에 맞춰 재작성한다(동기).
+ * 전체 생성보다 가벼워 즉시 응답용으로 사용. 마크다운 본문만 반환.
+ */
+export async function refineMinutesContent(
+  contentMd: string,
+  instruction: string,
+): Promise<string> {
+  try {
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      system: `당신은 개발 팀의 회의록을 다듬는 전문 에디터입니다.
+        원본 회의록을 요구사항에 맞춰 재작성하되, 사실 관계와 핵심 결정사항/액션 아이템은 보존하세요.
+        설명·서론·코드펜스 없이 다듬어진 마크다운 본문만 반환하세요.`,
+      messages: [
+        {
+          role: 'user',
+          content: `[원본 회의록]\n${contentMd}\n\n[요구 사항]\n${instruction}`,
+        },
+      ],
+    });
+
+    const block = response.content[0];
+    if (block === undefined || block.type !== 'text') {
+      throw new AppError('AI_API_ERROR');
+    }
+
+    return block.text.trim();
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    console.error('❌ 회의록 AI 다듬기 실패:', error);
+    throw new AppError('AI_API_ERROR');
+  }
+}
 
 export async function reviewCode(
   code: string,

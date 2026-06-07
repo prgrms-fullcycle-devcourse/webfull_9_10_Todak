@@ -221,8 +221,13 @@ export async function closeIssue(
     });
   } catch (err) {
     if (err instanceof RequestError) {
+      /*
+       * 404 = 이슈/레포가 이미 없음. "닫기"의 목표 상태(이슈가 열려 있지 않음)는
+       * 이미 달성된 셈이므로 멱등하게 성공 처리한다. (unregisterWebhook 과 동일한 방침)
+       * 이렇게 하면 GitHub에서 이미 사라진 이슈를 가진 Todo도 삭제가 막히지 않는다.
+       */
       if (err.status === 404) {
-        throw new AppError('REPO_NOT_FOUND');
+        return;
       }
       throw new AppError('GITHUB_API_ERROR');
     }
