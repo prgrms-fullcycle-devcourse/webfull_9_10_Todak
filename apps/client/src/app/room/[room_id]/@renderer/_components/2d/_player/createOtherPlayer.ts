@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js';
 import type { AnimalAssetPack } from '../_animals/types';
 import { CHAR_WIDTH, CHAR_HEIGHT } from './createPlayer';
 import { RoomProfile } from '@/services/rooms/api';
+import { useSpaceStore } from '@/store/useSpaceStore';
 
 export interface RemotePlayer {
   container: PIXI.Container;
@@ -84,6 +85,15 @@ export function createOtherPlayer(
   nameText.anchor.set(0.5);
   nameText.y = 70;
   container.addChild(nameText);
+
+  container.eventMode = 'static';
+  container.cursor = 'pointer';
+
+  container.on('pointerdown', e => {
+    e.stopPropagation();
+
+    useSpaceStore.getState().openCharacterModal(member);
+  });
 
   return {
     container,

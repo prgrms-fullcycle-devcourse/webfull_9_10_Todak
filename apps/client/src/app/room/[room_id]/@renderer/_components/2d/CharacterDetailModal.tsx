@@ -127,7 +127,7 @@ function ModalFormContent({
   member,
   closeCharacterModal,
 }: ModalFormContentProps) {
-  const { myChar, setMyChar } = useSpaceStore();
+  const { myChar, setMyChar, members: storeMembers } = useSpaceStore();
   const { room_id: roomID } = useParams<{ room_id: string }>();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -153,6 +153,11 @@ function ModalFormContent({
   const isMe =
     String(member.id) === String(myChar.id) ||
     member.github_username === myChar.githubUsername;
+
+  const liveMember = storeMembers.find(m => String(m.id) === String(member.id));
+  const liveStatus = isMe
+    ? myChar.status
+    : (liveMember?.status ?? member.status);
 
   const mutation = useMutation({
     mutationFn: (body: {
@@ -243,9 +248,7 @@ function ModalFormContent({
                       {member.nickname}
                     </span>
                     <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-slate-200/80 text-slate-600 shrink-0">
-                      {isMe
-                        ? myChar.status
-                        : STATUS_MAP[member.status ?? ''] || member.status}
+                      {STATUS_MAP[liveStatus ?? ''] || liveStatus}
                     </span>
                   </div>
                   <p className="text-[11px] font-bold text-slate-400 tracking-tight">
