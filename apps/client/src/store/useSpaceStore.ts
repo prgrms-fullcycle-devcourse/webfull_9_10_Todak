@@ -11,6 +11,8 @@ export interface CharacterInfo {
   githubUsername: string;
   avatarId: AnimalType;
   status: string;
+  roles: string[];
+  detailedRole: string;
 }
 
 interface SpaceState {
@@ -27,6 +29,12 @@ interface SpaceState {
   setCurrentView: (view: ViewType) => void;
   setMenuOpen: (open: boolean) => void;
   setMenuPos: (x: number, y: number) => void;
+
+  // 캐릭터 모달 상태
+  isCharacterModalOpen: boolean;
+  selectedMember: RoomProfile | CharacterInfo | null;
+  openCharacterModal: (member: RoomProfile | CharacterInfo) => void;
+  closeCharacterModal: () => void;
 
   // 프라이빗 룸 전역 상태
   privateRooms: PrivateRoom[];
@@ -47,6 +55,8 @@ export const useSpaceStore = create<SpaceState>()(
       name: '로딩 중...',
       avatarId: 'rabbit',
       status: '🔥 집중',
+      roles: ['frontend'],
+      detailedRole: 'Frontend Developer',
     },
     currentAnimal: 'rabbit',
     setMyChar: info =>
@@ -57,6 +67,13 @@ export const useSpaceStore = create<SpaceState>()(
     currentView: '2d',
     isMenuOpen: false,
     menuPos: { x: 0, y: 0 },
+
+    isCharacterModalOpen: false,
+    selectedMember: null,
+    openCharacterModal: member =>
+      set({ isCharacterModalOpen: true, selectedMember: member }),
+    closeCharacterModal: () =>
+      set({ isCharacterModalOpen: false, selectedMember: null }),
 
     setMyStatus: status =>
       set(state => ({ myChar: { ...state.myChar, status } })),

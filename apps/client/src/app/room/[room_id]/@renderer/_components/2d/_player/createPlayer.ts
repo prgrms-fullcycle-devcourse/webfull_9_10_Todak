@@ -216,8 +216,8 @@ export function createPlayer(
   container.on('pointerdown', e => {
     e.stopPropagation();
 
-    // (추후 상세 모달 오픈 예정)
-    console.log('상세 프로필 모달 오픈!');
+    const currentMyChar = useSpaceStore.getState().myChar;
+    useSpaceStore.getState().openCharacterModal(currentMyChar);
 
     if (isExpanded) {
       isExpanded = false;
