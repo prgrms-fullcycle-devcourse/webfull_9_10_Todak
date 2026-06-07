@@ -12,6 +12,7 @@ import membersRoutes from './members/members.routes.js';
 import './private-room/private-room.swagger.js';
 import './chat/chat.swagger.js';
 import privateRoomRoutes from './private-room/private-room.routes.js';
+import './prs/prs.swagger.js';
 import prsRoutes from './prs/prs.routes.js';
 import {
   createRoomHandler,
