@@ -42,14 +42,14 @@ const avatars = [
 
 const parts = ['Frontend', 'Backend', 'Designer', 'PM'] as const;
 
-const roleValueByPart: Record<(typeof parts)[number], string> = {
+export const roleValueByPart: Record<(typeof parts)[number], string> = {
   Frontend: 'frontend',
   Backend: 'backend',
   Designer: 'design',
   PM: 'pm',
 };
 
-const detailJobs: Record<(typeof parts)[number], string[]> = {
+export const detailJobs: Record<(typeof parts)[number], string[]> = {
   Frontend: ['Frontend Developer', 'UI Engineer', 'Web Performance Engineer'],
   Backend: ['Backend Developer', 'API Engineer', 'Database Engineer'],
   Designer: ['Product Designer', 'UX Designer', 'Design System Designer'],
