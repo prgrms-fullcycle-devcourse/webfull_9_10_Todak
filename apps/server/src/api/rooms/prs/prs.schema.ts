@@ -31,6 +31,18 @@ export const GetPullRequestsQuerySchema = z.object({
 
 export type GetPullRequestsQuery = z.infer<typeof GetPullRequestsQuerySchema>;
 
+export const GetPullRequestDetailParamsSchema = z.object({
+  roomId: z.uuid(),
+  pullNumber: z.coerce.number().int().positive().openapi({
+    description: '조회할 PR 번호',
+    example: 42,
+  }),
+});
+
+export type GetPullRequestDetailParams = z.infer<
+  typeof GetPullRequestDetailParamsSchema
+>;
+
 export const PullRequestResponseSchema = registry.register(
   'PullRequest',
   z.object({
@@ -64,6 +76,55 @@ export const PullRequestResponseSchema = registry.register(
     labels: z
       .array(z.string())
       .openapi({ example: ['enhancement', 'backend'] }),
+    created_at: z.string().openapi({ example: '2026-05-31T00:00:00.000Z' }),
+    updated_at: z.string().openapi({ example: '2026-05-31T01:00:00.000Z' }),
+    merged_at: z.string().nullable().openapi({ example: null }),
+    html_url: z.string().openapi({
+      example: 'https://github.com/todak/web/pull/42',
+    }),
+  }),
+);
+
+// 단건 상세 (목록 필드 + pulls.get 전용 body/mergeable/changes)
+export const PullRequestDetailResponseSchema = registry.register(
+  'PullRequestDetail',
+  z.object({
+    number: z.number().openapi({ example: 42 }),
+    title: z.string().openapi({ example: 'feat: PR 목록 조회 API 추가' }),
+    state: z.string().openapi({ example: 'open' }),
+    is_draft: z.boolean().openapi({ example: false }),
+    is_merged: z.boolean().openapi({ example: false }),
+    body: z.string().nullable().openapi({ example: '## 작업 내용\n- ...' }),
+    mergeable: z.boolean().nullable().openapi({ example: true }),
+    author: z
+      .object({
+        github_username: z.string().openapi({ example: 'tkdgh7063' }),
+        avatar_url: z.string().nullable().openapi({
+          example: 'https://avatars.githubusercontent.com/u/1?v=4',
+        }),
+      })
+      .nullable(),
+    branch: z.object({
+      head: z.string().openapi({ example: 'feature/prs-api' }),
+      base: z.string().openapi({ example: 'develop' }),
+    }),
+    assignees: z.array(
+      z.object({
+        github_username: z.string().openapi({ example: 'tkdgh7063' }),
+        avatar_url: z.string().nullable().openapi({
+          example: 'https://avatars.githubusercontent.com/u/1?v=4',
+        }),
+      }),
+    ),
+    labels: z
+      .array(z.string())
+      .openapi({ example: ['enhancement', 'backend'] }),
+    changes: z.object({
+      additions: z.number().openapi({ example: 120 }),
+      deletions: z.number().openapi({ example: 30 }),
+      changed_files: z.number().openapi({ example: 8 }),
+      commits: z.number().openapi({ example: 5 }),
+    }),
     created_at: z.string().openapi({ example: '2026-05-31T00:00:00.000Z' }),
     updated_at: z.string().openapi({ example: '2026-05-31T01:00:00.000Z' }),
     merged_at: z.string().nullable().openapi({ example: null }),
