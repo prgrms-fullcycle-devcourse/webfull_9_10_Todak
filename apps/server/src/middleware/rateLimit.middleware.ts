@@ -1,7 +1,9 @@
+import type { Request } from 'express';
 import rateLimit from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
 
 import { redis } from '../lib/redis.js';
+import type { AuthenticatedRequest } from '../types/index.js';
 
 export const strictLimiter = rateLimit({
   store: new RedisStore({
@@ -22,6 +24,52 @@ export const strictLimiter = rateLimit({
     });
   },
 });
+
+/*
+ * ── AI 회의록 API 일일 호출 상한 (비용 방어) ──────────────────────────
+ * 외부 유료 API(Claude) 호출이라 남용 시 비용이 커진다. 사용자(user.id) 단위로
+ * 하루 호출 횟수를 제한한다. 비용/사용 패턴에 따라 아래 상수만 조정하면 된다.
+ */
+const AI_GENERATE_DAILY_LIMIT = 20; // AI 회의록 생성: 1인당 하루 최대 호출
+const AI_REFINE_DAILY_LIMIT = 50; // AI 회의록 다듬기: 1인당 하루 최대 호출
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+// 요청자(user.id) 단위로 제한 (requireAuth 뒤라 user.id 가 항상 존재)
+const userKeyGenerator = (req: Request): string =>
+  (req as AuthenticatedRequest).user?.id ?? 'unauthenticated';
+
+function createAiDailyLimiter(prefix: string, max: number) {
+  return rateLimit({
+    store: new RedisStore({
+      sendCommand: (...args: string[]): Promise<RedisReply> =>
+        redis.call(args[0], ...args.slice(1)) as Promise<RedisReply>,
+      prefix,
+    }),
+    windowMs: ONE_DAY_MS,
+    max,
+    keyGenerator: userKeyGenerator,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req, res) => {
+      res.status(429).json({
+        success: false,
+        error:
+          'AI 회의록 요청 한도를 초과했습니다. 잠시 후(최대 24시간) 다시 시도해주세요.',
+        code: 'TOO_MANY_REQUESTS',
+      });
+    },
+  });
+}
+
+export const aiGenerateLimiter = createAiDailyLimiter(
+  'ratelimit:ai-generate:',
+  AI_GENERATE_DAILY_LIMIT,
+);
+
+export const aiRefineLimiter = createAiDailyLimiter(
+  'ratelimit:ai-refine:',
+  AI_REFINE_DAILY_LIMIT,
+);
 
 /*
  * socket 이벤트용 rate limit.

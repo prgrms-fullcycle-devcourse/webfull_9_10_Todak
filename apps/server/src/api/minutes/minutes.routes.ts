@@ -1,6 +1,10 @@
 import { Router } from 'express';
 
 import { requireAuth } from '../../middleware/auth.middleware.js';
+import {
+  aiGenerateLimiter,
+  aiRefineLimiter,
+} from '../../middleware/rateLimit.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 
 import { MinutesController } from './minutes.controller.js';
@@ -32,6 +36,7 @@ router
  */
 router.post(
   '/generate',
+  aiGenerateLimiter,
   validate(MinutesSchema.commonParams, 'params'),
   validate(MinutesSchema.generateAiMinutesBody, 'body'),
   controller.generateAiMinutes,
@@ -57,6 +62,7 @@ router
  */
 router.post(
   '/:minutesId/ai-refine',
+  aiRefineLimiter,
   validate(MinutesSchema.detailParams, 'params'),
   validate(MinutesSchema.refineMinutesBody, 'body'),
   controller.refineMinutesWithAI,
