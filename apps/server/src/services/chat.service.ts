@@ -134,18 +134,23 @@ export async function getMainRoomChats(
   roomId: string,
   { before, limit }: ChatsQuery,
 ): Promise<ChatPayload[]> {
-  await assertRoomMember(roomId, userId);
-
-  const rows = await prisma.chatMessage.findMany({
-    where: {
-      roomId,
-      privateRoomId: null,
-      ...(before !== undefined && { createdAt: { lt: new Date(before) } }),
-    },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    include: includeChat,
-  });
+  /*
+   * 멤버 검증과 메시지 조회는 서로 독립적이라 병렬로 쏜다.
+   * 비멤버면 assertRoomMember 가 throw → Promise.all 거부, findMany 결과는 버려진다.
+   */
+  const [, rows] = await Promise.all([
+    assertRoomMember(roomId, userId),
+    prisma.chatMessage.findMany({
+      where: {
+        roomId,
+        privateRoomId: null,
+        ...(before !== undefined && { createdAt: { lt: new Date(before) } }),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: includeChat,
+    }),
+  ]);
 
   return rows.map(row => toPayload(row, userId));
 }
@@ -160,19 +165,25 @@ export async function getPrivateRoomChats(
   privateRoomId: string,
   { before, limit }: ChatsQuery,
 ): Promise<ChatPayload[]> {
-  await assertRoomMember(roomId, userId);
-  await assertPrivateRoomBelongsToRoom(roomId, privateRoomId);
-
-  const rows = await prisma.chatMessage.findMany({
-    where: {
-      roomId,
-      privateRoomId,
-      ...(before !== undefined && { createdAt: { lt: new Date(before) } }),
-    },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    include: includeChat,
-  });
+  /*
+   * 두 검증과 메시지 조회는 서로 독립적이라 병렬로 쏜다.
+   * 검증 중 하나라도 실패하면 Promise.all 이 거부되고 findMany 결과는 버려진다.
+   * (둘 다 실패 시 표면화되는 에러는 먼저 끝난 쪽 — 모두 not-found 류라 무방)
+   */
+  const [, , rows] = await Promise.all([
+    assertRoomMember(roomId, userId),
+    assertPrivateRoomBelongsToRoom(roomId, privateRoomId),
+    prisma.chatMessage.findMany({
+      where: {
+        roomId,
+        privateRoomId,
+        ...(before !== undefined && { createdAt: { lt: new Date(before) } }),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: includeChat,
+    }),
+  ]);
 
   return rows.map(row => toPayload(row, userId));
 }

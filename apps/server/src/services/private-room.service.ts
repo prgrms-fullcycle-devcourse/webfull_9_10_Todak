@@ -35,39 +35,43 @@ export interface LeavePrivateRoomResult {
 export async function getPrivateRooms(
   roomId: string,
 ): Promise<PrivateRoomInfo[]> {
-  // 룸 존재 여부 확인
-  const room = await prisma.room.findUnique({
-    where: { id: roomId },
-    select: { id: true },
-  });
+  /*
+   * 룸 존재 확인과 프라이빗 룸 조회는 독립적이라(둘 다 roomId 만 사용) 병렬로 쏜다.
+   * 룸이 없으면 findMany 결과는 버리고 동일하게 NOT_FOUND 를 던진다.
+   */
+  const [room, privateRooms] = await Promise.all([
+    prisma.room.findUnique({
+      where: { id: roomId },
+      select: { id: true },
+    }),
+    prisma.privateRoom.findMany({
+      where: { roomId },
+      orderBy: { createdAt: 'asc' },
+      take: 2,
+      include: {
+        sessions: {
+          where: { leftAt: null },
+          include: {
+            user: {
+              select: {
+                id: true,
+                githubUsername: true,
+              },
+            },
+          },
+          orderBy: { enteredAt: 'asc' },
+        },
+        meetings: {
+          where: { status: 'ongoing' },
+          select: { id: true },
+        },
+      },
+    }),
+  ]);
 
   if (room === null) {
     throw new AppError('NOT_FOUND');
   }
-
-  const privateRooms = await prisma.privateRoom.findMany({
-    where: { roomId },
-    orderBy: { createdAt: 'asc' },
-    take: 2,
-    include: {
-      sessions: {
-        where: { leftAt: null },
-        include: {
-          user: {
-            select: {
-              id: true,
-              githubUsername: true,
-            },
-          },
-        },
-        orderBy: { enteredAt: 'asc' },
-      },
-      meetings: {
-        where: { status: 'ongoing' },
-        select: { id: true },
-      },
-    },
-  });
 
   return privateRooms.map(privateRoom => ({
     id: privateRoom.id,
