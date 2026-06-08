@@ -1,4 +1,5 @@
 import ChatOpenButton from './@chats/_components/ChatOpenButton';
+import SidebarContainer from './_components/SidebarContainer';
 
 export default function RoomLayout({
   children,
@@ -8,7 +9,7 @@ export default function RoomLayout({
 }: LayoutProps<'/room/[room_id]'>) {
   return (
     <div className="room-layout-container">
-      <aside className="sidebar-container">{sidebar}</aside>
+      <SidebarContainer>{sidebar}</SidebarContainer>
 
       <main className="room-main-container">
         <input
