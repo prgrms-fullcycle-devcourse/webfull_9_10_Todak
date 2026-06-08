@@ -49,7 +49,9 @@ export default function ProjectHub({ userID }: ProjectHubProps) {
             PROJECT HUB
           </p>
           <Card.Title className="todak-title text-[21px] leading-tight sm:text-[23px]">
-            프로젝트 시작하기
+            {selectedTab === 'teams' && '프로젝트 들어가기'}
+            {selectedTab === 'create' && '프로젝트 시작하기'}
+            {selectedTab === 'invite' && '프로젝트 참여하기'}
           </Card.Title>
           <Card.Description className="todak-subcopy text-[10px] font-bold sm:text-[11px]">
             새 프로젝트를 만들거나, 기존 팀을 선택하거나, 초대 코드로
@@ -85,8 +87,8 @@ export default function ProjectHub({ userID }: ProjectHubProps) {
                 key={`team-selection-tabs-panel-${option.id}`}
                 id={option.id}
               >
-                {option.id === 'create' && <CreateTab userID={userID} />}
                 {option.id === 'teams' && <ExistingTeamsTab userID={userID} />}
+                {option.id === 'create' && <CreateTab userID={userID} />}
                 {option.id === 'invite' && <InviteTab userID={userID} />}
               </Tabs.Panel>
             ))}
