@@ -27,6 +27,8 @@ interface IssuesEventPayload {
     body?: string | null;
     state: string;
     labels?: Array<{ name: string } | string>;
+    assignee?: { login: string } | null;
+    assignees?: Array<{ login: string }>;
   };
   repository: GithubRepository;
 }
@@ -121,6 +123,27 @@ function normalizeLabels(
 }
 
 /*
+ * GitHub 이슈의 담당자(login)를 해당 룸 멤버 User 로 매핑한다.
+ * 담당자가 없거나 룸 멤버가 아니면 null (외부 협업자 등).
+ */
+async function resolveAssigneeId(
+  roomId: string,
+  issue: IssuesEventPayload['issue'],
+): Promise<string | null> {
+  const login = issue.assignees?.[0]?.login ?? issue.assignee?.login ?? null;
+  if (login === null) {
+    return null;
+  }
+
+  const member = await prisma.roomMember.findFirst({
+    where: { roomId, user: { githubUsername: login } },
+    select: { userId: true },
+  });
+
+  return member?.userId ?? null;
+}
+
+/*
  * issues 이벤트 처리.
  * - opened: 매칭 Todo 없으면 신규 생성(앱 외부에서 만든 이슈도 보드에 반영).
  *   이미 있으면 우리 앱이 만든 이슈의 echo 이므로 무시(중복 방지).
@@ -143,10 +166,14 @@ async function handleIssuesEvent(
       return;
     }
 
+    // GitHub 이슈의 담당자를 룸 멤버로 매핑해 Todo 에 반영
+    const assigneeId = await resolveAssigneeId(roomId, issue);
+
     try {
       const created = await prisma.todo.create({
         data: {
           roomId,
+          assigneeId,
           title: issue.title,
           body: issue.body ?? null,
           labels: normalizeLabels(issue.labels),
