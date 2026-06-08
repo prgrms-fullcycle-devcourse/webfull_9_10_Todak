@@ -74,27 +74,6 @@ export default function PullRequestModal({
               </div>
 
               <section className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
-                <p className="text-[11px] font-black uppercase tracking-normal text-slate-400">
-                  PR Summary
-                </p>
-                <p className="text-xs leading-relaxed text-slate-600">
-                  <strong className="text-slate-800">
-                    {pullRequest.branch.head}
-                  </strong>
-                  {'\uC5D0\uC11C '}
-                  <strong className="text-slate-800">
-                    {pullRequest.branch.base}
-                  </strong>
-                  {'\uB85C \uBCD1\uD569\uD558\uB294 PR\uC785\uB2C8\uB2E4. '}
-                  <span className="font-bold text-todak-coral-500">
-                    {statusText}
-                  </span>
-                  {' \uC0C1\uD0DC\uC774\uBA70, '}
-                  {pullRequest.updatedAt}
-                  {
-                    '\uC5D0 \uC5C5\uB370\uC774\uD2B8\uB418\uC5C8\uC2B5\uB2C8\uB2E4.'
-                  }
-                </p>
                 <div className="grid gap-2 text-[11px] font-bold text-slate-500 sm:grid-cols-2">
                   <div className="rounded-md bg-slate-50 px-2.5 py-2">
                     <span className="block text-slate-400">
