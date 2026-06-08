@@ -31,31 +31,33 @@ export function setupMovement(
   let lastSentX = player.container.x;
   let lastSentY = player.container.y;
 
-  const ticker = () => {
+  const ticker = (t: PIXI.Ticker) => {
     const textures = getTextures();
     const { container, sprite, baseScaleX } = player;
     let isMoving = false;
     const walkFrame = Math.floor(Date.now() / 150) % 2;
 
+    const moveStep = SPEED * t.deltaTime;
+
     if (keys['ArrowUp']) {
-      container.y -= SPEED;
+      container.y -= moveStep;
       sprite.texture = textures.back;
       sprite.scale.x = baseScaleX;
       isMoving = true;
     } else if (keys['ArrowDown']) {
-      container.y += SPEED;
+      container.y += moveStep;
       sprite.texture = textures.front;
       sprite.scale.x = baseScaleX;
       isMoving = true;
     }
 
     if (keys['ArrowLeft']) {
-      container.x -= SPEED;
+      container.x -= moveStep;
       sprite.texture = textures.walk[walkFrame];
       sprite.scale.x = baseScaleX;
       isMoving = true;
     } else if (keys['ArrowRight']) {
-      container.x += SPEED;
+      container.x += moveStep;
       sprite.texture = textures.walk[walkFrame];
       sprite.scale.x = -baseScaleX;
       isMoving = true;
