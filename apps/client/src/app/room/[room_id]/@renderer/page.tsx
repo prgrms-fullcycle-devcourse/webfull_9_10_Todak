@@ -4,6 +4,7 @@ import { use } from 'react';
 import { useInitRooms } from './_hooks/useInitRooms';
 import RendererView from './_components/meeting/RendererView';
 import BottomInfoContainer from '../_components/BottomInfoContainer';
+import PullRequestNotifications from '../_components/PullRequestNotifications';
 import CharacterDetailModal from './_components/2d/CharacterDetailModal';
 
 export default function RendererPage({
@@ -25,6 +26,7 @@ export default function RendererPage({
   return (
     <div className="renderer-container h-full w-full flex flex-col">
       <RendererView roomId={room_id} />
+      <PullRequestNotifications />
       <BottomInfoContainer />
       <CharacterDetailModal />
     </div>
