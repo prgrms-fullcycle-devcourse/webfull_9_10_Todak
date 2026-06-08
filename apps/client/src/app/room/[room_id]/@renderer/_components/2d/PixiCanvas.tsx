@@ -27,6 +27,8 @@ import {
   RoomProfile,
 } from '@/services/rooms/api';
 import { useQueryClient } from '@tanstack/react-query';
+import { loadMascotNpcAssets } from '../2d/_npcs/npcAssets';
+import { createMascotNpc } from '../2d/_npcs/createNpc';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -106,6 +108,13 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       // store에서 동물 변경 시, 변수만 변경하면 ticker 자동 반영
       let activeTextures = animalAssets[currentType] ?? animalAssets.rabbit;
+
+      const mascotTextures = await loadMascotNpcAssets();
+
+      // NPC 배치 생성
+      const helperNpc = createMascotNpc(mascotTextures, 1500, 500, '토닥이');
+      helperNpc.zIndex = 8;
+      world.addChild(helperNpc);
 
       // 회의실 입장 시 화면을 어둡게 하는 오버레이
       const darkOverlay = new PIXI.Graphics();
