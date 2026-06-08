@@ -294,3 +294,51 @@ export async function listPullRequests(
     throw err;
   }
 }
+
+export async function mergePullRequest(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  mergeMethod: 'merge' | 'squash' | 'rebase' = 'squash',
+  commitTitle?: string,
+  commitMessage?: string,
+): Promise<{ merged: boolean; sha: string }> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.pulls.merge({
+      owner,
+      repo,
+      pull_number: pullNumber,
+      merge_method: mergeMethod,
+      commit_title: commitTitle,
+      commit_message: commitMessage,
+    });
+
+    return { merged: data.merged, sha: data.sha };
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 403) {
+        throw new AppError('FORBIDDEN');
+      }
+
+      if (err.status === 404) {
+        throw new AppError('PR_NOT_FOUND');
+      }
+
+      // 405 = 머지 불가(드래프트/체크 미통과/이미 닫힘 등)
+      if (err.status === 405) {
+        throw new AppError('PR_NOT_MERGEABLE');
+      }
+
+      // 409 = 충돌 또는 HEAD SHA 불일치
+      if (err.status === 409) {
+        throw new AppError('PR_MERGE_CONFLICT');
+      }
+
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
+}

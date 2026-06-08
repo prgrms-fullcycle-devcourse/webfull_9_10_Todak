@@ -1,8 +1,15 @@
-import type { GetPullRequestsQuery } from '../api/rooms/prs/prs.schema.js';
+import type {
+  GetPullRequestsQuery,
+  MergePullRequestBody,
+} from '../api/rooms/prs/prs.schema.js';
 import { AppError } from '../errors/AppError.js';
 import { prisma } from '../lib/prisma.js';
 
-import { getPullRequest, listPullRequests } from './github.service.js';
+import {
+  getPullRequest,
+  listPullRequests,
+  mergePullRequest as mergePullRequestOnGithub,
+} from './github.service.js';
 
 // 룸(프로젝트) 레포의 PR 목록 조회
 export async function getPullRequests(
@@ -195,5 +202,59 @@ export async function getPullRequestDetail(
     updated_at: pr.updated_at,
     merged_at: pr.merged_at,
     html_url: pr.html_url,
+  };
+}
+
+// 룸(프로젝트) 레포의 PR 머지
+export async function mergePullRequest(
+  userId: string,
+  roomId: string,
+  pullNumber: number,
+  body: MergePullRequestBody,
+) {
+  const [membership, room, user] = await Promise.all([
+    prisma.roomMember.findFirst({ where: { roomId, userId } }),
+    prisma.room.findUnique({
+      where: { id: roomId },
+      include: { repos: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { accessToken: true },
+    }),
+  ]);
+
+  if (membership === null) {
+    throw new AppError('ROOM_MEMBER_NOT_FOUND');
+  }
+
+  if (room === null) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  const repo = room.repos[0] ?? null;
+  if (repo === null) {
+    throw new AppError('ROOM_REPO_NOT_FOUND');
+  }
+
+  if (user?.accessToken === null || user?.accessToken === undefined) {
+    throw new AppError('GITHUB_SCOPE_REQUIRED');
+  }
+
+  const [owner, repoName] = repo.fullName.split('/');
+  const result = await mergePullRequestOnGithub(
+    user.accessToken,
+    owner,
+    repoName,
+    pullNumber,
+    body.merge_method,
+    body.commit_title,
+    body.commit_message,
+  );
+
+  return {
+    merged: result.merged,
+    pull_number: pullNumber,
+    merge_commit_sha: result.sha,
   };
 }

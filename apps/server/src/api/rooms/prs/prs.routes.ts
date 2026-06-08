@@ -6,10 +6,12 @@ import { validate } from '../../../middleware/validate.middleware.js';
 import {
   getPullRequestDetailHandler,
   getPullRequestsHandler,
+  mergePullRequestHandler,
 } from './prs.controller.js';
 import {
   GetPullRequestDetailParamsSchema,
   GetPullRequestsQuerySchema,
+  MergePullRequestBodySchema,
 } from './prs.schema.js';
 
 const router = Router({ mergeParams: true });
@@ -26,6 +28,13 @@ router.get(
   '/:pullNumber',
   validate(GetPullRequestDetailParamsSchema, 'params'),
   getPullRequestDetailHandler,
+);
+
+router.put(
+  '/:pullNumber/merge',
+  validate(GetPullRequestDetailParamsSchema, 'params'),
+  validate(MergePullRequestBodySchema, 'body'),
+  mergePullRequestHandler,
 );
 
 export default router;
