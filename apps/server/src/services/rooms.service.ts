@@ -80,6 +80,7 @@ export async function createRoom(
         data: {
           roomId: newRoom.id,
           userId,
+          isHost: true, // 룸 생성자를 방장으로 지정
           ...SPAWN_POS,
         },
       });
@@ -220,6 +221,11 @@ export async function updateRoom(
     throw new AppError('ROOM_NOT_FOUND');
   }
 
+  // 룸 정보 수정은 방장만 가능
+  if (!membership.isHost) {
+    throw new AppError('FORBIDDEN');
+  }
+
   if (
     input.max_members !== undefined &&
     input.max_members < membership.room.members.length
@@ -284,6 +290,11 @@ export async function deleteRoom(
 
   if (membership === null) {
     throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  // 룸 삭제는 방장만 가능
+  if (!membership.isHost) {
+    throw new AppError('FORBIDDEN');
   }
 
   const linkedRepo = membership.room.repos[0] ?? null;
