@@ -27,8 +27,11 @@ export interface LeavePrivateRoomResult {
   meeting_cancelled: boolean;
 }
 
+// 한 룸이 가질 수 있는 프라이빗 룸 최대 개수
+const PRIVATE_ROOMS_PER_ROOM = 2;
+
 /**
- * 해당 룸(:roomId)에 속한 private-room 2개의 정보와
+ * 해당 룸(:roomId)에 속한 private-room 정보와
  * 현재 입장 중인 참여자 목록을 반환합니다.
  * (leftAt === null → 현재 입장 중)
  */
@@ -47,7 +50,7 @@ export async function getPrivateRooms(
     prisma.privateRoom.findMany({
       where: { roomId },
       orderBy: { createdAt: 'asc' },
-      take: 2,
+      take: PRIVATE_ROOMS_PER_ROOM,
       include: {
         sessions: {
           where: { leftAt: null },
