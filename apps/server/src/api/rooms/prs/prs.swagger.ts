@@ -3,12 +3,14 @@ import { z } from 'zod';
 import { registry } from '../../../schema/openapi.js';
 
 import {
+  CreatePullRequestReviewBodySchema,
   GetPullRequestDetailParamsSchema,
   GetPullRequestsQuerySchema,
   MergePullRequestBodySchema,
   MergePullRequestResponseSchema,
   PullRequestDetailResponseSchema,
   PullRequestResponseSchema,
+  PullRequestReviewResponseSchema,
 } from './prs.schema.js';
 
 const errorResponse = (description: string, code: string, message: string) => ({
@@ -197,6 +199,70 @@ registry.registerPath({
       '충돌 또는 HEAD 변경',
       'PR_MERGE_CONFLICT',
       '충돌 또는 HEAD 변경으로 머지에 실패했습니다.',
+    ),
+    502: errorResponse(
+      'GitHub API 오류',
+      'GITHUB_API_ERROR',
+      'GitHub API 오류가 발생했습니다.',
+    ),
+  },
+});
+
+// ─── POST /rooms/:roomId/prs/:pullNumber/reviews ───────────────────────────
+registry.registerPath({
+  method: 'post',
+  path: '/rooms/{roomId}/prs/{pullNumber}/reviews',
+  tags: ['PRs'],
+  summary: 'PR 리뷰 생성 (승인/변경요청/코멘트)',
+  description:
+    '룸 레포지토리의 특정 PR 에 리뷰를 등록합니다. event 로 승인(APPROVE, 기본)·' +
+    '변경요청(REQUEST_CHANGES)·코멘트(COMMENT)를 구분하며, APPROVE 외에는 body 가 필수입니다. ' +
+    'GitHub 에 실제 쓰기 작업이며 룸 멤버만 호출 가능합니다.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: GetPullRequestDetailParamsSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: CreatePullRequestReviewBodySchema,
+          example: { event: 'APPROVE', body: 'LGTM 👍' },
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'PR 리뷰 등록 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            message: z.string(),
+            data: PullRequestReviewResponseSchema,
+          }),
+        },
+      },
+    },
+    400: errorResponse(
+      '요청 형식이 올바르지 않음(예: COMMENT/REQUEST_CHANGES인데 body 누락)',
+      'BAD_REQUEST',
+      '요청 형식이 올바르지 않습니다.',
+    ),
+    401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
+    403: errorResponse(
+      '권한 없음(GitHub 토큰/쓰기 권한)',
+      'FORBIDDEN',
+      '접근 권한이 없습니다.',
+    ),
+    404: errorResponse(
+      'PR/룸/멤버/레포를 찾을 수 없음',
+      'PR_NOT_FOUND',
+      'Pull Request를 찾을 수 없습니다.',
+    ),
+    422: errorResponse(
+      '리뷰 등록 불가(본인 PR 승인 등)',
+      'PR_REVIEW_NOT_ALLOWED',
+      '리뷰를 등록할 수 없습니다. (본인 PR 승인 불가 등)',
     ),
     502: errorResponse(
       'GitHub API 오류',
