@@ -1,4 +1,5 @@
 import type {
+  CreatePullRequestReviewBody,
   GetPullRequestsQuery,
   MergePullRequestBody,
 } from '../api/rooms/prs/prs.schema.js';
@@ -6,6 +7,7 @@ import { AppError } from '../errors/AppError.js';
 import { prisma } from '../lib/prisma.js';
 
 import {
+  createPullRequestReview as createPullRequestReviewOnGithub,
   getPullRequest,
   listPullRequests,
   mergePullRequest as mergePullRequestOnGithub,
@@ -256,5 +258,59 @@ export async function mergePullRequest(
     merged: result.merged,
     pull_number: pullNumber,
     merge_commit_sha: result.sha,
+  };
+}
+
+// 룸(프로젝트) 레포의 PR 리뷰 생성 (승인/변경요청/코멘트)
+export async function createPullRequestReview(
+  userId: string,
+  roomId: string,
+  pullNumber: number,
+  body: CreatePullRequestReviewBody,
+) {
+  const [membership, room, user] = await Promise.all([
+    prisma.roomMember.findFirst({ where: { roomId, userId } }),
+    prisma.room.findUnique({
+      where: { id: roomId },
+      include: { repos: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { accessToken: true },
+    }),
+  ]);
+
+  if (membership === null) {
+    throw new AppError('ROOM_MEMBER_NOT_FOUND');
+  }
+
+  if (room === null) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  const repo = room.repos[0] ?? null;
+  if (repo === null) {
+    throw new AppError('ROOM_REPO_NOT_FOUND');
+  }
+
+  if (user?.accessToken === null || user?.accessToken === undefined) {
+    throw new AppError('GITHUB_SCOPE_REQUIRED');
+  }
+
+  const [owner, repoName] = repo.fullName.split('/');
+  const result = await createPullRequestReviewOnGithub(
+    user.accessToken,
+    owner,
+    repoName,
+    pullNumber,
+    body.event,
+    body.body,
+  );
+
+  return {
+    pull_number: pullNumber,
+    review_id: result.id,
+    state: result.state,
+    submitted_at: result.submittedAt,
   };
 }
