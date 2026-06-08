@@ -5,7 +5,7 @@ import {
   assertInPrivateRoomSession,
   assertPrivateRoomBelongsToRoom,
   assertRoomMember,
-} from './chat.service.js';
+} from './room-guards.js';
 
 export interface ToggleReactionResult {
   messageId: string;

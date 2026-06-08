@@ -1,5 +1,10 @@
-import { AppError } from '../errors/AppError.js';
 import { prisma } from '../lib/prisma.js';
+
+import {
+  assertInPrivateRoomSession,
+  assertPrivateRoomBelongsToRoom,
+  assertRoomMember,
+} from './room-guards.js';
 
 export interface ReactionSummary {
   emoji: string;
@@ -81,48 +86,6 @@ function toPayload(row: ChatRow, currentUserId: string): ChatPayload {
     created_at: row.createdAt.toISOString(),
     reactions: aggregateReactions(row.reactions, currentUserId),
   };
-}
-
-export async function assertRoomMember(
-  roomId: string,
-  userId: string,
-): Promise<void> {
-  const membership = await prisma.roomMember.findFirst({
-    where: { roomId, userId },
-    select: { id: true },
-  });
-
-  if (membership === null) {
-    throw new AppError('ROOM_NOT_FOUND');
-  }
-}
-
-export async function assertPrivateRoomBelongsToRoom(
-  roomId: string,
-  privateRoomId: string,
-): Promise<void> {
-  const privateRoom = await prisma.privateRoom.findUnique({
-    where: { id: privateRoomId },
-    select: { roomId: true },
-  });
-
-  if (privateRoom === null || privateRoom.roomId !== roomId) {
-    throw new AppError('PRIVATE_ROOM_NOT_FOUND');
-  }
-}
-
-export async function assertInPrivateRoomSession(
-  privateRoomId: string,
-  userId: string,
-): Promise<void> {
-  const active = await prisma.privateRoomSession.findFirst({
-    where: { privateRoomId, userId, leftAt: null },
-    select: { id: true },
-  });
-
-  if (active === null) {
-    throw new AppError('NOT_IN_PRIVATE_ROOM');
-  }
 }
 
 /*

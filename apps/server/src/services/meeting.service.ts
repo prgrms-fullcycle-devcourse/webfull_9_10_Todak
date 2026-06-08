@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import {
   assertPrivateRoomBelongsToRoom,
   assertRoomMember,
-} from './chat.service.js';
+} from './room-guards.js';
 
 export interface MeetingChat {
   id: string;
