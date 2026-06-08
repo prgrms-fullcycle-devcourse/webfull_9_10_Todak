@@ -242,13 +242,24 @@ export async function getPullRequest(
   pullNumber: number,
 ) {
   const octokit = createGithubClient(accessToken);
-  const { data } = await octokit.pulls.get({
-    owner,
-    repo,
-    pull_number: pullNumber,
-  });
 
-  return data;
+  try {
+    const { data } = await octokit.pulls.get({
+      owner,
+      repo,
+      pull_number: pullNumber,
+    });
+
+    return data;
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 404) {
+        throw new AppError('PR_NOT_FOUND');
+      }
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
 }
 
 export async function listPullRequests(
