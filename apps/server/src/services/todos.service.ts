@@ -3,6 +3,7 @@ import type {
   GetTodosQuery,
 } from '../api/rooms/todos/todos.schema.js';
 import { AppError } from '../errors/AppError.js';
+import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
 
 import { closeIssue, createIssue } from './github.service.js';
@@ -115,22 +116,57 @@ export async function createTodos(
       createdIssueNumbers.push(issueNumber);
     }
 
-    // 6. 모든 Todo를 단일 트랜잭션으로 저장 (전부 성공 또는 전부 롤백)
-    const createdTodos = await prisma.$transaction(
-      todos.map((todo, index) =>
-        prisma.todo.create({
-          data: {
-            roomId,
-            assigneeId: todo.assignee_id ?? null,
-            minutesId: todo.minutes_id ?? null,
-            title: todo.title,
-            body: todo.body ?? null,
-            labels: todo.labels,
-            githubIssueNumber: issueNumberByIndex.get(index) ?? null,
-          },
-        }),
-      ),
-    );
+    /*
+     * 6. Todo 저장(항목별). echo 웹훅이 먼저 같은 이슈의 Todo 를 만들어
+     *    unique(roomId, githubIssueNumber) 위반(P2002)이 나는 레이스에서는,
+     *    실패·이슈 close 대신 그 Todo 를 앱의 값으로 보강(화해)해 일관되게 처리한다.
+     *    (레이스 화해를 위해 단일 트랜잭션 대신 항목별로 처리)
+     */
+    const createdTodos: Array<Awaited<ReturnType<typeof prisma.todo.create>>> =
+      [];
+
+    for (const [index, todo] of todos.entries()) {
+      const data = {
+        roomId,
+        assigneeId: todo.assignee_id ?? null,
+        minutesId: todo.minutes_id ?? null,
+        title: todo.title,
+        body: todo.body ?? null,
+        labels: todo.labels,
+        githubIssueNumber: issueNumberByIndex.get(index) ?? null,
+      };
+
+      try {
+        createdTodos.push(await prisma.todo.create({ data }));
+      } catch (createError) {
+        if (
+          createError instanceof Prisma.PrismaClientKnownRequestError &&
+          createError.code === 'P2002' &&
+          data.githubIssueNumber !== null
+        ) {
+          // 웹훅 echo 가 이미 같은 이슈의 Todo 를 생성함 → 앱 값으로 보강(화해)
+          createdTodos.push(
+            await prisma.todo.update({
+              where: {
+                roomId_githubIssueNumber: {
+                  roomId,
+                  githubIssueNumber: data.githubIssueNumber,
+                },
+              },
+              data: {
+                assigneeId: data.assigneeId,
+                minutesId: data.minutesId,
+                title: data.title,
+                body: data.body,
+                labels: data.labels,
+              },
+            }),
+          );
+        } else {
+          throw createError;
+        }
+      }
+    }
 
     return createdTodos.map(created => ({
       id: created.id,

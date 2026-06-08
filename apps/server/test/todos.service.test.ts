@@ -18,6 +18,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { Prisma } from '@/generated/prisma/client/index.js';
 import { prisma } from '@/lib/prisma.js';
 import { closeIssue, createIssue } from '@/services/github.service.js';
 import { createTodos, deleteTodo, getTodos } from '@/services/todos.service.js';
@@ -30,15 +31,15 @@ vi.mock('@/lib/prisma.js', () => ({
     user: { findUnique: vi.fn(), findMany: vi.fn() },
     todo: {
       create: vi.fn(),
+      update: vi.fn(),
       findMany: vi.fn(),
       findFirst: vi.fn(),
       delete: vi.fn(),
     },
     /*
-     * createTodos 는 모든 Todo 를 단일 트랜잭션으로 저장한다.
-     * prisma.$transaction(배열 형태)은 "넘긴 prisma 작업들을 한 번에 실행하고
-     * 결과 배열을 돌려주는" 동작이므로, 테스트에선 Promise.all 로 흉내낸다.
-     * (배열 안의 prisma.todo.create 들은 이미 mockResolvedValue 로 값이 주입돼 있음)
+     * (레거시) createTodos 는 과거 단일 트랜잭션으로 저장했으나, echo 웹훅 레이스 화해를
+     * 위해 현재는 항목별 create/update(P2002 시 보강)로 처리한다.
+     * $transaction 모킹은 호환용으로 남겨둔다.
      */
     $transaction: vi.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   },
@@ -203,6 +204,55 @@ describe('createTodos', () => {
         data: expect.objectContaining({ githubIssueNumber: 42 }),
       }),
     );
+    expect(result[0].github_issue_number).toBe(42);
+  });
+
+  it('레이스(P2002): 웹훅이 만든 Todo 를 update 로 보강(화해)한다', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.room.findUnique.mockResolvedValue({
+      id: ROOM_ID,
+      repos: [{ fullName: 'jiyun/todak' }],
+    });
+    db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
+    db.user.findMany.mockResolvedValue([
+      { id: 'assignee-1', githubUsername: 'jiyun-dev' },
+    ]);
+    vi.mocked(createIssue).mockResolvedValue(42);
+
+    // 앱 todo.create 가 unique 위반(P2002) → echo 웹훅이 이미 같은 이슈의 Todo 를 만든 상황
+    const p2002 = new Prisma.PrismaClientKnownRequestError('unique', {
+      code: 'P2002',
+      clientVersion: 'test',
+    });
+    db.todo.create.mockRejectedValue(p2002);
+    db.todo.update.mockResolvedValue({
+      id: TODO_ID,
+      roomId: ROOM_ID,
+      title: '인증 리팩토링',
+      body: '본문',
+      labels: ['backend'],
+      assigneeId: 'assignee-1',
+      minutesId: null,
+      githubIssueNumber: 42,
+      isDone: false,
+      createdAt: new Date('2026-05-18T14:02:00.000Z'),
+    });
+
+    const result = await createTodos(USER_ID, ROOM_ID, {
+      todos: [{ ...baseTodo, create_issue: true, assignee_id: 'assignee-1' }],
+    });
+
+    // unique(roomId, githubIssueNumber) 키로 기존 Todo 를 앱 값으로 보강
+    expect(db.todo.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          roomId_githubIssueNumber: { roomId: ROOM_ID, githubIssueNumber: 42 },
+        },
+        data: expect.objectContaining({ assigneeId: 'assignee-1' }),
+      }),
+    );
+    // 실패·이슈 close 없이 일관 처리
+    expect(closeIssue).not.toHaveBeenCalled();
     expect(result[0].github_issue_number).toBe(42);
   });
 });

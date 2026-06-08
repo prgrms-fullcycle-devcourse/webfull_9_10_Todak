@@ -34,7 +34,12 @@ export async function deleteGithubRepo(userId: string, repoId: string) {
     throw new AppError('ROOM_MEMBER_NOT_FOUND');
   }
 
-  // 3. 유저의 GitHub 액세스 토큰 조회
+  // 3. 레포는 룸당 1개이며 삭제 시 룸 전체에 영향을 주는 민감 작업 → 방장만 가능
+  if (!membership.isHost) {
+    throw new AppError('FORBIDDEN');
+  }
+
+  // 4. 유저의 GitHub 액세스 토큰 조회
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { accessToken: true },
@@ -43,11 +48,11 @@ export async function deleteGithubRepo(userId: string, repoId: string) {
     throw new AppError('GITHUB_SCOPE_REQUIRED');
   }
 
-  // 4. GitHub 레포지토리 삭제
+  // 5. GitHub 레포지토리 삭제
   const [owner, repoName] = repo.fullName.split('/');
   await deleteRepo(user.accessToken, owner, repoName);
 
-  // 5. DB에서 레포 삭제
+  // 6. DB에서 레포 삭제
   await prisma.repo.delete({ where: { id: repoId } });
 
   return { roomId: repo.roomId };
