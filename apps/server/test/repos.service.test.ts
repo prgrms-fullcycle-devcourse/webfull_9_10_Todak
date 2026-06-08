@@ -98,9 +98,19 @@ describe('deleteGithubRepo', () => {
     );
   });
 
+  it('방장이 아니면 FORBIDDEN', async () => {
+    db.repo.findUnique.mockResolvedValue({ id: REPO_ID, roomId: ROOM_ID });
+    // 멤버이긴 하지만 방장이 아님 → 레포 삭제 거부
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1', isHost: false });
+
+    await expectAppError(deleteGithubRepo(USER_ID, REPO_ID), 'FORBIDDEN');
+    // 권한이 없으면 GitHub 삭제까지 가면 안 됨
+    expect(deleteRepo).not.toHaveBeenCalled();
+  });
+
   it('유저의 GitHub 토큰이 없으면 GITHUB_SCOPE_REQUIRED', async () => {
     db.repo.findUnique.mockResolvedValue({ id: REPO_ID, roomId: ROOM_ID });
-    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1', isHost: true });
     db.user.findUnique.mockResolvedValue({ accessToken: null }); // 토큰 미동의
 
     await expectAppError(
@@ -117,7 +127,7 @@ describe('deleteGithubRepo', () => {
       roomId: ROOM_ID,
       fullName: 'jiyun/todak',
     });
-    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1', isHost: true });
     db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
     vi.mocked(deleteRepo).mockResolvedValue(undefined);
     db.repo.delete.mockResolvedValue({});

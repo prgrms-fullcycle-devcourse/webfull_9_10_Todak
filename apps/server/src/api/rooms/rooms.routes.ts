@@ -20,6 +20,7 @@ import {
   getRoomByIdHandler,
   getRoomsHandler,
   joinRoomHandler,
+  leaveRoomHandler,
   updateRoomHandler,
 } from './rooms.controller.js';
 import {
@@ -39,6 +40,7 @@ router.post('/join', strictLimiter, validate(JoinRoomSchema), joinRoomHandler);
 router.get('/:roomId', getRoomByIdHandler);
 router.patch('/:roomId', validate(UpdateRoomSchema), updateRoomHandler);
 router.delete('/:roomId', deleteRoomHandler);
+router.post('/:roomId/leave', leaveRoomHandler);
 router.use('/:roomId/members', membersRoutes);
 router.use('/:roomId/private-room', privateRoomRoutes);
 router.use('/:roomId/chats', chatRoutes);

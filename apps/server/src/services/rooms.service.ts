@@ -80,6 +80,7 @@ export async function createRoom(
         data: {
           roomId: newRoom.id,
           userId,
+          isHost: true, // 룸 생성자를 방장으로 지정
           ...SPAWN_POS,
         },
       });
@@ -220,6 +221,11 @@ export async function updateRoom(
     throw new AppError('ROOM_NOT_FOUND');
   }
 
+  // 룸 정보 수정은 방장만 가능
+  if (!membership.isHost) {
+    throw new AppError('FORBIDDEN');
+  }
+
   if (
     input.max_members !== undefined &&
     input.max_members < membership.room.members.length
@@ -269,7 +275,41 @@ export async function joinRoom(userId: string, input: JoinRoomInput) {
   return { room_id: room.id, name: room.name };
 }
 
-// 룸 삭제 — webhook 해제 후 관련 레코드 전체 삭제
+// 룸 완전 정리
+async function purgeRoom(
+  roomId: string,
+  accessToken: string,
+  linkedRepo: { fullName: string; webhookId: string | null } | null,
+) {
+  if (linkedRepo?.webhookId !== null && linkedRepo?.webhookId !== undefined) {
+    const [owner, repo] = linkedRepo.fullName.split('/');
+    try {
+      await unregisterWebhook(accessToken, owner, repo, linkedRepo.webhookId);
+    } catch {
+      // webhook 해제 실패해도(이미 GitHub에서 삭제된 경우 등) 룸 삭제는 계속 진행
+      console.error(`[purgeRoom] webhook 해제 실패: ${linkedRepo.fullName}`);
+    }
+  }
+
+  // 중간 실패 시 전체 롤백되도록 트랜잭션으로 묶어 일괄 삭제
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await tx.notification.deleteMany({ where: { roomId } });
+    await tx.todo.deleteMany({ where: { roomId } });
+    await tx.meetingParticipant.deleteMany({ where: { meeting: { roomId } } });
+    await tx.minutes.deleteMany({ where: { roomId } });
+    await tx.chatMessage.deleteMany({ where: { roomId } });
+    await tx.meeting.deleteMany({ where: { roomId } });
+    await tx.privateRoomSession.deleteMany({
+      where: { privateRoom: { roomId } },
+    });
+    await tx.privateRoom.deleteMany({ where: { roomId } });
+    await tx.roomMember.deleteMany({ where: { roomId } });
+    await tx.repo.deleteMany({ where: { roomId } });
+    await tx.room.delete({ where: { id: roomId } });
+  });
+}
+
+// 룸 삭제 => 방장만 가능, webhook 해제 후 관련 레코드 전체 삭제
 export async function deleteRoom(
   userId: string,
   roomId: string,
@@ -286,31 +326,64 @@ export async function deleteRoom(
     throw new AppError('ROOM_NOT_FOUND');
   }
 
-  const linkedRepo = membership.room.repos[0] ?? null;
-
-  if (linkedRepo?.webhookId !== null && linkedRepo?.webhookId !== undefined) {
-    const [owner, repo] = linkedRepo.fullName.split('/');
-    try {
-      await unregisterWebhook(accessToken, owner, repo, linkedRepo.webhookId);
-    } catch {
-      // webhook 해제 실패해도 룸 삭제는 계속 진행
-      console.error(`[deleteRoom] webhook 해제 실패: ${linkedRepo.fullName}`);
-    }
+  // 룸 삭제는 방장만 가능
+  if (!membership.isHost) {
+    throw new AppError('FORBIDDEN');
   }
 
-  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    await tx.notification.deleteMany({ where: { roomId } });
-    await tx.todo.deleteMany({ where: { roomId } });
-    await tx.meetingParticipant.deleteMany({ where: { meeting: { roomId } } });
-    await tx.minutes.deleteMany({ where: { roomId } });
-    await tx.chatMessage.deleteMany({ where: { roomId } });
-    await tx.meeting.deleteMany({ where: { roomId } });
-    await tx.privateRoomSession.deleteMany({
-      where: { privateRoom: { roomId } },
-    });
-    await tx.privateRoom.deleteMany({ where: { roomId } });
-    await tx.roomMember.deleteMany({ where: { roomId } });
-    await tx.repo.deleteMany({ where: { roomId } });
-    await tx.room.delete({ where: { id: roomId } });
+  const linkedRepo = membership.room.repos[0] ?? null;
+  await purgeRoom(roomId, accessToken, linkedRepo);
+}
+
+// 룸 탈퇴 => 누구나 가능
+export async function leaveRoom(
+  userId: string,
+  roomId: string,
+  accessToken: string,
+) {
+  const membership = await prisma.roomMember.findFirst({
+    where: { roomId, userId },
+    include: {
+      room: {
+        include: {
+          repos: true,
+          members: { orderBy: { joinedAt: 'asc' } },
+        },
+      },
+    },
   });
+
+  if (membership === null) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  const { members } = membership.room;
+
+  // 내가 마지막 멤버 => 룸 자체를 삭제
+  if (members.length <= 1) {
+    const linkedRepo = membership.room.repos[0] ?? null;
+    await purgeRoom(roomId, accessToken, linkedRepo);
+    return { left: true, room_deleted: true, new_host_user_id: null };
+  }
+
+  // 남은 멤버가 있는 경우 => (방장이면) 위임 후 내 멤버십만 제거
+  let newHostUserId: string | null = null;
+
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    if (membership.isHost) {
+      // joinedAt 오름차순이므로 나를 제외한 첫 멤버 = 다음으로 가입한 멤버
+      const nextHost = members.find(m => m.userId !== userId);
+      if (nextHost !== undefined) {
+        await tx.roomMember.update({
+          where: { id: nextHost.id },
+          data: { isHost: true },
+        });
+        newHostUserId = nextHost.userId;
+      }
+    }
+
+    await tx.roomMember.delete({ where: { id: membership.id } });
+  });
+
+  return { left: true, room_deleted: false, new_host_user_id: newHostUserId };
 }
