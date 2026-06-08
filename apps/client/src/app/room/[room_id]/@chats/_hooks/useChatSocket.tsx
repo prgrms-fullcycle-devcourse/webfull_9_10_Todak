@@ -1,0 +1,94 @@
+import { useEffect, useCallback } from 'react';
+import { getSocket } from '@/lib/socket';
+import { getAuthToken } from '@/lib/auth';
+import { ChatMessage, ChatReactionEvent } from '@/services/chats/model';
+
+interface UseChatSocketParams {
+  roomId: string;
+  privateRoomId?: string | null;
+  onMessage: (message: ChatMessage) => void;
+  onReaction: (reaction: ChatReactionEvent) => void;
+}
+
+export function useChatSocket({
+  roomId,
+  privateRoomId,
+  onMessage,
+  onReaction,
+}: UseChatSocketParams) {
+  const sendMessage = useCallback(
+    (content: string) => {
+      const socket = getSocket();
+      socket.emit(
+        'chat:send',
+        {
+          roomId,
+          content,
+          ...(privateRoomId ? { privateRoomId } : {}),
+        },
+        (ack: { ok: boolean; code?: string; message?: string }) => {
+          if (!ack.ok) {
+            console.error('메시지 전송 실패:', ack.code, ack.message);
+          }
+        },
+      );
+    },
+    [roomId, privateRoomId],
+  );
+
+  const sendReaction = useCallback(
+    (messageId: string, emoji: string) => {
+      const socket = getSocket();
+      socket.emit(
+        'chat:react',
+        {
+          roomId,
+          messageId,
+          emoji,
+          ...(privateRoomId ? { privateRoomId } : {}),
+        },
+        (ack: { ok: boolean; code?: string; message?: string }) => {
+          if (!ack.ok) {
+            console.error('리액션 실패:', ack.code, ack.message);
+          }
+        },
+      );
+    },
+    [roomId, privateRoomId],
+  );
+
+  useEffect(() => {
+    const token = getAuthToken();
+    const socket = getSocket(token ?? undefined);
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const handleMessage = (message: ChatMessage) => {
+      if (privateRoomId) {
+        if (message.private_room_id === privateRoomId) {
+          onMessage(message);
+        }
+      } else {
+        if (!message.private_room_id) {
+          onMessage(message);
+        }
+      }
+    };
+
+    const handleReaction = (reaction: ChatReactionEvent) => {
+      onReaction(reaction);
+    };
+
+    socket.on('chat:message', handleMessage);
+    socket.on('chat:reaction', handleReaction);
+
+    return () => {
+      socket.off('chat:message', handleMessage);
+      socket.off('chat:reaction', handleReaction);
+    };
+  }, [roomId, privateRoomId, onMessage, onReaction]);
+
+  return { sendMessage, sendReaction };
+}
