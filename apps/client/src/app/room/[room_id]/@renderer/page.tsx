@@ -5,6 +5,7 @@ import { useInitRooms } from './_hooks/useInitRooms';
 import RendererView from './_components/meeting/RendererView';
 import BottomInfoContainer from '../_components/BottomInfoContainer';
 import PullRequestNotifications from '../_components/PullRequestNotifications';
+import CharacterDetailModal from './_components/2d/CharacterDetailModal';
 
 export default function RendererPage({
   params,
@@ -27,6 +28,7 @@ export default function RendererPage({
       <RendererView roomId={room_id} />
       <PullRequestNotifications />
       <BottomInfoContainer />
+      <CharacterDetailModal />
     </div>
   );
 }
