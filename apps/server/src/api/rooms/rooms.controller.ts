@@ -7,6 +7,7 @@ import {
   getRoomById,
   getRooms,
   joinRoom,
+  leaveRoom,
   updateRoom,
 } from '../../services/rooms.service.js';
 import { getIO } from '../../socket/index.js';
@@ -157,6 +158,47 @@ export async function deleteRoomHandler(
     await deleteRoom(userId, roomId, accessToken);
 
     res.status(200).json({ success: true, message: '룸이 삭제되었습니다.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// 룸 탈퇴
+export async function leaveRoomHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const userId = req.user?.id;
+    if (userId === undefined) {
+      throw new AppError('UNAUTHORIZED');
+    }
+    // 마지막 멤버 탈퇴 시 webhook 해제에 필요. 없으면 빈 문자열로 위임(해제 실패는 무시됨)
+    const accessToken = req.user?.githubAccessToken ?? '';
+
+    const { roomId } = req.params as { roomId: string };
+    const result = await leaveRoom(userId, roomId, accessToken);
+
+    // 룸이 남아 있는 경우에만 잔류 멤버에게 브로드캐스트(방장 위임 포함)
+    if (!result.room_deleted) {
+      getIO().to(roomId).emit('room:member-left', {
+        roomId,
+        userId,
+        newHostUserId: result.new_host_user_id,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: result.room_deleted
+        ? '룸에서 나갔습니다. 마지막 멤버였기 때문에 룸이 삭제되었습니다.'
+        : '룸에서 나갔습니다.',
+      data: {
+        room_deleted: result.room_deleted,
+        new_host_user_id: result.new_host_user_id,
+      },
+    });
   } catch (err) {
     next(err);
   }

@@ -33,6 +33,7 @@ import {
   getRoomById,
   getRooms,
   joinRoom,
+  leaveRoom,
   updateRoom,
 } from '@/services/rooms.service.js';
 
@@ -54,6 +55,8 @@ vi.mock('@/lib/prisma.js', () => ({
       findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
       deleteMany: vi.fn(),
     },
     privateRoom: { createMany: vi.fn(), deleteMany: vi.fn() },
@@ -470,5 +473,110 @@ describe('deleteRoom', () => {
     await deleteRoom(USER_ID, ROOM_ID, ACCESS_TOKEN);
 
     expect(db.room.delete).toHaveBeenCalledWith({ where: { id: ROOM_ID } });
+  });
+});
+
+describe('leaveRoom', () => {
+  it('멤버가 아니면 ROOM_NOT_FOUND', async () => {
+    db.roomMember.findFirst.mockResolvedValue(null);
+
+    await expectAppError(
+      leaveRoom(USER_ID, ROOM_ID, ACCESS_TOKEN),
+      'ROOM_NOT_FOUND',
+    );
+  });
+
+  it('마지막 멤버가 나가면 룸을 통째로 삭제(webhook 해제 + 전체 삭제)', async () => {
+    db.roomMember.findFirst.mockResolvedValue({
+      id: 'rm-1',
+      userId: USER_ID,
+      isHost: true,
+      room: {
+        repos: [{ fullName: 'jiyun/todak', webhookId: 'webhook-1' }],
+        members: [{ id: 'rm-1', userId: USER_ID }], // 나 혼자
+      },
+    });
+    vi.mocked(unregisterWebhook).mockResolvedValue(undefined);
+
+    const result = await leaveRoom(USER_ID, ROOM_ID, ACCESS_TOKEN);
+
+    expect(unregisterWebhook).toHaveBeenCalledWith(
+      ACCESS_TOKEN,
+      'jiyun',
+      'todak',
+      'webhook-1',
+    );
+    expect(db.room.delete).toHaveBeenCalledWith({ where: { id: ROOM_ID } });
+    // 마지막 멤버 → 내 멤버십만 콕 집어 지우지 않고 deleteMany 로 일괄 삭제
+    expect(db.roomMember.delete).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      left: true,
+      room_deleted: true,
+      new_host_user_id: null,
+    });
+  });
+
+  it('방장이 나가면 다음으로 가입한 멤버에게 방장을 위임하고 내 멤버십만 삭제', async () => {
+    db.roomMember.findFirst.mockResolvedValue({
+      id: 'rm-1',
+      userId: USER_ID,
+      isHost: true,
+      room: {
+        repos: [],
+        // joinedAt 오름차순 — 방장(나) 다음이 user-2
+        members: [
+          { id: 'rm-1', userId: USER_ID },
+          { id: 'rm-2', userId: 'user-2' },
+          { id: 'rm-3', userId: 'user-3' },
+        ],
+      },
+    });
+
+    const result = await leaveRoom(USER_ID, ROOM_ID, ACCESS_TOKEN);
+
+    // 다음 가입자(rm-2)가 새 방장
+    expect(db.roomMember.update).toHaveBeenCalledWith({
+      where: { id: 'rm-2' },
+      data: { isHost: true },
+    });
+    // 내 멤버십만 삭제, 룸은 유지
+    expect(db.roomMember.delete).toHaveBeenCalledWith({
+      where: { id: 'rm-1' },
+    });
+    expect(db.room.delete).not.toHaveBeenCalled();
+    expect(unregisterWebhook).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      left: true,
+      room_deleted: false,
+      new_host_user_id: 'user-2',
+    });
+  });
+
+  it('방장이 아닌 멤버가 나가면 위임 없이 내 멤버십만 삭제', async () => {
+    db.roomMember.findFirst.mockResolvedValue({
+      id: 'rm-2',
+      userId: USER_ID,
+      isHost: false,
+      room: {
+        repos: [],
+        members: [
+          { id: 'rm-1', userId: 'host-user' },
+          { id: 'rm-2', userId: USER_ID },
+        ],
+      },
+    });
+
+    const result = await leaveRoom(USER_ID, ROOM_ID, ACCESS_TOKEN);
+
+    expect(db.roomMember.update).not.toHaveBeenCalled();
+    expect(db.roomMember.delete).toHaveBeenCalledWith({
+      where: { id: 'rm-2' },
+    });
+    expect(db.room.delete).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      left: true,
+      room_deleted: false,
+      new_host_user_id: null,
+    });
   });
 });
