@@ -124,8 +124,9 @@ describe('enterPrivateRoom', () => {
     );
   });
 
-  it('프라이빗 룸이 해당 룸 소속이 아니면 NOT_FOUND', async () => {
-    // 프라이빗 룸은 있지만 다른 룸(other-room) 소속 → 이 룸에선 접근 불가
+  it('프라이빗 룸이 해당 룸 소속이 아니면 PRIVATE_ROOM_NOT_FOUND', async () => {
+    // 프라이빗 룸은 있지만 다른 룸(other-room) 소속 → 이 룸에선 접근 불가.
+    // 존재 여부를 노출하지 않도록 "없음"과 같은 PRIVATE_ROOM_NOT_FOUND 로 통일.
     db.privateRoom.findUnique.mockResolvedValue({
       id: PRIVATE_ROOM_ID,
       roomId: 'other-room',
@@ -133,7 +134,7 @@ describe('enterPrivateRoom', () => {
 
     await expectAppError(
       enterPrivateRoom(ROOM_ID, PRIVATE_ROOM_ID, USER_ID),
-      'NOT_FOUND',
+      'PRIVATE_ROOM_NOT_FOUND',
     );
   });
 
