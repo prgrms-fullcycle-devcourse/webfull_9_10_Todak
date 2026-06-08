@@ -240,7 +240,7 @@
   }
 
   .renderer-bottom-container {
-    @apply shrink-0 border-border  px-8 py-4;
+    @apply shrink-0 border-border px-8 py-4 pb-0;
   }
 
   .renderer-todo-container {
