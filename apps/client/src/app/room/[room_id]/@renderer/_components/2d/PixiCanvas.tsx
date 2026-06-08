@@ -57,6 +57,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     let unsubscribeStatus: (() => void) | null = null;
     let unsubscribeAnimal: (() => void) | null = null;
     let unsubscribePlayer: (() => void) | null = null;
+    let unsubscribeModal: (() => void) | null = null;
     let cleanupMovement: (() => void) | null = null;
     let cleanupCamera: (() => void) | null = null;
     let handleResize: (() => void) | null = null;
@@ -80,6 +81,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       }
 
       app = newApp;
+      app.ticker.maxFPS = 60;
 
       if (canvasRef.current) {
         canvasRef.current.innerHTML = '';
@@ -259,6 +261,19 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         },
       );
 
+      // 상세 모달 오픈 시, pixi 그래픽 일시정지
+      unsubscribeModal = useSpaceStore.subscribe(
+        state => state.isCharacterModalOpen,
+        isOpen => {
+          if (!newApp) return;
+          if (isOpen) {
+            newApp.stop();
+          } else {
+            newApp.start();
+          }
+        },
+      );
+
       // 빈 공간 클릭 시 링 메뉴 닫기
       app.stage.eventMode = 'static';
       app.stage.on('pointerdown', () => {
@@ -309,6 +324,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       unsubscribeStatus?.();
       unsubscribeAnimal?.();
       unsubscribePlayer?.();
+      unsubscribeModal?.();
 
       // 맴버 소켓 이벤트 리스너 제거
       getSocket().off('room:member-moved');
