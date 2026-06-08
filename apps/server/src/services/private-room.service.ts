@@ -90,7 +90,8 @@ export async function getPrivateRooms(
 
 /*
  * 프라이빗 룸이 존재하고 해당 룸(:roomId)에 속하는지 검증한다.
- * 없으면 PRIVATE_ROOM_NOT_FOUND, 다른 룸 소속이면 NOT_FOUND.
+ * 없거나 다른 룸 소속이면 PRIVATE_ROOM_NOT_FOUND.
+ * (존재 여부를 외부에 노출하지 않도록 두 경우 모두 같은 에러로 통일)
  */
 async function assertPrivateRoomInRoom(
   roomId: string,
@@ -100,12 +101,8 @@ async function assertPrivateRoomInRoom(
     where: { id: privateRoomId },
   });
 
-  if (privateRoom === null) {
+  if (privateRoom === null || privateRoom.roomId !== roomId) {
     throw new AppError('PRIVATE_ROOM_NOT_FOUND');
-  }
-
-  if (privateRoom.roomId !== roomId) {
-    throw new AppError('NOT_FOUND');
   }
 }
 
