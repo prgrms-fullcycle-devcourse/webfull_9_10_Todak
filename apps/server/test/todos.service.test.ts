@@ -34,6 +34,13 @@ vi.mock('@/lib/prisma.js', () => ({
       findFirst: vi.fn(),
       delete: vi.fn(),
     },
+    /*
+     * createTodos 는 모든 Todo 를 단일 트랜잭션으로 저장한다.
+     * prisma.$transaction(배열 형태)은 "넘긴 prisma 작업들을 한 번에 실행하고
+     * 결과 배열을 돌려주는" 동작이므로, 테스트에선 Promise.all 로 흉내낸다.
+     * (배열 안의 prisma.todo.create 들은 이미 mockResolvedValue 로 값이 주입돼 있음)
+     */
+    $transaction: vi.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   },
 }));
 
