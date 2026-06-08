@@ -240,15 +240,16 @@
   }
 
   .renderer-bottom-container {
-    @apply shrink-0 border-t border-border bg-surface;
+    @apply shrink-0 border-border  px-8 py-4;
   }
 
   .renderer-todo-container {
-    @apply space-y-4 px-8 py-5;
+    @apply mx-auto w-[60vw] max-w-[1400px] rounded-xl border border-border bg-surface p-4;
+    box-shadow: var(--overlay-shadow);
   }
 
   .renderer-news-container {
-    @apply flex h-12 items-center justify-between bg-foreground px-8 text-background;
+    @apply -mx-8 mt-4 flex h-12 items-center justify-between bg-foreground px-8 text-background;
   }
 
   .notification-roll-window {
