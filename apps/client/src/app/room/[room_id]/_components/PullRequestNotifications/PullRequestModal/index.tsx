@@ -65,17 +65,17 @@ export default function PullRequestModal({
                   <span className="truncate">{pullRequest.title}</span>
                 </h2>
 
-                <div className="flex justify-between rounded-lg bg-slate-50 p-3 font-todak-mono text-xs text-slate-500">
+                <div className="flex justify-between gap-3 rounded-lg bg-slate-50 p-3 font-todak-mono text-xs text-slate-500">
                   <span>
                     Author:{' '}
                     <strong className="font-todak-sans text-slate-600">
                       {pullRequest.author}
                     </strong>
                   </span>
-                  <span>
-                    Diff:{' '}
+                  <span className="min-w-0 truncate">
+                    Branch:{' '}
                     <strong className="text-emerald-600">
-                      +{pullRequest.additions}/-{pullRequest.deletions}
+                      {pullRequest.branch.head} -&gt; {pullRequest.branch.base}
                     </strong>
                   </span>
                 </div>

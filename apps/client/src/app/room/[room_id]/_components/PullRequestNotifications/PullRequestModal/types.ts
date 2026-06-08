@@ -5,8 +5,10 @@ export interface PullRequestModalData {
   title: string;
   updatedAt: string;
   author: string;
-  additions: number;
-  deletions: number;
+  branch: {
+    head: string;
+    base: string;
+  };
   url: string;
   reviewKind: PullRequestReviewKind;
 }

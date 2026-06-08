@@ -1,8 +1,12 @@
 'use client';
 
+import { getStoredAuthUser } from '@/lib/auth';
 import { cn } from '@/lib/cn';
+import { useRoomPullRequests } from '@/services/prs/query';
+import type { RoomPullRequest } from '@/services/prs/model';
 import { Card, Chip } from '@heroui/react';
-import { useState } from 'react';
+import { useParams } from 'next/navigation';
+import { type ReactNode, useMemo, useState } from 'react';
 
 import PullRequestModal, {
   type PullRequestModalData,
@@ -10,16 +14,28 @@ import PullRequestModal, {
 
 interface PullRequestNotificationsProps {
   className?: string;
-  pullRequests?: readonly PullRequestModalData[];
 }
 
 export default function PullRequestNotifications({
   className,
-  pullRequests = [],
 }: PullRequestNotificationsProps) {
+  const { room_id: roomID } = useParams<{ room_id: string }>();
+  const {
+    data: pullRequestsResponse,
+    isError,
+    isPending,
+  } = useRoomPullRequests(roomID);
+  const currentUserLogin = getStoredAuthUser()?.login ?? null;
   const [selectedPullRequest, setSelectedPullRequest] =
     useState<PullRequestModalData | null>(null);
   const isModalOpen = selectedPullRequest !== null;
+  const pullRequests = useMemo(
+    () =>
+      (pullRequestsResponse?.pull_requests ?? []).map(pullRequest =>
+        mapPullRequestToModalData(pullRequest, currentUserLogin),
+      ),
+    [currentUserLogin, pullRequestsResponse?.pull_requests],
+  );
 
   return (
     <>
@@ -53,7 +69,13 @@ export default function PullRequestNotifications({
         </Card.Header>
 
         <Card.Content className="max-h-[116px] gap-1.5 overflow-y-auto px-3.5 pb-3.5 pt-0 pr-2">
-          {pullRequests.length > 0 ? (
+          {isPending ? (
+            <PullRequestMessage>PR을 불러오는 중입니다...</PullRequestMessage>
+          ) : isError ? (
+            <PullRequestMessage variant="error">
+              PR을 불러오지 못했습니다.
+            </PullRequestMessage>
+          ) : pullRequests.length > 0 ? (
             pullRequests.map(pullRequest => (
               <PullRequestItem
                 key={`pull-request-notification-${pullRequest.id}`}
@@ -62,9 +84,7 @@ export default function PullRequestNotifications({
               />
             ))
           ) : (
-            <p className="rounded-md border border-slate-700/80 bg-slate-800/60 px-2.5 py-2 text-[10px] font-bold text-slate-400">
-              표시할 PR이 없습니다.
-            </p>
+            <PullRequestMessage>표시할 PR이 없습니다.</PullRequestMessage>
           )}
         </Card.Content>
       </Card>
@@ -79,6 +99,71 @@ export default function PullRequestNotifications({
         pullRequest={selectedPullRequest}
       />
     </>
+  );
+}
+
+function mapPullRequestToModalData(
+  pullRequest: RoomPullRequest,
+  currentUserLogin: string | null,
+): PullRequestModalData {
+  const author = pullRequest.author?.github_username ?? '알 수 없음';
+
+  return {
+    id: pullRequest.number,
+    title: pullRequest.title,
+    updatedAt: formatRelativeTime(pullRequest.updated_at),
+    author,
+    branch: pullRequest.branch,
+    url: pullRequest.html_url,
+    reviewKind: author === currentUserLogin ? 'mine' : 'team',
+  };
+}
+
+function formatRelativeTime(value: string) {
+  const updatedAt = new Date(value).getTime();
+
+  if (Number.isNaN(updatedAt)) {
+    return '';
+  }
+
+  const diffInSeconds = Math.round((updatedAt - Date.now()) / 1000);
+  const units = [
+    { name: 'year', seconds: 60 * 60 * 24 * 365 },
+    { name: 'month', seconds: 60 * 60 * 24 * 30 },
+    { name: 'day', seconds: 60 * 60 * 24 },
+    { name: 'hour', seconds: 60 * 60 },
+    { name: 'minute', seconds: 60 },
+  ] as const;
+
+  for (const unit of units) {
+    if (Math.abs(diffInSeconds) >= unit.seconds) {
+      return new Intl.RelativeTimeFormat('ko-KR', {
+        numeric: 'auto',
+      }).format(Math.round(diffInSeconds / unit.seconds), unit.name);
+    }
+  }
+
+  return '방금 전';
+}
+
+function PullRequestMessage({
+  children,
+  variant = 'default',
+}: {
+  children: ReactNode;
+  variant?: 'default' | 'error';
+}) {
+  return (
+    <p
+      className={cn(
+        'rounded-md border px-2.5 py-2 text-[10px] font-bold',
+        variant === 'error'
+          ? 'border-todak-coral-500/30 bg-todak-coral-500/10 text-todak-coral-200'
+          : 'border-slate-700/80 bg-slate-800/60 text-slate-400',
+      )}
+    >
+      {children}
+    </p>
   );
 }
 

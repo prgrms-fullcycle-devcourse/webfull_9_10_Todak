@@ -1,6 +1,6 @@
 'use client';
 
-import { RoomNotification } from '@/services/notifications/model';
+import type { RoomNotification } from '@/services/notifications/model';
 import { useNotifications } from '@/services/notifications/query';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
