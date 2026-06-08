@@ -88,17 +88,14 @@ export async function getPrivateRooms(
   }));
 }
 
-/**
- * 프라이빗 룸 입장
- * - 이미 열린 세션(leftAt === null)이 없으면 새 PrivateRoomSession 생성
- * - 기존 세션이 있으면 해당 세션의 enteredAt 을 그대로 반환 (중복 입장 방지)
+/*
+ * 프라이빗 룸이 존재하고 해당 룸(:roomId)에 속하는지 검증한다.
+ * 없으면 PRIVATE_ROOM_NOT_FOUND, 다른 룸 소속이면 NOT_FOUND.
  */
-export async function enterPrivateRoom(
+async function assertPrivateRoomInRoom(
   roomId: string,
   privateRoomId: string,
-  userId: string,
-): Promise<EnterPrivateRoomResult> {
-  // 프라이빗 룸 존재 여부 확인
+): Promise<void> {
   const privateRoom = await prisma.privateRoom.findUnique({
     where: { id: privateRoomId },
   });
@@ -110,6 +107,19 @@ export async function enterPrivateRoom(
   if (privateRoom.roomId !== roomId) {
     throw new AppError('NOT_FOUND');
   }
+}
+
+/**
+ * 프라이빗 룸 입장
+ * - 이미 열린 세션(leftAt === null)이 없으면 새 PrivateRoomSession 생성
+ * - 기존 세션이 있으면 해당 세션의 enteredAt 을 그대로 반환 (중복 입장 방지)
+ */
+export async function enterPrivateRoom(
+  roomId: string,
+  privateRoomId: string,
+  userId: string,
+): Promise<EnterPrivateRoomResult> {
+  await assertPrivateRoomInRoom(roomId, privateRoomId);
 
   // 이미 입장 중인 세션 확인
   const existing = await prisma.privateRoomSession.findFirst({
@@ -161,18 +171,7 @@ export async function leavePrivateRoom(
 ): Promise<LeavePrivateRoomResult> {
   const now = new Date();
 
-  // 프라이빗 룸 존재 여부
-  const privateRoom = await prisma.privateRoom.findUnique({
-    where: { id: privateRoomId },
-  });
-
-  if (privateRoom === null) {
-    throw new AppError('PRIVATE_ROOM_NOT_FOUND');
-  }
-
-  if (privateRoom.roomId !== roomId) {
-    throw new AppError('NOT_FOUND');
-  }
+  await assertPrivateRoomInRoom(roomId, privateRoomId);
 
   // 현재 입장 중 세션 확인
   const activeSession = await prisma.privateRoomSession.findFirst({
