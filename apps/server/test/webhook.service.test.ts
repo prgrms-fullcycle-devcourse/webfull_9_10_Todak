@@ -13,7 +13,7 @@ import { getIO } from '@/socket/index.js';
 vi.mock('@/lib/prisma.js', () => ({
   prisma: {
     repo: { findFirst: vi.fn() },
-    todo: { findFirst: vi.fn(), create: vi.fn() },
+    todo: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     roomMember: { findFirst: vi.fn() },
   },
 }));
@@ -38,6 +38,21 @@ const ROOM_ID = 'room-1';
 function openedPayload(assignees?: Array<{ login: string }>) {
   return {
     action: 'opened',
+    issue: {
+      number: 5,
+      title: 'test issue',
+      body: null,
+      state: 'open',
+      labels: [],
+      ...(assignees ? { assignees } : {}),
+    },
+    repository: { name: 'repo', owner: { login: 'owner' } },
+  };
+}
+
+function actionPayload(action: string, assignees?: Array<{ login: string }>) {
+  return {
+    action,
     issue: {
       number: 5,
       title: 'test issue',
@@ -115,5 +130,89 @@ describe('handleGithubEvent - issues.opened assignee 매핑', () => {
         data: expect.objectContaining({ assigneeId: null }),
       }),
     );
+  });
+});
+
+describe('handleGithubEvent - issues.assigned/unassigned 담당자 갱신', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    r.set.mockResolvedValue('OK');
+    r.del.mockResolvedValue(1);
+    db.repo.findFirst.mockResolvedValue({ roomId: ROOM_ID });
+    db.todo.update.mockImplementation(async (args: { data: any }) => ({
+      id: 'todo-1',
+      roomId: ROOM_ID,
+      title: 'test issue',
+      body: null,
+      labels: [],
+      assigneeId: args.data.assigneeId ?? null,
+      minutesId: null,
+      githubIssueNumber: 5,
+      isDone: false,
+      createdAt: new Date(0),
+    }));
+    io.mockReturnValue({ to: () => ({ emit: () => true }) });
+  });
+
+  it('opened 시 담당자가 비어 있다가 assigned 로 채워지면 Todo 담당자 갱신', async () => {
+    // opened 로 만들어진 Todo 는 담당자가 없는 상태
+    db.todo.findFirst.mockResolvedValue({
+      id: 'todo-1',
+      assigneeId: null,
+    });
+    db.roomMember.findFirst.mockResolvedValue({ userId: 'user-1' });
+
+    await handleGithubEvent(
+      'issues',
+      'A1',
+      actionPayload('assigned', [{ login: 'kim' }]),
+    );
+
+    expect(db.todo.update).toHaveBeenCalledWith({
+      where: { id: 'todo-1' },
+      data: { assigneeId: 'user-1' },
+    });
+  });
+
+  it('unassigned 면 담당자를 null 로 갱신', async () => {
+    db.todo.findFirst.mockResolvedValue({
+      id: 'todo-1',
+      assigneeId: 'user-1',
+    });
+
+    await handleGithubEvent('issues', 'A2', actionPayload('unassigned'));
+
+    expect(db.todo.update).toHaveBeenCalledWith({
+      where: { id: 'todo-1' },
+      data: { assigneeId: null },
+    });
+  });
+
+  it('매칭 Todo 가 없으면 무시', async () => {
+    db.todo.findFirst.mockResolvedValue(null);
+
+    await handleGithubEvent(
+      'issues',
+      'A3',
+      actionPayload('assigned', [{ login: 'kim' }]),
+    );
+
+    expect(db.todo.update).not.toHaveBeenCalled();
+  });
+
+  it('담당자가 이미 동일하면 갱신하지 않음(불필요한 emit 방지)', async () => {
+    db.todo.findFirst.mockResolvedValue({
+      id: 'todo-1',
+      assigneeId: 'user-1',
+    });
+    db.roomMember.findFirst.mockResolvedValue({ userId: 'user-1' });
+
+    await handleGithubEvent(
+      'issues',
+      'A4',
+      actionPayload('assigned', [{ login: 'kim' }]),
+    );
+
+    expect(db.todo.update).not.toHaveBeenCalled();
   });
 });

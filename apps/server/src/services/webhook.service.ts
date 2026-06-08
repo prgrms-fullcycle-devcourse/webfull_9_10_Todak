@@ -147,6 +147,9 @@ async function resolveAssigneeId(
  * issues 이벤트 처리.
  * - opened: 매칭 Todo 없으면 신규 생성(앱 외부에서 만든 이슈도 보드에 반영).
  *   이미 있으면 우리 앱이 만든 이슈의 echo 이므로 무시(중복 방지).
+ * - assigned/unassigned: 매칭 Todo 의 담당자만 갱신. 없으면 무시.
+ *   (GitHub 은 생성과 담당자 지정을 별개 이벤트로 보내므로, opened 시점엔
+ *    담당자가 비어 있다가 직후 assigned 이벤트로 채워지는 경우가 많다.)
  * - closed/reopened: 매칭 Todo 의 is_done 만 갱신. 없으면 무시
  *   (앱에서 삭제했거나 추적되지 않는 이슈).
  */
@@ -200,6 +203,33 @@ async function handleIssuesEvent(
 
       throw error;
     }
+
+    return;
+  }
+
+  if (action === 'assigned' || action === 'unassigned') {
+    /*
+     * 담당자 지정/해제. opened 가 먼저 와서 Todo 가 만들어진 뒤 도착하는 게 일반적이다.
+     * 아직 Todo 가 없으면(이벤트 순서가 뒤바뀌거나 추적되지 않는 이슈) 무시한다.
+     */
+    if (existing === null) {
+      return;
+    }
+
+    const assigneeId = await resolveAssigneeId(roomId, issue);
+    if (existing.assigneeId === assigneeId) {
+      return;
+    }
+
+    const updated = await prisma.todo.update({
+      where: { id: existing.id },
+      data: { assigneeId },
+    });
+
+    io.to(roomId).emit('todo:updated', {
+      roomId,
+      todo: toTodoPayload(updated),
+    });
 
     return;
   }
