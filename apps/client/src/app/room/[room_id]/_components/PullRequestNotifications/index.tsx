@@ -1,6 +1,5 @@
 'use client';
 
-import { getStoredAuthUser } from '@/lib/auth';
 import { cn } from '@/lib/cn';
 import { useRoomPullRequests } from '@/services/prs/query';
 import type { RoomPullRequest } from '@/services/prs/model';
@@ -25,16 +24,15 @@ export default function PullRequestNotifications({
     isError,
     isPending,
   } = useRoomPullRequests(roomID);
-  const currentUserLogin = getStoredAuthUser()?.login ?? null;
   const [selectedPullRequest, setSelectedPullRequest] =
     useState<PullRequestModalData | null>(null);
   const isModalOpen = selectedPullRequest !== null;
   const pullRequests = useMemo(
     () =>
       (pullRequestsResponse?.pull_requests ?? []).map(pullRequest =>
-        mapPullRequestToModalData(pullRequest, currentUserLogin),
+        mapPullRequestToModalData(pullRequest),
       ),
-    [currentUserLogin, pullRequestsResponse?.pull_requests],
+    [pullRequestsResponse?.pull_requests],
   );
 
   return (
@@ -104,7 +102,6 @@ export default function PullRequestNotifications({
 
 function mapPullRequestToModalData(
   pullRequest: RoomPullRequest,
-  currentUserLogin: string | null,
 ): PullRequestModalData {
   const author = pullRequest.author?.github_username ?? '알 수 없음';
 
@@ -113,9 +110,12 @@ function mapPullRequestToModalData(
     title: pullRequest.title,
     updatedAt: formatRelativeTime(pullRequest.updated_at),
     author,
+    state: pullRequest.state,
+    isDraft: pullRequest.is_draft,
     branch: pullRequest.branch,
+    assignees: pullRequest.assignees.map(assignee => assignee.github_username),
+    labels: pullRequest.labels,
     url: pullRequest.html_url,
-    reviewKind: author === currentUserLogin ? 'mine' : 'team',
   };
 }
 
