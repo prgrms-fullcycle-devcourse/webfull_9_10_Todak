@@ -3,17 +3,15 @@
 import { cn } from '@/lib/cn';
 import { isSystemError, isTodakApiError } from '@/services/error';
 import { createRepository } from '@/services/repos';
-import { createRooms, fetchMyRooms } from '@/services/rooms/api';
+import { createRooms } from '@/services/rooms/api';
 import {
-  Chip,
   FieldError,
   Input,
   Label,
   NumberField,
   TextField,
 } from '@heroui/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type ComponentProps, type ReactNode, useState } from 'react';
 
@@ -67,11 +65,6 @@ export default function CreateTab({ userID }: CreateTabProps) {
   const [fieldErrors, setFieldErrors] = useState<CreateProjectFieldErrors>({});
   const [isCreating, setIsCreating] = useState(false);
   const [maxMembers, setMaxMembers] = useState(4);
-
-  const { data: myRooms } = useQuery({
-    queryKey: ['myRooms'],
-    queryFn: fetchMyRooms,
-  });
 
   const customizeHref = (roomID: string) =>
     `/${encodeURIComponent(userID)}/join/customize?roomID=${encodeURIComponent(roomID)}`;
@@ -235,44 +228,6 @@ export default function CreateTab({ userID }: CreateTabProps) {
             <NumberField.IncrementButton type="button" />
           </NumberField.Group>
         </NumberField>
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-[11px] font-black text-slate-400">
-          연결 가능한 기존 팀 리스트
-        </p>
-        {!myRooms ||
-          (myRooms.length === 0 && (
-            <div className="space-y-2">참여 중인 프로젝트가 없습니다.</div>
-          ))}
-        {myRooms && (
-          <div className="space-y-2">
-            {myRooms.map(room => (
-              <Link
-                className="group flex min-h-[50px] items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3.5 py-2.5 shadow-sm transition-colors hover:border-todak-coral-200 hover:bg-todak-coral-50/60"
-                key={`existing-team-list-${room.id}`}
-                href={customizeHref(room.id)}
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-xs font-black text-slate-800">
-                    {room.name}
-                  </span>
-                  <span className="todak-mono mt-0.5 block truncate text-[10px] font-semibold text-slate-400">
-                    {room.repo?.full_name ?? '연결된 레포지토리 없음'}
-                  </span>
-                </span>
-                <Chip
-                  className="rounded-md bg-slate-100 px-2 py-0 text-[10px] font-black text-slate-400"
-                  color="default"
-                  size="sm"
-                  variant="soft"
-                >
-                  {room.invite_code}
-                </Chip>
-              </Link>
-            ))}
-          </div>
-        )}
       </div>
 
       {createError !== null && (
