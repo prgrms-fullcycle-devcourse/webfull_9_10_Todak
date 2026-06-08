@@ -177,7 +177,16 @@ export interface ServerToClientEvents {
     minutes_id: string;
     meeting_id: string;
     title: string;
-    action_items: { title: string; body?: string; labels: string[] }[];
+    action_items: {
+      title: string;
+      body?: string;
+      labels: string[];
+      assignee: {
+        id: string;
+        github_username: string;
+        avatar_url: string | null;
+      } | null;
+    }[];
     status: 'draft';
   }) => void;
   'minutes:generation-failed': (data: {

@@ -31,6 +31,15 @@ const ActionItemSchema = z.object({
   title: z.string().trim().min(1),
   body: z.string().optional(),
   labels: z.array(z.string()).default([]),
+  // 담당자(룸 멤버). AI 추론 결과를 그대로 보존/수정할 수 있도록 선택적으로 받는다.
+  assignee: z
+    .object({
+      id: z.string(),
+      github_username: z.string(),
+      avatar_url: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
 });
 
 const UpdateMinutesBodySchema = z
