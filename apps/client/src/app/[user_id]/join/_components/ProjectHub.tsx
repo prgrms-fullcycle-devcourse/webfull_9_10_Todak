@@ -1,28 +1,46 @@
 'use client';
 
+import { fetchMyRooms } from '@/services/rooms/api';
 import { Card, Tabs } from '@heroui/react';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import CreateTab from './CreateTab';
+import ExistingTeamsTab from './ExistingTeamsTab';
 import InviteTab from './InviteTab';
 
 const TabOptions = [
   {
+    id: 'teams',
+    label: '기존 팀',
+    icon: '↗',
+  },
+  {
     id: 'create',
-    label: '새 프로젝트 생성',
+    label: '새 프로젝트',
     icon: '+',
   },
   {
     id: 'invite',
-    label: '초대 코드로 참여',
-    icon: '🔑',
+    label: '초대 코드',
+    icon: '#',
   },
-];
+] as const;
+
+type TabID = (typeof TabOptions)[number]['id'];
 
 interface ProjectHubProps {
   userID: string;
 }
 
 export default function ProjectHub({ userID }: ProjectHubProps) {
+  const { data: myRooms } = useQuery({
+    queryKey: ['myRooms'],
+    queryFn: fetchMyRooms,
+  });
+  const [selectedTab, setSelectedTab] = useState<TabID | null>(null);
+  const defaultTab = myRooms && myRooms.length > 0 ? 'teams' : 'create';
+
   return (
     <section className="flex min-h-dvh w-full items-start justify-center bg-background px-5 pb-8 pt-[max(2rem,calc((100dvh-494px)/2))]">
       <Card className="w-full max-w-[386px] gap-0 rounded-[26px] border border-border/80 bg-surface px-7 py-8 shadow-todak-panel">
@@ -31,14 +49,19 @@ export default function ProjectHub({ userID }: ProjectHubProps) {
             PROJECT HUB
           </p>
           <Card.Title className="todak-title text-[21px] leading-tight sm:text-[23px]">
-            협업할 프로젝트 팀 연결
+            프로젝트 시작하기
           </Card.Title>
           <Card.Description className="todak-subcopy text-[10px] font-bold sm:text-[11px]">
-            새로운 스터디룸을 생성하거나 초대 코드를 통해 기존 룸에 진입합니다
+            새 프로젝트를 만들거나, 기존 팀을 선택하거나, 초대 코드로
+            참여하세요.
           </Card.Description>
         </Card.Header>
         <Card.Content className="mt-5 gap-0">
-          <Tabs defaultSelectedKey="create" className="gap-0">
+          <Tabs
+            selectedKey={selectedTab ?? defaultTab}
+            className="gap-0"
+            onSelectionChange={key => setSelectedTab(key as TabID)}
+          >
             <Tabs.ListContainer className="mb-5">
               <Tabs.List className="w-full overflow-hidden rounded-xl border border-border bg-background p-0 shadow-sm">
                 {TabOptions.map(option => (
@@ -62,11 +85,9 @@ export default function ProjectHub({ userID }: ProjectHubProps) {
                 key={`team-selection-tabs-panel-${option.id}`}
                 id={option.id}
               >
-                {option.id === 'create' ? (
-                  <CreateTab userID={userID} />
-                ) : (
-                  <InviteTab userID={userID} />
-                )}
+                {option.id === 'create' && <CreateTab userID={userID} />}
+                {option.id === 'teams' && <ExistingTeamsTab userID={userID} />}
+                {option.id === 'invite' && <InviteTab userID={userID} />}
               </Tabs.Panel>
             ))}
           </Tabs>
