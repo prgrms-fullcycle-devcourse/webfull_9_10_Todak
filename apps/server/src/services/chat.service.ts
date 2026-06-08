@@ -126,33 +126,43 @@ export async function assertInPrivateRoomSession(
 }
 
 /*
+ * 주어진 룸/프라이빗룸 조건의 채팅을 before 기준 과거로 최신순(DESC) limit 개 조회해 payload 로 변환.
+ * (getMainRoomChats / getPrivateRoomChats 공통 조회부)
+ */
+async function fetchChats(
+  where: { roomId: string; privateRoomId: string | null },
+  { before, limit }: ChatsQuery,
+  currentUserId: string,
+): Promise<ChatPayload[]> {
+  const rows = await prisma.chatMessage.findMany({
+    where: {
+      ...where,
+      ...(before !== undefined && { createdAt: { lt: new Date(before) } }),
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    include: includeChat,
+  });
+
+  return rows.map(row => toPayload(row, currentUserId));
+}
+
+/*
  * 메인 룸 채팅 히스토리 (private_room_id IS NULL).
  * before 보다 과거 메시지를 최신순(DESC)으로 limit 개 반환.
  */
 export async function getMainRoomChats(
   userId: string,
   roomId: string,
-  { before, limit }: ChatsQuery,
+  query: ChatsQuery,
 ): Promise<ChatPayload[]> {
-  /*
-   * 멤버 검증과 메시지 조회는 서로 독립적이라 병렬로 쏜다.
-   * 비멤버면 assertRoomMember 가 throw → Promise.all 거부, findMany 결과는 버려진다.
-   */
-  const [, rows] = await Promise.all([
+  // 멤버 검증과 메시지 조회는 독립적이라 병렬로 쏜다. 비멤버면 throw 되고 조회 결과는 버려진다.
+  const [, chats] = await Promise.all([
     assertRoomMember(roomId, userId),
-    prisma.chatMessage.findMany({
-      where: {
-        roomId,
-        privateRoomId: null,
-        ...(before !== undefined && { createdAt: { lt: new Date(before) } }),
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      include: includeChat,
-    }),
+    fetchChats({ roomId, privateRoomId: null }, query, userId),
   ]);
 
-  return rows.map(row => toPayload(row, userId));
+  return chats;
 }
 
 /*
@@ -163,29 +173,20 @@ export async function getPrivateRoomChats(
   userId: string,
   roomId: string,
   privateRoomId: string,
-  { before, limit }: ChatsQuery,
+  query: ChatsQuery,
 ): Promise<ChatPayload[]> {
   /*
-   * 두 검증과 메시지 조회는 서로 독립적이라 병렬로 쏜다.
-   * 검증 중 하나라도 실패하면 Promise.all 이 거부되고 findMany 결과는 버려진다.
+   * 두 검증과 메시지 조회는 독립적이라 병렬로 쏜다.
+   * 검증 중 하나라도 실패하면 Promise.all 이 거부되고 조회 결과는 버려진다.
    * (둘 다 실패 시 표면화되는 에러는 먼저 끝난 쪽 — 모두 not-found 류라 무방)
    */
-  const [, , rows] = await Promise.all([
+  const [, , chats] = await Promise.all([
     assertRoomMember(roomId, userId),
     assertPrivateRoomBelongsToRoom(roomId, privateRoomId),
-    prisma.chatMessage.findMany({
-      where: {
-        roomId,
-        privateRoomId,
-        ...(before !== undefined && { createdAt: { lt: new Date(before) } }),
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      include: includeChat,
-    }),
+    fetchChats({ roomId, privateRoomId }, query, userId),
   ]);
 
-  return rows.map(row => toPayload(row, userId));
+  return chats;
 }
 
 /*
