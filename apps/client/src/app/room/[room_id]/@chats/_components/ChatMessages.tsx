@@ -6,6 +6,7 @@ import { useChatSocket } from '../_hooks/useChatSocket';
 import { TabType } from '../_types';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import type { ChatMessage, ChatReactionEvent } from '@/services/chats/model';
+import Image from 'next/image';
 
 interface ChatMessagesProps {
   tab: TabType;
@@ -62,10 +63,12 @@ function MessageItem({
     return (
       <div className="flex items-start gap-2 px-1 py-2">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 overflow-hidden">
-          <img
+          <Image
             src={msg.user.avatar_url}
             alt={msg.user.github_username}
-            className="h-full w-full object-cover"
+            width={28}
+            height={28}
+            className="h-full w-full object-cover rounded-full"
           />
         </div>
         <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
@@ -84,10 +87,12 @@ function MessageItem({
   return (
     <div className="group relative flex items-start gap-2 px-1 py-1.5">
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 overflow-hidden">
-        <img
+        <Image
           src={msg.user.avatar_url}
           alt={msg.user.github_username}
-          className="h-full w-full object-cover"
+          width={32}
+          height={32}
+          className="h-full w-full object-cover rounded-full"
         />
       </div>
       <div className="flex max-w-[75%] flex-col gap-1 items-start">
