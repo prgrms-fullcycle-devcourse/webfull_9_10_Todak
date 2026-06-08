@@ -2,8 +2,10 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchRoomPullRequests } from './api';
-import type { PullRequestState } from './model';
+import {
+  fetchRoomPullRequests,
+  type PullRequestState,
+} from '@/services/github/api';
 
 export const pullRequestQueryKeys = {
   all: ['pullRequests'] as const,

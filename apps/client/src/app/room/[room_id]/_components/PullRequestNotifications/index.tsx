@@ -1,8 +1,8 @@
 'use client';
 
 import { cn } from '@/lib/cn';
-import { useRoomPullRequests } from '@/services/prs/query';
-import type { RoomPullRequest } from '@/services/prs/model';
+import { useRoomPullRequests } from '@/services/github/query';
+import type { RoomPullRequest } from '@/services/github/api';
 import { Card, Chip } from '@heroui/react';
 import { useParams } from 'next/navigation';
 import { type ReactNode, useMemo, useState } from 'react';
