@@ -158,3 +158,38 @@ export const MergePullRequestResponseSchema = registry.register(
     merge_commit_sha: z.string().openapi({ example: '4c2646c7d1e76efe...' }),
   }),
 );
+
+export const CreatePullRequestReviewBodySchema = z
+  .object({
+    event: z
+      .enum(['APPROVE', 'REQUEST_CHANGES', 'COMMENT'])
+      .optional()
+      .default('APPROVE')
+      .openapi({ description: '리뷰 종류 (기본 APPROVE)', example: 'APPROVE' }),
+    body: z.string().optional().openapi({
+      description: '리뷰 코멘트 (COMMENT/REQUEST_CHANGES 면 필수)',
+    }),
+  })
+  .refine(
+    data =>
+      data.event === 'APPROVE' ||
+      (data.body !== undefined && data.body.trim() !== ''),
+    { message: 'COMMENT/REQUEST_CHANGES 는 body 가 필요합니다.' },
+  );
+
+export type CreatePullRequestReviewBody = z.infer<
+  typeof CreatePullRequestReviewBodySchema
+>;
+
+export const PullRequestReviewResponseSchema = registry.register(
+  'PullRequestReviewResult',
+  z.object({
+    pull_number: z.number().openapi({ example: 42 }),
+    review_id: z.number().openapi({ example: 987654 }),
+    state: z.string().openapi({ example: 'APPROVED' }),
+    submitted_at: z
+      .string()
+      .nullable()
+      .openapi({ example: '2026-06-08T00:00:00.000Z' }),
+  }),
+);

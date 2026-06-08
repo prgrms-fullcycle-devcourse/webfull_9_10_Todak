@@ -4,11 +4,13 @@ import { requireAuth } from '../../../middleware/auth.middleware.js';
 import { validate } from '../../../middleware/validate.middleware.js';
 
 import {
+  createPullRequestReviewHandler,
   getPullRequestDetailHandler,
   getPullRequestsHandler,
   mergePullRequestHandler,
 } from './prs.controller.js';
 import {
+  CreatePullRequestReviewBodySchema,
   GetPullRequestDetailParamsSchema,
   GetPullRequestsQuerySchema,
   MergePullRequestBodySchema,
@@ -35,6 +37,13 @@ router.put(
   validate(GetPullRequestDetailParamsSchema, 'params'),
   validate(MergePullRequestBodySchema, 'body'),
   mergePullRequestHandler,
+);
+
+router.post(
+  '/:pullNumber/reviews',
+  validate(GetPullRequestDetailParamsSchema, 'params'),
+  validate(CreatePullRequestReviewBodySchema, 'body'),
+  createPullRequestReviewHandler,
 );
 
 export default router;

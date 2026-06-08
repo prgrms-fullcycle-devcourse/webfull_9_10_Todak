@@ -342,3 +342,48 @@ export async function mergePullRequest(
     throw err;
   }
 }
+
+export async function createPullRequestReview(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT' = 'APPROVE',
+  body?: string,
+): Promise<{ id: number; state: string; submittedAt: string | null }> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.pulls.createReview({
+      owner,
+      repo,
+      pull_number: pullNumber,
+      event,
+      body,
+    });
+
+    return {
+      id: data.id,
+      state: data.state,
+      submittedAt: data.submitted_at ?? null,
+    };
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 403) {
+        throw new AppError('FORBIDDEN');
+      }
+
+      if (err.status === 404) {
+        throw new AppError('PR_NOT_FOUND');
+      }
+
+      // 422 = 본인 PR 승인 불가 등 리뷰 등록 불가
+      if (err.status === 422) {
+        throw new AppError('PR_REVIEW_NOT_ALLOWED');
+      }
+
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
+}

@@ -7,10 +7,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '@/lib/prisma.js';
 import {
+  createPullRequestReview as ghCreateReview,
   getPullRequest,
   mergePullRequest as ghMergePullRequest,
 } from '@/services/github.service.js';
 import {
+  createPullRequestReview,
   getPullRequestDetail,
   mergePullRequest,
 } from '@/services/prs.service.js';
@@ -27,6 +29,7 @@ vi.mock('@/services/github.service.js', () => ({
   getPullRequest: vi.fn(),
   listPullRequests: vi.fn(),
   mergePullRequest: vi.fn(),
+  createPullRequestReview: vi.fn(),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,6 +38,8 @@ const db = prisma as any;
 const gh = getPullRequest as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ghMerge = ghMergePullRequest as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ghReview = ghCreateReview as any;
 
 const USER_ID = 'user-1';
 const ROOM_ID = 'room-1';
@@ -232,5 +237,76 @@ describe('mergePullRequest', () => {
         merge_method: 'squash',
       }),
     ).rejects.toMatchObject({ code: 'PR_MERGE_CONFLICT' });
+  });
+});
+
+describe('createPullRequestReview', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.roomMember.findFirst.mockResolvedValue({ id: 'membership-1' });
+    db.room.findUnique.mockResolvedValue({
+      id: ROOM_ID,
+      repos: [{ fullName: 'owner/repo' }],
+    });
+    db.user.findUnique.mockResolvedValue({ accessToken: 'gh-token' });
+    ghReview.mockResolvedValue({
+      id: 987654,
+      state: 'APPROVED',
+      submittedAt: '2026-06-08T00:00:00.000Z',
+    });
+  });
+
+  it('정상: 리뷰 등록 후 결과를 반환한다', async () => {
+    const result = await createPullRequestReview(
+      USER_ID,
+      ROOM_ID,
+      PULL_NUMBER,
+      { event: 'APPROVE', body: 'LGTM' },
+    );
+
+    expect(ghReview).toHaveBeenCalledWith(
+      'gh-token',
+      'owner',
+      'repo',
+      PULL_NUMBER,
+      'APPROVE',
+      'LGTM',
+    );
+    expect(result).toEqual({
+      pull_number: PULL_NUMBER,
+      review_id: 987654,
+      state: 'APPROVED',
+      submitted_at: '2026-06-08T00:00:00.000Z',
+    });
+  });
+
+  it('멤버가 아니면 ROOM_MEMBER_NOT_FOUND (리뷰 호출 안 함)', async () => {
+    db.roomMember.findFirst.mockResolvedValue(null);
+    await expect(
+      createPullRequestReview(USER_ID, ROOM_ID, PULL_NUMBER, {
+        event: 'APPROVE',
+      }),
+    ).rejects.toMatchObject({ code: 'ROOM_MEMBER_NOT_FOUND' });
+    expect(ghReview).not.toHaveBeenCalled();
+  });
+
+  it('토큰이 없으면 GITHUB_SCOPE_REQUIRED (리뷰 호출 안 함)', async () => {
+    db.user.findUnique.mockResolvedValue({ accessToken: null });
+    await expect(
+      createPullRequestReview(USER_ID, ROOM_ID, PULL_NUMBER, {
+        event: 'APPROVE',
+      }),
+    ).rejects.toMatchObject({ code: 'GITHUB_SCOPE_REQUIRED' });
+    expect(ghReview).not.toHaveBeenCalled();
+  });
+
+  it('리뷰 불가(PR_REVIEW_NOT_ALLOWED) 전파', async () => {
+    const { AppError } = await import('@/errors/AppError.js');
+    ghReview.mockRejectedValue(new AppError('PR_REVIEW_NOT_ALLOWED'));
+    await expect(
+      createPullRequestReview(USER_ID, ROOM_ID, PULL_NUMBER, {
+        event: 'APPROVE',
+      }),
+    ).rejects.toMatchObject({ code: 'PR_REVIEW_NOT_ALLOWED' });
   });
 });

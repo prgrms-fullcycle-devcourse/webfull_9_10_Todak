@@ -201,6 +201,13 @@ export const ERROR_CODES = {
     message: '해당 회의에 대한 회의록이 이미 존재합니다.',
   },
 
+  // 422
+  PR_REVIEW_NOT_ALLOWED: {
+    statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
+    code: 'PR_REVIEW_NOT_ALLOWED',
+    message: '리뷰를 등록할 수 없습니다. (본인 PR 승인 불가 등)',
+  },
+
   // 429
   TOO_MANY_REQUESTS: {
     statusCode: StatusCodes.TOO_MANY_REQUESTS,
