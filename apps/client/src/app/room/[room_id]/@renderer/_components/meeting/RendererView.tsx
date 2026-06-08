@@ -2,7 +2,6 @@
 
 import { useSpaceStore } from '@/store/useSpaceStore';
 import PixiCanvas from '../2d/PixiCanvas';
-import AnimalSwitcher from '../2d/AnimalSwitcher';
 import MeetingBoard from './MeetingBoard';
 
 interface RendererViewProps {
@@ -23,7 +22,6 @@ export default function RendererView({ roomId }: RendererViewProps) {
 
   return (
     <>
-      <AnimalSwitcher />
       {/* 2D 가상 공간 */}
       <div className="renderer-stage-container flex-1 flex items-center justify-center p-4 relative">
         {/* 테두리와 배경 그림자, 그리고 투명 캔버스 뒤에 깔릴 가상 그리드 배경 주입 */}
