@@ -327,6 +327,11 @@ registry.registerPath({
       'MINUTES_ALREADY_EXISTS',
       '해당 회의에 대한 회의록이 이미 존재합니다.',
     ),
+    429: errorResponse(
+      'AI 생성 일일 호출 한도 초과',
+      'TOO_MANY_REQUESTS',
+      'AI 회의록 요청 한도를 초과했습니다. 잠시 후(최대 24시간) 다시 시도해주세요.',
+    ),
   },
 });
 
@@ -526,6 +531,11 @@ registry.registerPath({
       'AI 생성 중이라 다듬기 불가',
       'MINUTES_GENERATING',
       'AI가 회의록을 생성 중입니다. 완료 후 다시 시도해주세요.',
+    ),
+    429: errorResponse(
+      'AI 다듬기 일일 호출 한도 초과',
+      'TOO_MANY_REQUESTS',
+      'AI 회의록 요청 한도를 초과했습니다. 잠시 후(최대 24시간) 다시 시도해주세요.',
     ),
   },
 });
