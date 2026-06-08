@@ -104,3 +104,15 @@ export async function updateMemberStatus(roomId: string, status: MemberStatus) {
   );
   return response.data;
 }
+
+export function updateRoomProfile(
+  roomId: string,
+  body: {
+    character_type?: string;
+    nickname?: string;
+    roles?: string[];
+    detailed_role?: string | null;
+  },
+): Promise<{ success: boolean; data: RoomProfile }> {
+  return apiClient.patch(`/rooms/${roomId}/members/me`, body);
+}

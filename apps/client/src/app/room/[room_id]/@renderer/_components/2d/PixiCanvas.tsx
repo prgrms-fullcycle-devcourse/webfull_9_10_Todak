@@ -21,7 +21,12 @@ import { setupCamera } from './_world/setupCamera';
 import { createMeetingRoom } from '../meeting/_world/createMeetingRoom';
 import { createOtherPlayer, RemotePlayer } from './_player/createOtherPlayer';
 import { getSocket } from '@/lib/socket';
-import { fetchRoomMembers, RoomProfile } from '@/services/rooms/api';
+import {
+  fetchRoomMembers,
+  RoomMembers,
+  RoomProfile,
+} from '@/services/rooms/api';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -42,6 +47,7 @@ const STATUS_TO_LABEL_MAP: Record<string, string> = {
 export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   // 캔버스를 마운트할 DOM 컨테이너 참조
   const canvasRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let isMounted = true;
@@ -187,6 +193,41 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
             const color = getStatusColor(hangulStatus);
             targetPlayer.updateStatus(hangulStatus, color);
           }
+
+          queryClient.setQueryData<RoomMembers>(
+            ['room-members', roomId],
+            oldData => {
+              if (!oldData) return oldData;
+              return {
+                ...oldData,
+                members: oldData.members.map(m =>
+                  String(m.id) === String(data.userId)
+                    ? { ...m, status: data.status }
+                    : m,
+                ),
+              };
+            },
+          );
+          const updatedMembers = useSpaceStore
+            .getState()
+            .members.map(m =>
+              String(m.id) === String(data.userId)
+                ? { ...m, status: data.status }
+                : m,
+            );
+          useSpaceStore.getState().setMembers(updatedMembers);
+
+          // 현재 열려있는 모달창의 유저 정보 실시간 갱신
+          const currentSelected = useSpaceStore.getState().selectedMember;
+          if (
+            currentSelected &&
+            String(currentSelected.id) === String(data.userId)
+          ) {
+            useSpaceStore.getState().openCharacterModal({
+              ...currentSelected,
+              status: data.status,
+            });
+          }
         },
       );
 
@@ -272,7 +313,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         app.destroy(true, { children: true, texture: false });
       }
     };
-  }, [roomId]);
+  }, [roomId, queryClient]);
 
   return (
     <div className="flex flex-col items-center justify-start gap-2 pt-0 h-full w-full">
