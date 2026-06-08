@@ -133,3 +133,28 @@ export const PullRequestDetailResponseSchema = registry.register(
     }),
   }),
 );
+
+export const MergePullRequestBodySchema = z.object({
+  merge_method: z
+    .enum(['merge', 'squash', 'rebase'])
+    .optional()
+    .default('squash')
+    .openapi({ description: '머지 방식 (기본 squash)', example: 'squash' }),
+  commit_title: z.string().optional().openapi({
+    description: '머지 커밋 제목 (선택, 없으면 GitHub 기본값)',
+  }),
+  commit_message: z.string().optional().openapi({
+    description: '머지 커밋 본문 (선택, 없으면 GitHub 기본값)',
+  }),
+});
+
+export type MergePullRequestBody = z.infer<typeof MergePullRequestBodySchema>;
+
+export const MergePullRequestResponseSchema = registry.register(
+  'PullRequestMergeResult',
+  z.object({
+    merged: z.boolean().openapi({ example: true }),
+    pull_number: z.number().openapi({ example: 42 }),
+    merge_commit_sha: z.string().openapi({ example: '4c2646c7d1e76efe...' }),
+  }),
+);

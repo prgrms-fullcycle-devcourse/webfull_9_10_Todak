@@ -6,8 +6,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '@/lib/prisma.js';
-import { getPullRequest } from '@/services/github.service.js';
-import { getPullRequestDetail } from '@/services/prs.service.js';
+import {
+  getPullRequest,
+  mergePullRequest as ghMergePullRequest,
+} from '@/services/github.service.js';
+import {
+  getPullRequestDetail,
+  mergePullRequest,
+} from '@/services/prs.service.js';
 
 vi.mock('@/lib/prisma.js', () => ({
   prisma: {
@@ -20,12 +26,15 @@ vi.mock('@/lib/prisma.js', () => ({
 vi.mock('@/services/github.service.js', () => ({
   getPullRequest: vi.fn(),
   listPullRequests: vi.fn(),
+  mergePullRequest: vi.fn(),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const gh = getPullRequest as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ghMerge = ghMergePullRequest as any;
 
 const USER_ID = 'user-1';
 const ROOM_ID = 'room-1';
@@ -147,5 +156,81 @@ describe('getPullRequestDetail', () => {
     await expect(
       getPullRequestDetail(USER_ID, ROOM_ID, PULL_NUMBER),
     ).rejects.toMatchObject({ code: 'PR_NOT_FOUND' });
+  });
+});
+
+describe('mergePullRequest', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.roomMember.findFirst.mockResolvedValue({ id: 'membership-1' });
+    db.room.findUnique.mockResolvedValue({
+      id: ROOM_ID,
+      repos: [{ fullName: 'owner/repo' }],
+    });
+    db.user.findUnique.mockResolvedValue({ accessToken: 'gh-token' });
+    ghMerge.mockResolvedValue({ merged: true, sha: 'merge-sha-1' });
+  });
+
+  it('정상: 머지 후 결과를 반환한다', async () => {
+    const result = await mergePullRequest(USER_ID, ROOM_ID, PULL_NUMBER, {
+      merge_method: 'squash',
+      commit_title: '커밋 제목',
+      commit_message: '커밋 본문',
+    });
+
+    expect(ghMerge).toHaveBeenCalledWith(
+      'gh-token',
+      'owner',
+      'repo',
+      PULL_NUMBER,
+      'squash',
+      '커밋 제목',
+      '커밋 본문',
+    );
+    expect(result).toEqual({
+      merged: true,
+      pull_number: PULL_NUMBER,
+      merge_commit_sha: 'merge-sha-1',
+    });
+  });
+
+  it('멤버가 아니면 ROOM_MEMBER_NOT_FOUND (머지 호출 안 함)', async () => {
+    db.roomMember.findFirst.mockResolvedValue(null);
+    await expect(
+      mergePullRequest(USER_ID, ROOM_ID, PULL_NUMBER, {
+        merge_method: 'squash',
+      }),
+    ).rejects.toMatchObject({ code: 'ROOM_MEMBER_NOT_FOUND' });
+    expect(ghMerge).not.toHaveBeenCalled();
+  });
+
+  it('토큰이 없으면 GITHUB_SCOPE_REQUIRED (머지 호출 안 함)', async () => {
+    db.user.findUnique.mockResolvedValue({ accessToken: null });
+    await expect(
+      mergePullRequest(USER_ID, ROOM_ID, PULL_NUMBER, {
+        merge_method: 'squash',
+      }),
+    ).rejects.toMatchObject({ code: 'GITHUB_SCOPE_REQUIRED' });
+    expect(ghMerge).not.toHaveBeenCalled();
+  });
+
+  it('머지 불가(PR_NOT_MERGEABLE) 전파', async () => {
+    const { AppError } = await import('@/errors/AppError.js');
+    ghMerge.mockRejectedValue(new AppError('PR_NOT_MERGEABLE'));
+    await expect(
+      mergePullRequest(USER_ID, ROOM_ID, PULL_NUMBER, {
+        merge_method: 'squash',
+      }),
+    ).rejects.toMatchObject({ code: 'PR_NOT_MERGEABLE' });
+  });
+
+  it('충돌(PR_MERGE_CONFLICT) 전파', async () => {
+    const { AppError } = await import('@/errors/AppError.js');
+    ghMerge.mockRejectedValue(new AppError('PR_MERGE_CONFLICT'));
+    await expect(
+      mergePullRequest(USER_ID, ROOM_ID, PULL_NUMBER, {
+        merge_method: 'squash',
+      }),
+    ).rejects.toMatchObject({ code: 'PR_MERGE_CONFLICT' });
   });
 });

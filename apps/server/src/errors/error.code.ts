@@ -136,11 +136,23 @@ export const ERROR_CODES = {
     message: '채팅 메시지를 찾을 수 없습니다.',
   },
 
+  // 405
+  PR_NOT_MERGEABLE: {
+    statusCode: StatusCodes.METHOD_NOT_ALLOWED,
+    code: 'PR_NOT_MERGEABLE',
+    message: '머지할 수 없는 PR입니다. (드래프트/체크 미통과/이미 닫힘 등)',
+  },
+
   // 409
   CONFLICT: {
     statusCode: StatusCodes.CONFLICT,
     code: 'CONFLICT',
     message: '이미 존재하는 리소스입니다.',
+  },
+  PR_MERGE_CONFLICT: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'PR_MERGE_CONFLICT',
+    message: '충돌 또는 HEAD 변경으로 머지에 실패했습니다.',
   },
   ALREADY_IN_PRIVATE_ROOM: {
     statusCode: StatusCodes.CONFLICT,

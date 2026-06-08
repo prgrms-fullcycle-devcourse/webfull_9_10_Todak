@@ -5,6 +5,8 @@ import { registry } from '../../../schema/openapi.js';
 import {
   GetPullRequestDetailParamsSchema,
   GetPullRequestsQuerySchema,
+  MergePullRequestBodySchema,
+  MergePullRequestResponseSchema,
   PullRequestDetailResponseSchema,
   PullRequestResponseSchema,
 } from './prs.schema.js';
@@ -126,6 +128,75 @@ registry.registerPath({
       'PR/룸/멤버/레포를 찾을 수 없음',
       'PR_NOT_FOUND',
       'Pull Request를 찾을 수 없습니다.',
+    ),
+    502: errorResponse(
+      'GitHub API 오류',
+      'GITHUB_API_ERROR',
+      'GitHub API 오류가 발생했습니다.',
+    ),
+  },
+});
+
+// ─── PUT /rooms/:roomId/prs/:pullNumber/merge ──────────────────────────────
+registry.registerPath({
+  method: 'put',
+  path: '/rooms/{roomId}/prs/{pullNumber}/merge',
+  tags: ['PRs'],
+  summary: 'PR 머지',
+  description:
+    '룸 레포지토리의 특정 PR 을 머지합니다. merge_method(기본 squash)와 ' +
+    'commit_title/commit_message(선택)를 받습니다. GitHub 에 실제 쓰기 작업이며 ' +
+    '룸 멤버만 호출 가능합니다. 머지 성공 시 pr:merged 소켓은 웹훅 경로가 처리합니다.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: GetPullRequestDetailParamsSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: MergePullRequestBodySchema,
+          example: { merge_method: 'squash' },
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'PR 머지 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            message: z.string(),
+            data: MergePullRequestResponseSchema,
+          }),
+        },
+      },
+    },
+    400: errorResponse(
+      '요청 형식이 올바르지 않음',
+      'BAD_REQUEST',
+      '요청 형식이 올바르지 않습니다.',
+    ),
+    401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
+    403: errorResponse(
+      '권한 없음(GitHub 토큰/쓰기 권한)',
+      'FORBIDDEN',
+      '접근 권한이 없습니다.',
+    ),
+    404: errorResponse(
+      'PR/룸/멤버/레포를 찾을 수 없음',
+      'PR_NOT_FOUND',
+      'Pull Request를 찾을 수 없습니다.',
+    ),
+    405: errorResponse(
+      '머지할 수 없는 PR',
+      'PR_NOT_MERGEABLE',
+      '머지할 수 없는 PR입니다. (드래프트/체크 미통과/이미 닫힘 등)',
+    ),
+    409: errorResponse(
+      '충돌 또는 HEAD 변경',
+      'PR_MERGE_CONFLICT',
+      '충돌 또는 HEAD 변경으로 머지에 실패했습니다.',
     ),
     502: errorResponse(
       'GitHub API 오류',
