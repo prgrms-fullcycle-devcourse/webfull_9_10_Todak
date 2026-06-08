@@ -70,6 +70,11 @@ function withHost(userIds: string[], hostId: string): string[] {
   return userIds.includes(hostId) ? userIds : [hostId, ...userIds];
 }
 
+// 채팅 row 목록에서 중복 없는 작성자 userId 목록을 뽑는다.
+function distinctUserIds(rows: { userId: string }[]): string[] {
+  return Array.from(new Set(rows.map(row => row.userId)));
+}
+
 async function getMeetingChatterIds(meeting: MeetingWindow): Promise<string[]> {
   const rows = await prisma.chatMessage.findMany({
     where: meetingChatWhere(meeting),
@@ -185,7 +190,7 @@ export async function endMeeting(
     select: { userId: true },
   });
 
-  const chatterIds = Array.from(new Set(messages.map(row => row.userId)));
+  const chatterIds = distinctUserIds(messages);
   await snapshotParticipants(meeting.id, chatterIds);
 
   return {
@@ -221,7 +226,7 @@ export async function listMeetings(
         select: { userId: true },
       });
       const participantIds = withHost(
-        Array.from(new Set(messages.map(row => row.userId))),
+        distinctUserIds(messages),
         meeting.hostId,
       );
 
