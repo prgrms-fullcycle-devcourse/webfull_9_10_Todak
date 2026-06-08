@@ -205,7 +205,7 @@ describe('getTodos', () => {
     db.roomMember.findFirst.mockResolvedValue(null);
 
     await expectAppError(
-      getTodos(USER_ID, ROOM_ID, {}),
+      getTodos(USER_ID, ROOM_ID, { is_issued: undefined }),
       'ROOM_MEMBER_NOT_FOUND',
     );
   });
@@ -277,7 +277,7 @@ describe('getTodos', () => {
       },
     ]);
 
-    const result = await getTodos(USER_ID, ROOM_ID, {});
+    const result = await getTodos(USER_ID, ROOM_ID, { is_issued: undefined });
 
     expect(result[0].assignee).toBeNull();
   });
