@@ -20,3 +20,7 @@ export interface Todo {
 export interface TodosResponse {
   todos: Todo[];
 }
+export interface TodosDeleteResponse {
+  success: boolean;
+  data: null;
+}
