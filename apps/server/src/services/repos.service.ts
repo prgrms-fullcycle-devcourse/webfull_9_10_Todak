@@ -1,6 +1,5 @@
 import { CreateRepoInput } from '../api/repos/repos.schema.js';
 import { AppError } from '../errors/AppError.js';
-import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
 
 import {
@@ -75,12 +74,37 @@ export async function connectRepo(
   const [owner, repo] = repoFullName.split('/');
   const webhookId = await registerWebhook(accessToken, owner, repo);
 
-  // 다른 레포로 교체하는 경우에만 이전 웹훅 해제
-  if (
-    existing !== null &&
-    existing.webhookId !== null &&
-    existing.fullName !== repoFullName
-  ) {
+  // 같은 레포 재연결(웹훅 복구 등) — repoId 유지해 기존 Todo 연결 보존
+  if (existing !== null && existing.fullName === repoFullName) {
+    const saved = await prisma.repo.update({
+      where: { id: existing.id },
+      data: { webhookId },
+    });
+
+    return {
+      repo_id: saved.id,
+      room_id: roomId,
+      repo_full_name: saved.fullName,
+      webhook_registered: true,
+    };
+  }
+
+  /*
+   * 신규 연결 또는 다른 레포로 교체 — Repo 레코드를 새로 만들어 repoId 회전
+   * (교체 시 기존 레코드 삭제로 옛 Todo 의 repoId 가 SetNull 처리되어 보존된다)
+   */
+  const saved = await prisma.$transaction(async tx => {
+    if (existing !== null) {
+      await tx.repo.delete({ where: { id: existing.id } });
+    }
+
+    return tx.repo.create({
+      data: { roomId, fullName: repoFullName, webhookId },
+    });
+  });
+
+  // 교체된 경우 이전 웹훅 해제 (best-effort, 트랜잭션 밖)
+  if (existing !== null && existing.webhookId !== null) {
     const [oldOwner, oldRepo] = existing.fullName.split('/');
     try {
       await unregisterWebhook(
@@ -96,21 +120,6 @@ export async function connectRepo(
       );
     }
   }
-
-  const saved =
-    existing === null
-      ? await prisma.repo.create({
-          data: { roomId, fullName: repoFullName, webhookId },
-        })
-      : await prisma.repo.update({
-          where: { id: existing.id },
-          data: {
-            fullName: repoFullName,
-            webhookId,
-            statsCache: Prisma.DbNull,
-            statsCachedAt: null,
-          },
-        });
 
   return {
     repo_id: saved.id,

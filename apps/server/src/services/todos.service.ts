@@ -33,6 +33,9 @@ export async function createTodos(
     throw new AppError('ROOM_NOT_FOUND');
   }
 
+  // 이슈 기반 Todo 의 레포 스코프 (이슈 유일성·웹훅 echo 화해 키). 회의 전용 Todo 는 null.
+  const repoId = room.repos[0]?.id ?? null;
+
   // 3. GitHub 이슈 발행이 필요한지 확인
   const needsGithub = todos.some(t => t.create_issue);
 
@@ -128,6 +131,8 @@ export async function createTodos(
     for (const [index, todo] of todos.entries()) {
       const data = {
         roomId,
+        // 이슈가 발행된 항목만 레포에 묶는다 (회의 전용 Todo 는 repoId null 유지)
+        repoId: issueNumberByIndex.has(index) ? repoId : null,
         assigneeId: todo.assignee_id ?? null,
         minutesId: todo.minutes_id ?? null,
         title: todo.title,
@@ -142,14 +147,15 @@ export async function createTodos(
         if (
           createError instanceof Prisma.PrismaClientKnownRequestError &&
           createError.code === 'P2002' &&
-          data.githubIssueNumber !== null
+          data.githubIssueNumber !== null &&
+          data.repoId !== null
         ) {
           // 웹훅 echo 가 이미 같은 이슈의 Todo 를 생성함 → 앱 값으로 보강(화해)
           createdTodos.push(
             await prisma.todo.update({
               where: {
-                roomId_githubIssueNumber: {
-                  roomId,
+                repoId_githubIssueNumber: {
+                  repoId: data.repoId,
                   githubIssueNumber: data.githubIssueNumber,
                 },
               },
