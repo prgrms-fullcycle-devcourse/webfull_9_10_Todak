@@ -1,10 +1,10 @@
 'use client';
 
 import { fetchMyTodos, fetchTodos } from '@/services/todos/api';
-import type { Todo } from '@/services/todos/model';
 import { Tabs } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
+import TodoList, { TodoListProps } from './List';
 
 const TODO_TAB_OPTIONS = [
   {
@@ -18,63 +18,6 @@ const TODO_TAB_OPTIONS = [
 ] as const;
 
 type TodoTabId = (typeof TODO_TAB_OPTIONS)[number]['id'];
-
-interface TodoListProps {
-  isError: boolean;
-  isPending: boolean;
-  todos: Todo[];
-}
-
-function TodoList({ isError, isPending, todos }: TodoListProps) {
-  if (isPending) {
-    return (
-      <p className="rounded-xl border border-border bg-surface-secondary px-4 py-3 text-xs font-black text-muted">
-        할 일을 불러오는 중입니다...
-      </p>
-    );
-  }
-
-  if (isError) {
-    return (
-      <p className="rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-xs font-black text-danger">
-        할 일을 불러오지 못했습니다.
-      </p>
-    );
-  }
-
-  if (todos.length === 0) {
-    return (
-      <p className="rounded-xl border border-border bg-surface-secondary px-4 py-3 text-xs font-black text-muted">
-        표시할 할 일이 없습니다.
-      </p>
-    );
-  }
-
-  return (
-    <div className="grid max-h-[104px] grid-cols-2 gap-3 overflow-y-auto pr-1">
-      {todos.map(todo => (
-        <div
-          className="flex items-center justify-between rounded-xl border border-border bg-surface-secondary px-4 py-3 text-xs shadow-surface"
-          key={todo.id}
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            <span
-              className={`size-2.5 shrink-0 rounded-full ${
-                todo.is_done ? 'bg-success' : 'bg-warning'
-              }`}
-            />
-            <span className="truncate font-black text-foreground">
-              {todo.title}
-            </span>
-          </div>
-          <span className="ml-3 shrink-0 font-todak-mono text-[11px] font-black text-accent">
-            @{todo.assignee?.github_username ?? '미지정'}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default function BottomTodoTabs() {
   const { room_id: roomID } = useParams<{ room_id: string }>();
