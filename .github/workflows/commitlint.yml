@@ -1,0 +1,76 @@
+name: Commitlint
+
+# 커밋 메시지 검사라 PR에서만 의미가 있음 (push 트리거 없음)
+on:
+  pull_request:
+    # edited: PR 제목 수정 시에도 제목 검사를 다시 돌리기 위함
+    types: [opened, reopened, synchronize, edited]
+    branches: [main, develop]
+
+concurrency:
+  group: commitlint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  commits:
+    name: conventional commits
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # base..head 범위의 모든 커밋을 보려면 전체 히스토리 필요
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # develop PR에서 각 커밋을 이미 검증하므로, main(릴리스) PR에선 전체
+      # 히스토리를 재검사하지 않는다. (중복 + 과거 커밋이 규칙을 못 맞춰 실패)
+      - name: Lint PR commits
+        if: github.base_ref == 'develop'
+        run: >-
+          pnpm exec commitlint
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
+          --verbose
+
+      # 체크가 항상 보고되도록(required check pending 방지) main PR에선 통과 처리
+      - name: Skip per-commit lint (release PR)
+        if: github.base_ref != 'develop'
+        run: echo "Release PR into ${{ github.base_ref }} — commits already linted on the develop PR. Skipping."
+
+  pr-title:
+    # squash 머지 시 결과 커밋 제목 = PR 제목이므로, PR 제목을 같은 규칙으로
+    # 검사해 비표준 커밋이 develop/main에 쌓이는 걸 원천 차단한다.
+    name: conventional PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: echo "$PR_TITLE" | pnpm exec commitlint --verbose

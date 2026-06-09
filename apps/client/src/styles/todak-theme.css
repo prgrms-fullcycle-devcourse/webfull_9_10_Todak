@@ -173,6 +173,46 @@
     @apply flex h-full w-[260px] shrink-0 flex-col border-r border-border bg-background p-4;
   }
 
+  .sidebar-layout-container {
+    @apply relative z-40 h-full shrink-0 overflow-visible transition-[width] duration-300 ease-in-out;
+  }
+
+  .sidebar-layout-container-open {
+    @apply w-[260px];
+  }
+
+  .sidebar-layout-container-closed {
+    @apply w-0;
+  }
+
+  .room-sidebar-content {
+    @apply absolute inset-y-0 left-0 overflow-hidden transition-transform duration-300 ease-in-out;
+  }
+
+  .sidebar-layout-container-closed .room-sidebar-content {
+    @apply pointer-events-none -translate-x-full;
+  }
+
+  .room-sidebar-toggle-button {
+    @apply absolute top-1/2 right-0 z-50 flex h-[72px] w-6 min-w-0 translate-x-[calc(100%-1px)] -translate-y-1/2 items-center justify-center rounded-l-none rounded-r-xl border border-border bg-white p-0 transition-colors hover:bg-surface-secondary;
+  }
+
+  .room-sidebar-toggle-icon {
+    @apply block size-0;
+  }
+
+  .room-sidebar-toggle-icon-left {
+    border-top: 4px solid transparent;
+    border-right: 5px solid #9db4d6;
+    border-bottom: 4px solid transparent;
+  }
+
+  .room-sidebar-toggle-icon-right {
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 5px solid #9db4d6;
+  }
+
   .renderer-section-container {
     @apply flex min-w-0 flex-1 flex-col overflow-hidden;
   }
@@ -200,15 +240,25 @@
   }
 
   .renderer-bottom-container {
-    @apply shrink-0 border-t border-border bg-surface;
+    @apply shrink-0 border-border px-8 py-4 pb-0;
   }
 
   .renderer-todo-container {
-    @apply space-y-4 px-8 py-5;
+    @apply mx-auto w-[60vw] max-w-[1400px] rounded-xl border border-border bg-surface p-4;
+    box-shadow: var(--overlay-shadow);
   }
 
   .renderer-news-container {
-    @apply flex h-12 items-center justify-between bg-foreground px-8 text-background;
+    @apply -mx-8 mt-4 flex h-12 items-center justify-between bg-foreground px-8 text-background;
+  }
+
+  .notification-roll-window {
+    @apply relative min-w-0 flex-1 overflow-hidden;
+  }
+
+  .notification-roll-item {
+    @apply block truncate text-xs font-semibold;
+    animation: notification-roll-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .review-station-card {
@@ -349,6 +399,22 @@
   }
 }
 
+@keyframes notification-roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem);
+  }
+
+  60% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes todak-neon-red {
   from {
     border-color: #ef4444;
@@ -356,5 +422,11 @@
 
   to {
     border-color: #fca5a5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-roll-item {
+    animation: none;
   }
 }

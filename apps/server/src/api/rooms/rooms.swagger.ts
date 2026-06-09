@@ -363,9 +363,9 @@ registry.registerPath({
   method: 'delete',
   path: '/rooms/{roomId}',
   tags: ['Rooms'],
-  summary: '룸 삭제',
+  summary: '룸 삭제 (방장 전용)',
   description:
-    '룸 멤버라면 누구나 삭제할 수 있습니다. GitHub webhook을 자동으로 해제하고 관련 데이터를 모두 삭제합니다.',
+    '방장(host)만 룸을 삭제할 수 있습니다. GitHub webhook을 자동으로 해제하고 관련 데이터를 모두 삭제합니다. GitHub 레포지토리 자체는 삭제하지 않습니다.',
   security: [{ bearerAuth: [] }],
   request: {
     params: RoomIdParamSchema,
@@ -387,8 +387,54 @@ registry.registerPath({
       },
     },
     401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
+    403: errorResponse('방장 권한 없음', 'FORBIDDEN', '접근 권한이 없습니다.'),
     404: errorResponse(
       '룸을 찾을 수 없음',
+      'ROOM_NOT_FOUND',
+      '룸을 찾을 수 없습니다.',
+    ),
+  },
+});
+
+// ─── POST /rooms/:roomId/leave ────────────────────────────────────────────────
+registry.registerPath({
+  method: 'post',
+  path: '/rooms/{roomId}/leave',
+  tags: ['Rooms'],
+  summary: '룸 탈퇴',
+  description:
+    '내가 속한 룸에서 나갑니다. 다른 멤버가 남아 있으면 룸은 유지되며, 내가 방장이었다면 다음으로 가입한(가장 먼저 들어온) 멤버에게 방장이 자동 위임됩니다. 내가 마지막 멤버였다면 룸이 통째로 삭제됩니다(webhook 해제 + 연결 데이터 전체 삭제, GitHub 레포지토리 자체는 보존).',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: RoomIdParamSchema,
+  },
+  responses: {
+    200: {
+      description: '룸 탈퇴 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            message: z.string(),
+            data: z.object({
+              room_deleted: z.boolean(),
+              new_host_user_id: z.string().uuid().nullable(),
+            }),
+          }),
+          example: {
+            success: true,
+            message: '룸에서 나갔습니다.',
+            data: {
+              room_deleted: false,
+              new_host_user_id: 'uuid-user-2',
+            },
+          },
+        },
+      },
+    },
+    401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
+    404: errorResponse(
+      '룸을 찾을 수 없거나 내가 속하지 않은 룸',
       'ROOM_NOT_FOUND',
       '룸을 찾을 수 없습니다.',
     ),

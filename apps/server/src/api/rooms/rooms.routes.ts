@@ -12,6 +12,7 @@ import membersRoutes from './members/members.routes.js';
 import './private-room/private-room.swagger.js';
 import './chat/chat.swagger.js';
 import privateRoomRoutes from './private-room/private-room.routes.js';
+import './prs/prs.swagger.js';
 import prsRoutes from './prs/prs.routes.js';
 import {
   createRoomHandler,
@@ -19,6 +20,7 @@ import {
   getRoomByIdHandler,
   getRoomsHandler,
   joinRoomHandler,
+  leaveRoomHandler,
   updateRoomHandler,
 } from './rooms.controller.js';
 import {
@@ -38,6 +40,7 @@ router.post('/join', strictLimiter, validate(JoinRoomSchema), joinRoomHandler);
 router.get('/:roomId', getRoomByIdHandler);
 router.patch('/:roomId', validate(UpdateRoomSchema), updateRoomHandler);
 router.delete('/:roomId', deleteRoomHandler);
+router.post('/:roomId/leave', leaveRoomHandler);
 router.use('/:roomId/members', membersRoutes);
 router.use('/:roomId/private-room', privateRoomRoutes);
 router.use('/:roomId/chats', chatRoutes);

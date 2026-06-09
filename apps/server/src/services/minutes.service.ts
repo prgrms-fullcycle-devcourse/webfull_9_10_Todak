@@ -2,12 +2,26 @@ import {
   CreateManualMinutesBody,
   GenerateAiMinutesBody,
   GetMinutesListQuery,
+  RefineMinutesBody,
   UpdateMinutesBody,
 } from '../api/minutes/minutes.schema.js';
 import { AppError } from '../errors/AppError.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 import { addJob } from '../jobs/queues/index.js';
 import { prisma } from '../lib/prisma.js';
+
+import { refineMinutesContent } from './anthropic.service.js';
+
+/*
+ * 프리셋 다듬기 지시문(서버 소유). 프론트는 refine_type 만 보내고,
+ * 실제 지시 문구는 여기서 관리해 프롬프트 개선이 백엔드에 집중되게 한다.
+ */
+const REFINE_INSTRUCTIONS: Record<'SHORTEN' | 'BULLET', string> = {
+  SHORTEN:
+    '전체 내용을 핵심만 남겨 훨씬 짧고 간결하게 요약해줘. 중요한 결정사항과 액션 아이템은 빠뜨리지 마.',
+  BULLET:
+    '전체 내용을 글머리 기호(bullet points) 위주의 개조식으로 정리해줘. 장황한 문장은 짧은 항목으로 변환해.',
+};
 
 export class MinutesService {
   // 호출자가 해당 룸의 멤버인지 검증 (멤버가 아니면 룸 존재 여부를 숨기기 위해 ROOM_NOT_FOUND)
@@ -27,8 +41,6 @@ export class MinutesService {
     userId: string,
     query: GetMinutesListQuery,
   ) {
-    await this.assertRoomMember(roomId, userId);
-
     const { type, status, page, limit } = query;
 
     const whereCondition: Prisma.MinutesWhereInput = { roomId };
@@ -40,36 +52,47 @@ export class MinutesService {
       whereCondition.status = status;
     }
 
-    const totalCount = await prisma.minutes.count({
-      where: whereCondition,
-    });
-
     const skip = (page - 1) * limit;
 
-    const minutesData = await prisma.minutes.findMany({
-      where: whereCondition,
-      select: {
-        id: true,
-        title: true,
-        type: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        author: {
-          select: {
-            id: true,
-            githubUsername: true,
-            avatarUrl: true,
+    /*
+     * 멤버 검증 / 카운트 / 목록을 병렬 조회해 왕복을 줄인다.
+     * 비멤버면 조회 결과를 버리고 기존과 동일하게 ROOM_NOT_FOUND 를 던진다(정보 노출 없음).
+     */
+    const [membership, totalCount, minutesData] = await Promise.all([
+      prisma.roomMember.findFirst({
+        where: { roomId, userId },
+        select: { id: true },
+      }),
+      prisma.minutes.count({ where: whereCondition }),
+      prisma.minutes.findMany({
+        where: whereCondition,
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          author: {
+            select: {
+              id: true,
+              githubUsername: true,
+              avatarUrl: true,
+            },
           },
+          linkedIssueNumbers: true,
         },
-        linkedIssueNumbers: true,
-      },
-      skip,
-      take: limit,
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+    ]);
+
+    if (membership === null) {
+      throw new AppError('ROOM_NOT_FOUND');
+    }
 
     const formattedMinutes = minutesData.map(m => ({
       id: m.id,
@@ -130,7 +153,7 @@ export class MinutesService {
       content_md: newMinutes.contentMd,
       status: newMinutes.status,
       linked_issue_numbers: newMinutes.linkedIssueNumbers,
-      action_items: newMinutes.actionItems,
+      action_items: newMinutes.actionItems ?? [],
       created_at: newMinutes.createdAt.toISOString(),
       updated_at: newMinutes.updatedAt.toISOString(),
     };
@@ -265,7 +288,7 @@ export class MinutesService {
       type: tempMinutes.type,
       // 신규는 null, 재생성(draft 초안)이면 기존 본문이 잠시 유지됨
       content_md: tempMinutes.contentMd,
-      action_items: tempMinutes.actionItems,
+      action_items: tempMinutes.actionItems ?? [],
       status: tempMinutes.status, // "generating"
       linked_issue_numbers: tempMinutes.linkedIssueNumbers,
       created_at: tempMinutes.createdAt.toISOString(),
@@ -280,14 +303,20 @@ export class MinutesService {
   ) {
     await this.assertRoomMember(roomId, userId);
 
-    // 1. 회의록 단건 조회 (User 테이블 include 및 해당 룸 검증)
+    // 1. 회의록 단건 조회 (author 는 노출 필드만 select — accessToken 등 민감컬럼 미조회)
     const minutes = await prisma.minutes.findFirst({
       where: {
         id: minutesId,
         roomId,
       },
       include: {
-        author: true,
+        author: {
+          select: {
+            id: true,
+            githubUsername: true,
+            avatarUrl: true,
+          },
+        },
       },
     });
 
@@ -302,7 +331,7 @@ export class MinutesService {
       title: minutes.title,
       type: minutes.type,
       content_md: minutes.contentMd,
-      action_items: minutes.actionItems,
+      action_items: minutes.actionItems ?? [],
       status: minutes.status,
       linked_issue_numbers: minutes.linkedIssueNumbers,
       author: {
@@ -357,10 +386,62 @@ export class MinutesService {
       title: updated.title,
       type: updated.type,
       content_md: updated.contentMd,
-      action_items: updated.actionItems,
+      action_items: updated.actionItems ?? [],
       status: updated.status,
       linked_issue_numbers: updated.linkedIssueNumbers,
       updated_at: updated.updatedAt.toISOString(),
+    };
+  }
+
+  /*
+   * 기존 회의록 본문을 지시사항대로 AI가 재가공해 즉시 반환(동기).
+   * DB에는 저장하지 않으며, 사용자가 확인 후 PATCH 로 확정한다.
+   */
+  public async refineMinutes(
+    roomId: string,
+    userId: string,
+    minutesId: string,
+    body: RefineMinutesBody,
+  ) {
+    await this.assertRoomMember(roomId, userId);
+
+    const minutes = await prisma.minutes.findFirst({
+      where: { id: minutesId, roomId },
+      select: { id: true, contentMd: true, status: true },
+    });
+
+    if (!minutes) {
+      throw new AppError('MINUTES_NOT_FOUND');
+    }
+
+    // 생성 중이면 본문이 불완전하므로 다듬기 불가
+    if (minutes.status === 'generating') {
+      throw new AppError('MINUTES_GENERATING');
+    }
+
+    if (minutes.contentMd === null || minutes.contentMd.trim() === '') {
+      throw new AppError('MINUTES_NO_CONTENT');
+    }
+
+    let instruction: string;
+    if (body.refine_type === 'CUSTOM') {
+      // 스키마에서 보장되지만 타입 안전을 위해 한 번 더 방어
+      if (body.custom_message === undefined) {
+        throw new AppError('BAD_REQUEST');
+      }
+      instruction = body.custom_message;
+    } else {
+      instruction = REFINE_INSTRUCTIONS[body.refine_type];
+    }
+
+    const refinedContentMd = await refineMinutesContent(
+      minutes.contentMd,
+      instruction,
+    );
+
+    return {
+      id: minutes.id,
+      refined_content_md: refinedContentMd,
     };
   }
 }

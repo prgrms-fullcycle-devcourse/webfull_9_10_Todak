@@ -48,6 +48,7 @@ export type CreateRoomProfileParams = {
 };
 
 export type RoomProfile = {
+  id: string;
   github_username: string;
   avatar_url: string | null;
   roles: string[];
@@ -58,6 +59,24 @@ export type RoomProfile = {
   is_host: boolean;
   pos_x: number;
   pos_y: number;
+};
+
+export type RoomInfo = {
+  id: string;
+  name: string;
+  status: string;
+  invite_code: string;
+  max_members: number;
+  created_at: string;
+  repo: null | {
+    id: string;
+    full_name: string;
+    default_branch: string | null;
+    stats_cache: string | null;
+    stats_cached_at: Timestamp | null;
+  };
+  members: RoomProfile[];
+  member_count: number;
 };
 
 export type RoomMembers = {

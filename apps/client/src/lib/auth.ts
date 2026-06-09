@@ -20,7 +20,7 @@ export interface AuthUser {
   avatarUrl: string;
 }
 
-interface AuthTokenPayload extends AuthUser {
+export interface AuthTokenPayload extends AuthUser {
   exp?: number;
   iat?: number;
 }

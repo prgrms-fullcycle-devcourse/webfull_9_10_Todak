@@ -1,5 +1,5 @@
 import { api, apiClient } from '@/lib/api';
-import { isTodakApiError } from '@/sevice/error';
+import { isTodakApiError } from '@/services/error';
 
 import type {
   CreatedRoom,
@@ -8,13 +8,16 @@ import type {
   JoinRoomParams,
   MyRooms,
   CreateRoomProfileParams,
+  RoomInfo,
   RoomProfile,
   PrivateRoom,
   EnterPrivateRoomResponse,
   LeavePrivateRoomResponse,
   MemberStatus,
   StatusResponse,
+  RoomMembers,
 } from './model';
+import { AuthTokenPayload } from '@/lib/auth';
 
 export type {
   CreatedRoom,
@@ -23,6 +26,7 @@ export type {
   JoinRoomParams,
   MyRoom,
   MyRooms,
+  RoomInfo,
   RoomMembers,
   RoomProfile,
   PrivateRoom,
@@ -32,7 +36,9 @@ export async function fetchMyRooms(): Promise<MyRooms> {
   return apiClient.get<MyRooms>('/rooms');
 }
 
-export function fetchRoomInfo() {}
+export function fetchRoomInfo(roomID: string): Promise<RoomInfo> {
+  return apiClient.get<RoomInfo>(`/rooms/${roomID}`);
+}
 
 export function createRooms(params: CreateRoomsParams): Promise<CreatedRoom> {
   return apiClient.post<CreatedRoom, CreateRoomsParams>('/rooms', params);
@@ -50,6 +56,14 @@ export function deleteRooms() {}
 
 export function isRoomProfileAlreadySetUpError(error: unknown) {
   return isTodakApiError(error) && error.response.status === 409;
+}
+
+export function fetchMyProfile(): Promise<AuthTokenPayload> {
+  return apiClient.get<AuthTokenPayload>('/users/me');
+}
+
+export function fetchRoomMembers(roomId: string): Promise<RoomMembers> {
+  return apiClient.get<RoomMembers>(`/rooms/${roomId}/members`);
 }
 
 export async function createRoomProfile(
@@ -93,4 +107,16 @@ export async function updateMemberStatus(roomId: string, status: MemberStatus) {
     },
   );
   return response.data;
+}
+
+export function updateRoomProfile(
+  roomId: string,
+  body: {
+    character_type?: string;
+    nickname?: string;
+    roles?: string[];
+    detailed_role?: string | null;
+  },
+): Promise<{ success: boolean; data: RoomProfile }> {
+  return apiClient.patch(`/rooms/${roomId}/members/me`, body);
 }

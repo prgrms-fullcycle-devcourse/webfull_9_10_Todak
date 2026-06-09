@@ -24,6 +24,11 @@ export const ERROR_CODES = {
     code: 'NOT_IN_PRIVATE_ROOM',
     message: '현재 입장 중인 프라이빗 룸이 아닙니다.',
   },
+  MINUTES_NO_CONTENT: {
+    statusCode: StatusCodes.BAD_REQUEST,
+    code: 'MINUTES_NO_CONTENT',
+    message: '다듬을 회의록 본문이 비어 있습니다.',
+  },
 
   // 401
   UNAUTHORIZED: {
@@ -131,11 +136,23 @@ export const ERROR_CODES = {
     message: '채팅 메시지를 찾을 수 없습니다.',
   },
 
+  // 405
+  PR_NOT_MERGEABLE: {
+    statusCode: StatusCodes.METHOD_NOT_ALLOWED,
+    code: 'PR_NOT_MERGEABLE',
+    message: '머지할 수 없는 PR입니다. (드래프트/체크 미통과/이미 닫힘 등)',
+  },
+
   // 409
   CONFLICT: {
     statusCode: StatusCodes.CONFLICT,
     code: 'CONFLICT',
     message: '이미 존재하는 리소스입니다.',
+  },
+  PR_MERGE_CONFLICT: {
+    statusCode: StatusCodes.CONFLICT,
+    code: 'PR_MERGE_CONFLICT',
+    message: '충돌 또는 HEAD 변경으로 머지에 실패했습니다.',
   },
   ALREADY_IN_PRIVATE_ROOM: {
     statusCode: StatusCodes.CONFLICT,
@@ -182,6 +199,20 @@ export const ERROR_CODES = {
     statusCode: StatusCodes.CONFLICT,
     code: 'MINUTES_ALREADY_EXISTS',
     message: '해당 회의에 대한 회의록이 이미 존재합니다.',
+  },
+
+  // 422
+  PR_REVIEW_NOT_ALLOWED: {
+    statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
+    code: 'PR_REVIEW_NOT_ALLOWED',
+    message: '리뷰를 등록할 수 없습니다. (본인 PR 승인 불가 등)',
+  },
+
+  // 429
+  TOO_MANY_REQUESTS: {
+    statusCode: StatusCodes.TOO_MANY_REQUESTS,
+    code: 'TOO_MANY_REQUESTS',
+    message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.',
   },
 
   // 500

@@ -1,14 +1,18 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Button, Input } from '@heroui/react';
 
-export default function ChatInput() {
+interface ChatInputProps {
+  onSend: (content: string) => void;
+}
+
+export default function ChatInput({ onSend }: ChatInputProps) {
   const [input, setInput] = useState('');
 
   const handleSend = () => {
     if (!input.trim()) return;
-    // TODO: API 연결 시 여기에 전송 로직
+    onSend(input.trim());
     console.log('전송:', input);
     setInput('');
   };
@@ -16,6 +20,7 @@ export default function ChatInput() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      if (e.nativeEvent.isComposing) return;
       handleSend();
     }
   };

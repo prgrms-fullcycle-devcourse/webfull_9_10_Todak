@@ -2,8 +2,9 @@ import * as PIXI from 'pixi.js';
 import type { AnimalAssetPack } from '../_animals/types';
 import { type Player, CHAR_HEIGHT } from './createPlayer';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
-import { enterPrivateRoom, leavePrivateRoom } from '@/sevice/rooms/api';
+import { enterPrivateRoom, leavePrivateRoom } from '@/services/rooms/api';
 import { getSocket } from '@/lib/socket';
+import { useSpaceStore } from '@/store/useSpaceStore';
 
 const SPEED = 6;
 
@@ -27,31 +28,36 @@ export function setupMovement(
   let currentRoomId: string | null = null;
   let isProcessing = false;
 
-  const ticker = () => {
+  let lastSentX = player.container.x;
+  let lastSentY = player.container.y;
+
+  const ticker = (t: PIXI.Ticker) => {
     const textures = getTextures();
     const { container, sprite, baseScaleX } = player;
     let isMoving = false;
     const walkFrame = Math.floor(Date.now() / 150) % 2;
 
+    const moveStep = SPEED * t.deltaTime;
+
     if (keys['ArrowUp']) {
-      container.y -= SPEED;
+      container.y -= moveStep;
       sprite.texture = textures.back;
       sprite.scale.x = baseScaleX;
       isMoving = true;
     } else if (keys['ArrowDown']) {
-      container.y += SPEED;
+      container.y += moveStep;
       sprite.texture = textures.front;
       sprite.scale.x = baseScaleX;
       isMoving = true;
     }
 
     if (keys['ArrowLeft']) {
-      container.x -= SPEED;
+      container.x -= moveStep;
       sprite.texture = textures.walk[walkFrame];
       sprite.scale.x = baseScaleX;
       isMoving = true;
     } else if (keys['ArrowRight']) {
-      container.x += SPEED;
+      container.x += moveStep;
       sprite.texture = textures.walk[walkFrame];
       sprite.scale.x = -baseScaleX;
       isMoving = true;
@@ -71,6 +77,26 @@ export function setupMovement(
     // 화면 경계 처리
     container.x = Math.max(30, Math.min(2455 - 30, container.x));
     container.y = Math.max(50, Math.min(1170 - 50, container.y));
+
+    if (container.x !== lastSentX || container.y !== lastSentY) {
+      getSocket().emit('room:move', {
+        roomId: roomId,
+        posX: container.x,
+        posY: container.y,
+      });
+
+      lastSentX = container.x;
+      lastSentY = container.y;
+
+      const currentStatus = useSpaceStore.getState().myChar.status;
+      if (currentStatus === '💤 부재' || currentStatus === '☕ 휴식') {
+        useSpaceStore.getState().setMyStatus('🔥 집중');
+        getSocket().emit('room:status-change', {
+          roomId,
+          status: 'focus',
+        });
+      }
+    }
 
     // 캐릭터 현재 좌표
     const playerX = player.container.x;
@@ -97,6 +123,7 @@ export function setupMovement(
     if (newRoomId !== currentRoomId && !isProcessing) {
       // 회의실 입장
       if (currentRoomId === null && newRoomId !== null) {
+        if (newRoomId.startsWith('empty-room')) return;
         isProcessing = true;
         const roomToEnter = newRoomId;
 
@@ -107,6 +134,8 @@ export function setupMovement(
               privateRoomId: newRoomId,
             });
             currentRoomId = roomToEnter;
+            useSpaceStore.getState().setMyStatus('💬 회의중');
+            useSpaceStore.getState().setCurrentPrivateRoomId(newRoomId);
           })
           .catch(err => console.error(`입장 실패:`, err))
           .finally(() => {
@@ -142,10 +171,12 @@ export function setupMovement(
           .then(() => {
             currentRoomId = null;
             darkOverlay.visible = false;
+            useSpaceStore.getState().setCurrentPrivateRoomId(null);
           })
           .catch(err => console.error(`HTTP 퇴장 API 실패:`, err))
           .finally(() => {
             isProcessing = false;
+            useSpaceStore.getState().setMyStatus('🔥 집중');
           });
       }
     }

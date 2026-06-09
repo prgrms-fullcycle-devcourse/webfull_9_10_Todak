@@ -25,11 +25,23 @@ const AuthorSchema = z.object({
   avatar_url: z.string().nullable(),
 });
 
-// 액션 아이템 (Todo 생성 API와 동일한 title/body/labels 구조)
+// 액션 아이템 (title/body/labels + AI 추론 담당자 assignee)
 const ActionItemSchema = z.object({
   title: z.string(),
   body: z.string().optional(),
   labels: z.array(z.string()),
+  assignee: z
+    .object({
+      id: z.string(),
+      github_username: z.string(),
+      avatar_url: z.string().nullable(),
+    })
+    .nullable()
+    .optional()
+    .openapi({
+      description:
+        'AI가 추론한 담당자(룸 멤버). 미지목/외부인이면 null. (I10 이전 데이터엔 필드 없음)',
+    }),
 });
 
 // 목록 아이템 (작성자 요약 포함, content_md/action_items 제외)
@@ -327,6 +339,11 @@ registry.registerPath({
       'MINUTES_ALREADY_EXISTS',
       '해당 회의에 대한 회의록이 이미 존재합니다.',
     ),
+    429: errorResponse(
+      'AI 생성 일일 호출 한도 초과',
+      'TOO_MANY_REQUESTS',
+      'AI 회의록 요청 한도를 초과했습니다. 잠시 후(최대 24시간) 다시 시도해주세요.',
+    ),
   },
 });
 
@@ -465,10 +482,11 @@ registry.registerPath({
   method: 'post',
   path: '/rooms/{roomId}/minutes/{minutesId}/ai-refine',
   tags: ['Minutes'],
-  summary: 'AI 회의록 다듬기 (개발 중)',
+  summary: 'AI 회의록 다듬기',
   description:
-    '프롬프트를 기반으로 회의록 본문을 AI로 재작성한 결과를 반환합니다. ' +
-    '현재 구현 진행 중인 엔드포인트입니다.',
+    '기존 회의록 본문을 지시사항(refine_type)에 맞춰 AI가 재가공해 즉시 반환합니다(동기). ' +
+    'SHORTEN(짧게)·BULLET(개조식)은 서버가 지시문을 소유하며, CUSTOM 일 때만 custom_message 를 사용합니다. ' +
+    'DB에 저장하지 않으므로, 결과 확인 후 PATCH 로 확정하세요.',
   security: [{ bearerAuth: [] }],
   request: {
     params: MinutesSchema.detailParams,
@@ -476,7 +494,10 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: MinutesSchema.refineMinutesBody,
-          example: { prompt: '액션 아이템을 더 구체적으로 정리해줘' },
+          example: {
+            refine_type: 'CUSTOM',
+            custom_message: '액션 아이템을 더 구체적으로 정리해줘',
+          },
         },
       },
     },
@@ -488,22 +509,45 @@ registry.registerPath({
         'application/json': {
           schema: z.object({
             success: z.literal(true),
+            message: z.string(),
             data: z.object({
+              id: z.string(),
               refined_content_md: z.string(),
             }),
           }),
           example: {
             success: true,
-            data: { refined_content_md: 'AI 재생성 회의록' },
+            message:
+              'AI가 요청사항을 반영하여 회의록을 성공적으로 다듬었습니다.',
+            data: {
+              id: 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e',
+              refined_content_md:
+                '# 5월 23일 스크럼 미팅 (요약본)\n\n- **프론트엔드**: 소켓 구조 설계 완료\n- **백엔드**: BullMQ 환경 분리 완료',
+            },
           },
         },
       },
     },
     400: errorResponse(
-      '요청 형식이 올바르지 않음',
-      'BAD_REQUEST',
-      '요청 형식이 올바르지 않습니다.',
+      '요청 형식이 올바르지 않거나 다듬을 본문이 비어 있음',
+      'MINUTES_NO_CONTENT',
+      '다듬을 회의록 본문이 비어 있습니다.',
     ),
     401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
+    404: errorResponse(
+      '회의록을 찾을 수 없음',
+      'MINUTES_NOT_FOUND',
+      '해당 회의록을 찾을 수 없거나 접근 권한이 없습니다.',
+    ),
+    409: errorResponse(
+      'AI 생성 중이라 다듬기 불가',
+      'MINUTES_GENERATING',
+      'AI가 회의록을 생성 중입니다. 완료 후 다시 시도해주세요.',
+    ),
+    429: errorResponse(
+      'AI 다듬기 일일 호출 한도 초과',
+      'TOO_MANY_REQUESTS',
+      'AI 회의록 요청 한도를 초과했습니다. 잠시 후(최대 24시간) 다시 시도해주세요.',
+    ),
   },
 });

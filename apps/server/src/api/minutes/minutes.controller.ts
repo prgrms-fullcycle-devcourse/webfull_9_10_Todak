@@ -12,6 +12,8 @@ import {
   GetMinutesDetailParams,
   GetMinutesListParams,
   GetMinutesListQuery,
+  RefineMinutesBody,
+  RefineMinutesParams,
   UpdateMinutesBody,
   UpdateMinutesParams,
 } from './minutes.schema.js';
@@ -65,6 +67,17 @@ export class MinutesController {
           content_md,
         },
       );
+
+      getIO().to(roomId).emit('minutes:created', {
+        room_id: roomId,
+        minutes_id: formattedMinutes.id,
+        title: formattedMinutes.title,
+        type: formattedMinutes.type,
+        status: formattedMinutes.status,
+        author_id: formattedMinutes.author_id,
+        created_at: formattedMinutes.created_at,
+        updated_at: formattedMinutes.updated_at,
+      });
 
       return res.status(201).json({
         success: true,
@@ -148,6 +161,15 @@ export class MinutesController {
         dto,
       );
 
+      getIO().to(roomId).emit('minutes:updated', {
+        room_id: roomId,
+        minutes_id: updatedData.id,
+        title: updatedData.title,
+        type: updatedData.type,
+        status: updatedData.status,
+        updated_at: updatedData.updated_at,
+      });
+
       return res.status(200).json({
         success: true,
         message: '회의록이 성공적으로 수정되었습니다.',
@@ -164,16 +186,21 @@ export class MinutesController {
     next: NextFunction,
   ) => {
     try {
-      /*
-       *   const { roomId, minutesId } = req.params;
-       *   const { prompt } = req.body;
-       */
+      const { roomId, minutesId } = req.params as RefineMinutesParams;
+      const body = req.body as RefineMinutesBody;
+      const userId = req.user!.id;
+
+      const result = await this.minutesService.refineMinutes(
+        roomId,
+        userId,
+        minutesId,
+        body,
+      );
 
       return res.status(200).json({
         success: true,
-        data: {
-          refined_content_md: 'AI 재생성 회의록',
-        },
+        message: 'AI가 요청사항을 반영하여 회의록을 성공적으로 다듬었습니다.',
+        data: result,
       });
     } catch (error) {
       next(error);

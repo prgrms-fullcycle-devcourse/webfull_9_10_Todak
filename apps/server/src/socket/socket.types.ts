@@ -123,6 +123,11 @@ export interface ServerToClientEvents {
     login: string;
     avatarUrl: string;
   }) => void;
+  'room:member-left': (data: {
+    roomId: string;
+    userId: string;
+    newHostUserId: string | null;
+  }) => void;
   'room:updated': (data: {
     id: string;
     name: string;
@@ -172,7 +177,16 @@ export interface ServerToClientEvents {
     minutes_id: string;
     meeting_id: string;
     title: string;
-    action_items: { title: string; body?: string; labels: string[] }[];
+    action_items: {
+      title: string;
+      body?: string;
+      labels: string[];
+      assignee: {
+        id: string;
+        github_username: string;
+        avatar_url: string | null;
+      } | null;
+    }[];
     status: 'draft';
   }) => void;
   'minutes:generation-failed': (data: {
@@ -180,6 +194,26 @@ export interface ServerToClientEvents {
     minutes_id: string;
     meeting_id?: string;
     status: 'failed';
+  }) => void;
+  // 수동 생성 시 (AI 생성은 minutes:generated 가 담당)
+  'minutes:created': (data: {
+    room_id: string;
+    minutes_id: string;
+    title: string;
+    type: string;
+    status: string;
+    author_id: string;
+    created_at: string;
+    updated_at: string;
+  }) => void;
+  // 수정/상태 변경(확정 등) 시
+  'minutes:updated': (data: {
+    room_id: string;
+    minutes_id: string;
+    title: string;
+    type: string;
+    status: string;
+    updated_at: string;
   }) => void;
 
   // System

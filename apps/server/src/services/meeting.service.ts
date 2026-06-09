@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import {
   assertPrivateRoomBelongsToRoom,
   assertRoomMember,
-} from './chat.service.js';
+} from './room-guards.js';
 
 export interface MeetingChat {
   id: string;
@@ -68,6 +68,11 @@ function meetingChatWhere(meeting: MeetingWindow) {
 // 채팅 참여자 목록에 호스트를 항상 포함시킨다.
 function withHost(userIds: string[], hostId: string): string[] {
   return userIds.includes(hostId) ? userIds : [hostId, ...userIds];
+}
+
+// 채팅 row 목록에서 중복 없는 작성자 userId 목록을 뽑는다.
+function distinctUserIds(rows: { userId: string }[]): string[] {
+  return Array.from(new Set(rows.map(row => row.userId)));
 }
 
 async function getMeetingChatterIds(meeting: MeetingWindow): Promise<string[]> {
@@ -185,7 +190,7 @@ export async function endMeeting(
     select: { userId: true },
   });
 
-  const chatterIds = Array.from(new Set(messages.map(row => row.userId)));
+  const chatterIds = distinctUserIds(messages);
   await snapshotParticipants(meeting.id, chatterIds);
 
   return {
@@ -204,13 +209,15 @@ export async function listMeetings(
   roomId: string,
   userId: string,
 ): Promise<MeetingSummary[]> {
-  await assertRoomMember(roomId, userId);
-
-  const meetings = await prisma.meeting.findMany({
-    where: { roomId },
-    orderBy: { startedAt: 'desc' },
-    include: { minutes: { select: { id: true } } },
-  });
+  // 멤버 검증과 회의 목록 조회는 독립적이라 병렬로 쏜다.
+  const [, meetings] = await Promise.all([
+    assertRoomMember(roomId, userId),
+    prisma.meeting.findMany({
+      where: { roomId },
+      orderBy: { startedAt: 'desc' },
+      include: { minutes: { select: { id: true } } },
+    }),
+  ]);
 
   return Promise.all(
     meetings.map(async meeting => {
@@ -219,7 +226,7 @@ export async function listMeetings(
         select: { userId: true },
       });
       const participantIds = withHost(
-        Array.from(new Set(messages.map(row => row.userId))),
+        distinctUserIds(messages),
         meeting.hostId,
       );
 
@@ -246,11 +253,14 @@ export async function getMeetingChats(
   userId: string,
   limit?: number,
 ): Promise<MeetingChat[]> {
-  await assertRoomMember(roomId, userId);
-
-  const meeting = await prisma.meeting.findFirst({
-    where: { id: meetingId, roomId },
-  });
+  /*
+   * 멤버 검증과 회의 조회는 독립적이라 병렬로 쏜다.
+   * (채팅 조회는 meeting 결과가 필요하므로 그 뒤에 순차 유지)
+   */
+  const [, meeting] = await Promise.all([
+    assertRoomMember(roomId, userId),
+    prisma.meeting.findFirst({ where: { id: meetingId, roomId } }),
+  ]);
 
   if (meeting === null) {
     throw new AppError('MEETING_NOT_FOUND');

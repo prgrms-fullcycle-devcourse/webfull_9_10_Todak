@@ -221,8 +221,13 @@ export async function closeIssue(
     });
   } catch (err) {
     if (err instanceof RequestError) {
+      /*
+       * 404 = 이슈/레포가 이미 없음. "닫기"의 목표 상태(이슈가 열려 있지 않음)는
+       * 이미 달성된 셈이므로 멱등하게 성공 처리한다. (unregisterWebhook 과 동일한 방침)
+       * 이렇게 하면 GitHub에서 이미 사라진 이슈를 가진 Todo도 삭제가 막히지 않는다.
+       */
       if (err.status === 404) {
-        throw new AppError('REPO_NOT_FOUND');
+        return;
       }
       throw new AppError('GITHUB_API_ERROR');
     }
@@ -237,13 +242,24 @@ export async function getPullRequest(
   pullNumber: number,
 ) {
   const octokit = createGithubClient(accessToken);
-  const { data } = await octokit.pulls.get({
-    owner,
-    repo,
-    pull_number: pullNumber,
-  });
 
-  return data;
+  try {
+    const { data } = await octokit.pulls.get({
+      owner,
+      repo,
+      pull_number: pullNumber,
+    });
+
+    return data;
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 404) {
+        throw new AppError('PR_NOT_FOUND');
+      }
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
 }
 
 export async function listPullRequests(
@@ -273,6 +289,99 @@ export async function listPullRequests(
       if (err.status === 404) {
         throw new AppError('REPO_NOT_FOUND');
       }
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
+}
+
+export async function mergePullRequest(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  mergeMethod: 'merge' | 'squash' | 'rebase' = 'squash',
+  commitTitle?: string,
+  commitMessage?: string,
+): Promise<{ merged: boolean; sha: string }> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.pulls.merge({
+      owner,
+      repo,
+      pull_number: pullNumber,
+      merge_method: mergeMethod,
+      commit_title: commitTitle,
+      commit_message: commitMessage,
+    });
+
+    return { merged: data.merged, sha: data.sha };
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 403) {
+        throw new AppError('FORBIDDEN');
+      }
+
+      if (err.status === 404) {
+        throw new AppError('PR_NOT_FOUND');
+      }
+
+      // 405 = 머지 불가(드래프트/체크 미통과/이미 닫힘 등)
+      if (err.status === 405) {
+        throw new AppError('PR_NOT_MERGEABLE');
+      }
+
+      // 409 = 충돌 또는 HEAD SHA 불일치
+      if (err.status === 409) {
+        throw new AppError('PR_MERGE_CONFLICT');
+      }
+
+      throw new AppError('GITHUB_API_ERROR');
+    }
+    throw err;
+  }
+}
+
+export async function createPullRequestReview(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT' = 'APPROVE',
+  body?: string,
+): Promise<{ id: number; state: string; submittedAt: string | null }> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.pulls.createReview({
+      owner,
+      repo,
+      pull_number: pullNumber,
+      event,
+      body,
+    });
+
+    return {
+      id: data.id,
+      state: data.state,
+      submittedAt: data.submitted_at ?? null,
+    };
+  } catch (err) {
+    if (err instanceof RequestError) {
+      if (err.status === 403) {
+        throw new AppError('FORBIDDEN');
+      }
+
+      if (err.status === 404) {
+        throw new AppError('PR_NOT_FOUND');
+      }
+
+      // 422 = 본인 PR 승인 불가 등 리뷰 등록 불가
+      if (err.status === 422) {
+        throw new AppError('PR_REVIEW_NOT_ALLOWED');
+      }
+
       throw new AppError('GITHUB_API_ERROR');
     }
     throw err;

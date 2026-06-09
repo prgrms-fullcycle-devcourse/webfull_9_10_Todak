@@ -3,6 +3,7 @@ import type {
   GetTodosQuery,
 } from '../api/rooms/todos/todos.schema.js';
 import { AppError } from '../errors/AppError.js';
+import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
 
 import { closeIssue, createIssue } from './github.service.js';
@@ -32,7 +33,7 @@ export async function createTodos(
     throw new AppError('ROOM_NOT_FOUND');
   }
 
-  // 2. GitHub 이슈 발행이 필요한지 확인
+  // 3. GitHub 이슈 발행이 필요한지 확인
   const needsGithub = todos.some(t => t.create_issue);
 
   let accessToken: string | null = null;
@@ -57,7 +58,7 @@ export async function createTodos(
     [repoOwner, repoName] = repo.fullName.split('/');
   }
 
-  // 3. 이슈 발행이 필요한 todo의 담당자 GitHub 유저명 선조회
+  // 4. 이슈 발행이 필요한 todo의 담당자 GitHub 유저명 선조회
   const assigneeIds = [
     ...new Set(
       todos
@@ -82,13 +83,19 @@ export async function createTodos(
     }
   }
 
-  // 4. GitHub 이슈 생성 → DB 저장 (순서 보장을 위해 순차 처리)
-  const results = [];
+  /*
+   * 5. GitHub 이슈를 먼저 모두 생성한다(이슈 번호 순서 보장). 인덱스별 이슈 번호를 기록하고,
+   *    이후 단계가 실패하면 만든 이슈를 보상(close)해 GitHub-DB 불일치(고아 이슈)를 막는다.
+   */
+  const issueNumberByIndex = new Map<number, number>();
+  const createdIssueNumbers: number[] = [];
 
-  for (const todo of todos) {
-    let githubIssueNumber: number | null = null;
+  try {
+    for (const [index, todo] of todos.entries()) {
+      if (!todo.create_issue || accessToken === null) {
+        continue;
+      }
 
-    if (todo.create_issue && accessToken !== null) {
       const assignees =
         todo.assignee_id !== null &&
         todo.assignee_id !== undefined &&
@@ -96,7 +103,7 @@ export async function createTodos(
           ? [githubUsernameMap.get(todo.assignee_id)!]
           : [];
 
-      githubIssueNumber = await createIssue(
+      const issueNumber = await createIssue(
         accessToken,
         repoOwner,
         repoName,
@@ -105,21 +112,63 @@ export async function createTodos(
         todo.labels,
         assignees,
       );
+      issueNumberByIndex.set(index, issueNumber);
+      createdIssueNumbers.push(issueNumber);
     }
 
-    const created = await prisma.todo.create({
-      data: {
+    /*
+     * 6. Todo 저장(항목별). echo 웹훅이 먼저 같은 이슈의 Todo 를 만들어
+     *    unique(roomId, githubIssueNumber) 위반(P2002)이 나는 레이스에서는,
+     *    실패·이슈 close 대신 그 Todo 를 앱의 값으로 보강(화해)해 일관되게 처리한다.
+     *    (레이스 화해를 위해 단일 트랜잭션 대신 항목별로 처리)
+     */
+    const createdTodos: Array<Awaited<ReturnType<typeof prisma.todo.create>>> =
+      [];
+
+    for (const [index, todo] of todos.entries()) {
+      const data = {
         roomId,
         assigneeId: todo.assignee_id ?? null,
         minutesId: todo.minutes_id ?? null,
         title: todo.title,
         body: todo.body ?? null,
         labels: todo.labels,
-        githubIssueNumber,
-      },
-    });
+        githubIssueNumber: issueNumberByIndex.get(index) ?? null,
+      };
 
-    results.push({
+      try {
+        createdTodos.push(await prisma.todo.create({ data }));
+      } catch (createError) {
+        if (
+          createError instanceof Prisma.PrismaClientKnownRequestError &&
+          createError.code === 'P2002' &&
+          data.githubIssueNumber !== null
+        ) {
+          // 웹훅 echo 가 이미 같은 이슈의 Todo 를 생성함 → 앱 값으로 보강(화해)
+          createdTodos.push(
+            await prisma.todo.update({
+              where: {
+                roomId_githubIssueNumber: {
+                  roomId,
+                  githubIssueNumber: data.githubIssueNumber,
+                },
+              },
+              data: {
+                assigneeId: data.assigneeId,
+                minutesId: data.minutesId,
+                title: data.title,
+                body: data.body,
+                labels: data.labels,
+              },
+            }),
+          );
+        } else {
+          throw createError;
+        }
+      }
+    }
+
+    return createdTodos.map(created => ({
       id: created.id,
       room_id: created.roomId,
       title: created.title,
@@ -130,10 +179,23 @@ export async function createTodos(
       github_issue_number: created.githubIssueNumber,
       is_done: created.isDone,
       created_at: created.createdAt,
-    });
-  }
+    }));
+  } catch (error) {
+    /*
+     * 이슈 생성 중 일부 실패 또는 DB 트랜잭션 실패 시,
+     * 이미 만든 GitHub 이슈를 best-effort로 닫아 고아 이슈를 방지한다.
+     */
+    if (accessToken !== null && createdIssueNumbers.length > 0) {
+      const token = accessToken;
+      await Promise.allSettled(
+        createdIssueNumbers.map(issueNumber =>
+          closeIssue(token, repoOwner, repoName, issueNumber),
+        ),
+      );
+    }
 
-  return results;
+    throw error;
+  }
 }
 
 // 깃 이슈 전체 조회
@@ -213,7 +275,11 @@ export async function deleteTodo(
     throw new AppError('TODO_NOT_FOUND');
   }
 
-  // 3. GitHub 이슈가 있으면 Close
+  /*
+   * 3. GitHub 이슈가 연결돼 있으면, 먼저 닫는 데 성공해야 DB에서도 삭제한다.
+   *    토큰/레포가 없거나 close 가 실패하면 삭제를 중단해 GitHub-DB 불일치
+   *    (이슈는 열려 있는데 보드 카드만 사라지는 상황)를 방지한다.
+   */
   if (todo.githubIssueNumber !== null) {
     const room = await prisma.room.findUnique({
       where: { id: roomId },
@@ -221,25 +287,22 @@ export async function deleteTodo(
     });
 
     const repo = room?.repos[0] ?? null;
-
-    if (repo !== null) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { accessToken: true },
-      });
-
-      if (user?.accessToken !== null && user?.accessToken !== undefined) {
-        const [owner, repoName] = repo.fullName.split('/');
-        await closeIssue(
-          user.accessToken,
-          owner,
-          repoName,
-          todo.githubIssueNumber,
-        );
-      }
+    if (repo === null) {
+      throw new AppError('ROOM_REPO_NOT_FOUND');
     }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { accessToken: true },
+    });
+    if (user?.accessToken === null || user?.accessToken === undefined) {
+      throw new AppError('GITHUB_SCOPE_REQUIRED');
+    }
+
+    const [owner, repoName] = repo.fullName.split('/');
+    await closeIssue(user.accessToken, owner, repoName, todo.githubIssueNumber);
   }
 
-  // 4. DB에서 삭제
+  // 4. GitHub 이슈를 정상적으로 닫은 뒤에만 DB에서 삭제
   await prisma.todo.delete({ where: { id: todoId } });
 }

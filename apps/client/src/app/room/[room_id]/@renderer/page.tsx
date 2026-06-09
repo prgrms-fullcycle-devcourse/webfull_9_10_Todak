@@ -4,6 +4,9 @@ import { use } from 'react';
 import { useInitRooms } from './_hooks/useInitRooms';
 import RendererView from './_components/meeting/RendererView';
 import BottomInfoContainer from '../_components/BottomInfoContainer';
+import PullRequestNotifications from '../_components/PullRequestNotifications';
+import CharacterDetailModal from './_components/2d/CharacterDetailModal';
+import { useSpaceStore } from '@/store/useSpaceStore';
 
 export default function RendererPage({
   params,
@@ -12,6 +15,8 @@ export default function RendererPage({
 }) {
   const { room_id } = use(params);
   const { isReady } = useInitRooms(room_id);
+  const currentView = useSpaceStore(state => state.currentView);
+  const isMeetingView = currentView === 'meeting';
 
   if (!isReady) {
     return (
@@ -24,7 +29,13 @@ export default function RendererPage({
   return (
     <div className="renderer-container h-full w-full flex flex-col">
       <RendererView roomId={room_id} />
-      <BottomInfoContainer />
+      {!isMeetingView && (
+        <>
+          <PullRequestNotifications />
+          <BottomInfoContainer />
+        </>
+      )}
+      <CharacterDetailModal />
     </div>
   );
 }

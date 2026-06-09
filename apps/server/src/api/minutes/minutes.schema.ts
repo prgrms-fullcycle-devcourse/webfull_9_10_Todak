@@ -31,6 +31,15 @@ const ActionItemSchema = z.object({
   title: z.string().trim().min(1),
   body: z.string().optional(),
   labels: z.array(z.string()).default([]),
+  // 담당자(룸 멤버). AI 추론 결과를 그대로 보존/수정할 수 있도록 선택적으로 받는다.
+  assignee: z
+    .object({
+      id: z.string(),
+      github_username: z.string(),
+      avatar_url: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
 });
 
 const UpdateMinutesBodySchema = z
@@ -43,9 +52,19 @@ const UpdateMinutesBodySchema = z
   })
   .refine(data => Object.keys(data).length > 0);
 
-const RefineMinutesBodySchema = z.object({
-  prompt: z.string().trim().min(1),
-});
+/*
+ * AI 다듬기 요청. 프리셋(SHORTEN/BULLET)은 지시문을 서버가 소유하고,
+ * CUSTOM 일 때만 custom_message 로 사용자 지시문을 받는다.
+ */
+const RefineMinutesBodySchema = z
+  .object({
+    refine_type: z.enum(['SHORTEN', 'BULLET', 'CUSTOM']),
+    custom_message: z.string().trim().min(1).optional(),
+  })
+  .refine(
+    data => data.refine_type !== 'CUSTOM' || data.custom_message !== undefined,
+    { message: 'refine_type이 CUSTOM이면 custom_message가 필요합니다.' },
+  );
 
 export const MinutesSchema = {
   commonParams: CommonParamsSchema,

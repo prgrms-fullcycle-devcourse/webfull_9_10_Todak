@@ -1,4 +1,5 @@
-import ChatOpenButton from './@chats/_components/ChatOpenButton';
+import RoomMainContainer from './_components/RoomMainContainer';
+import SidebarContainer from './_components/SidebarContainer';
 
 export default function RoomLayout({
   children,
@@ -8,22 +9,11 @@ export default function RoomLayout({
 }: LayoutProps<'/room/[room_id]'>) {
   return (
     <div className="room-layout-container">
-      <aside className="sidebar-container">{sidebar}</aside>
+      <SidebarContainer>{sidebar}</SidebarContainer>
 
-      <main className="room-main-container">
-        <input
-          className="peer/chat sr-only"
-          id="room-chat-toggle"
-          type="checkbox"
-        />
-        <ChatOpenButton />
-
-        <section className="renderer-section-container">
-          {renderer ?? children}
-        </section>
-
-        <aside className="chat-container">{chats}</aside>
-      </main>
+      <RoomMainContainer chats={chats}>
+        {renderer ?? children}
+      </RoomMainContainer>
     </div>
   );
 }

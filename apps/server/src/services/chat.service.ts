@@ -1,5 +1,10 @@
-import { AppError } from '../errors/AppError.js';
 import { prisma } from '../lib/prisma.js';
+
+import {
+  assertInPrivateRoomSession,
+  assertPrivateRoomBelongsToRoom,
+  assertRoomMember,
+} from './room-guards.js';
 
 export interface ReactionSummary {
   emoji: string;
@@ -83,46 +88,26 @@ function toPayload(row: ChatRow, currentUserId: string): ChatPayload {
   };
 }
 
-export async function assertRoomMember(
-  roomId: string,
-  userId: string,
-): Promise<void> {
-  const membership = await prisma.roomMember.findFirst({
-    where: { roomId, userId },
-    select: { id: true },
+/*
+ * 주어진 룸/프라이빗룸 조건의 채팅을 before 기준 과거로 최신순(DESC) limit 개 조회해 payload 로 변환.
+ * (getMainRoomChats / getPrivateRoomChats 공통 조회부)
+ */
+async function fetchChats(
+  where: { roomId: string; privateRoomId: string | null },
+  { before, limit }: ChatsQuery,
+  currentUserId: string,
+): Promise<ChatPayload[]> {
+  const rows = await prisma.chatMessage.findMany({
+    where: {
+      ...where,
+      ...(before !== undefined && { createdAt: { lt: new Date(before) } }),
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    include: includeChat,
   });
 
-  if (membership === null) {
-    throw new AppError('ROOM_NOT_FOUND');
-  }
-}
-
-export async function assertPrivateRoomBelongsToRoom(
-  roomId: string,
-  privateRoomId: string,
-): Promise<void> {
-  const privateRoom = await prisma.privateRoom.findUnique({
-    where: { id: privateRoomId },
-    select: { roomId: true },
-  });
-
-  if (privateRoom === null || privateRoom.roomId !== roomId) {
-    throw new AppError('PRIVATE_ROOM_NOT_FOUND');
-  }
-}
-
-export async function assertInPrivateRoomSession(
-  privateRoomId: string,
-  userId: string,
-): Promise<void> {
-  const active = await prisma.privateRoomSession.findFirst({
-    where: { privateRoomId, userId, leftAt: null },
-    select: { id: true },
-  });
-
-  if (active === null) {
-    throw new AppError('NOT_IN_PRIVATE_ROOM');
-  }
+  return rows.map(row => toPayload(row, currentUserId));
 }
 
 /*
@@ -132,22 +117,15 @@ export async function assertInPrivateRoomSession(
 export async function getMainRoomChats(
   userId: string,
   roomId: string,
-  { before, limit }: ChatsQuery,
+  query: ChatsQuery,
 ): Promise<ChatPayload[]> {
-  await assertRoomMember(roomId, userId);
+  // 멤버 검증과 메시지 조회는 독립적이라 병렬로 쏜다. 비멤버면 throw 되고 조회 결과는 버려진다.
+  const [, chats] = await Promise.all([
+    assertRoomMember(roomId, userId),
+    fetchChats({ roomId, privateRoomId: null }, query, userId),
+  ]);
 
-  const rows = await prisma.chatMessage.findMany({
-    where: {
-      roomId,
-      privateRoomId: null,
-      ...(before !== undefined && { createdAt: { lt: new Date(before) } }),
-    },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    include: includeChat,
-  });
-
-  return rows.map(row => toPayload(row, userId));
+  return chats;
 }
 
 /*
@@ -158,23 +136,20 @@ export async function getPrivateRoomChats(
   userId: string,
   roomId: string,
   privateRoomId: string,
-  { before, limit }: ChatsQuery,
+  query: ChatsQuery,
 ): Promise<ChatPayload[]> {
-  await assertRoomMember(roomId, userId);
-  await assertPrivateRoomBelongsToRoom(roomId, privateRoomId);
+  /*
+   * 두 검증과 메시지 조회는 독립적이라 병렬로 쏜다.
+   * 검증 중 하나라도 실패하면 Promise.all 이 거부되고 조회 결과는 버려진다.
+   * (둘 다 실패 시 표면화되는 에러는 먼저 끝난 쪽 — 모두 not-found 류라 무방)
+   */
+  const [, , chats] = await Promise.all([
+    assertRoomMember(roomId, userId),
+    assertPrivateRoomBelongsToRoom(roomId, privateRoomId),
+    fetchChats({ roomId, privateRoomId }, query, userId),
+  ]);
 
-  const rows = await prisma.chatMessage.findMany({
-    where: {
-      roomId,
-      privateRoomId,
-      ...(before !== undefined && { createdAt: { lt: new Date(before) } }),
-    },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    include: includeChat,
-  });
-
-  return rows.map(row => toPayload(row, userId));
+  return chats;
 }
 
 /*

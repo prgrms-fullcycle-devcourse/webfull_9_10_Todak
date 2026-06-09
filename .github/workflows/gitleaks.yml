@@ -1,0 +1,28 @@
+name: Gitleaks
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: gitleaks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # 전체 git 히스토리를 스캔 (node_modules 등 추적되지 않는 파일은 자동 제외)
+          fetch-depth: 0
+
+      # gitleaks-action은 조직 계정에서 라이선스가 필요하므로, 라이선스가
+      # 필요 없는 공식 docker 이미지로 직접 실행.
+      - name: Scan git history for secrets
+        run: >-
+          docker run --rm -v "${{ github.workspace }}:/repo"
+          ghcr.io/gitleaks/gitleaks:latest
+          git /repo --no-banner --redact

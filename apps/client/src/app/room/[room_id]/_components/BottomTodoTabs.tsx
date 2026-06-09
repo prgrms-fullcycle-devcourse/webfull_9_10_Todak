@@ -1,7 +1,7 @@
 'use client';
 
-import { fetchMyTodos, fetchTodos } from '@/sevice/todos/api';
-import type { Todo } from '@/sevice/todos/model';
+import { fetchMyTodos, fetchTodos } from '@/services/todos/api';
+import type { Todo } from '@/services/todos/model';
 import { Tabs } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
@@ -51,7 +51,7 @@ function TodoList({ isError, isPending, todos }: TodoListProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid max-h-[104px] grid-cols-2 gap-3 overflow-y-auto pr-1">
       {todos.map(todo => (
         <div
           className="flex items-center justify-between rounded-xl border border-border bg-surface-secondary px-4 py-3 text-xs shadow-surface"
@@ -113,15 +113,15 @@ export default function BottomTodoTabs() {
 
   return (
     <Tabs defaultSelectedKey="team" className="gap-0">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-black text-foreground">
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="min-w-0 truncate text-sm font-black text-foreground">
           📋 가상 타운 실시간 To-Do (이슈 기준)
         </h2>
-        <Tabs.ListContainer>
+        <Tabs.ListContainer className="shrink-0">
           <Tabs.List className="overflow-hidden rounded-lg border border-border bg-surface p-0 text-xs font-black">
             {TODO_TAB_OPTIONS.map(option => (
               <Tabs.Tab
-                className="h-auto min-w-0 rounded-none px-4 py-2 text-xs font-black text-muted transition-colors data-[selected=true]:bg-foreground data-[selected=true]:text-background"
+                className="h-auto min-w-[96px] whitespace-nowrap rounded-none px-4 py-2 text-xs font-black text-muted transition-colors data-[selected=true]:bg-foreground data-[selected=true]:text-background"
                 key={`bottom-info-tabs-${option.id}`}
                 id={option.id}
               >
