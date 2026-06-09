@@ -11,6 +11,10 @@ import { addJob } from '../jobs/queues/index.js';
 import { prisma } from '../lib/prisma.js';
 
 import { refineMinutesContent } from './anthropic.service.js';
+import {
+  createNotifications,
+  getMeetingParticipantIds,
+} from './notifications.service.js';
 
 /*
  * 프리셋 다듬기 지시문(서버 소유). 프론트는 refine_type 만 보내고,
@@ -379,6 +383,29 @@ export class MinutesService {
         status: dto.status,
       },
     });
+
+    /*
+     * 알림(영속): draft → confirmed 로 '확정'될 때만, 회의 참여자에게(확정자 제외).
+     * 수동 회의록(meetingId null)은 참여자 개념이 없어 알림을 보내지 않는다.
+     */
+    if (
+      dto.status === 'confirmed' &&
+      existingMinutes.status !== 'confirmed' &&
+      existingMinutes.meetingId !== null
+    ) {
+      const participantIds = await getMeetingParticipantIds(
+        existingMinutes.meetingId,
+      );
+      await createNotifications(
+        participantIds.filter(id => id !== userId),
+        {
+          roomId,
+          type: 'minutes_confirmed',
+          message: `회의록 확정: ${updated.title}`,
+          link: `/room/${roomId}`,
+        },
+      );
+    }
 
     return {
       id: updated.id,

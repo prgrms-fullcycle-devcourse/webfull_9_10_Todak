@@ -12,6 +12,10 @@ import {
   deleteExpiredPrivateRoomChats,
   PRIVATE_ROOM_CHAT_RETENTION_DAYS,
 } from '../../services/chat-cleanup.service.js';
+import {
+  createNotifications,
+  getMeetingParticipantIds,
+} from '../../services/notifications.service.js';
 import { getIO } from '../../socket/index.js';
 import { addJob } from '../queues/index.js';
 
@@ -122,7 +126,7 @@ export const minutesGenerationWorker = new Worker(
     const finalTitle =
       userTitle ?? (aiTitle !== '' ? aiTitle : 'AI 자동 생성 회의록');
 
-    await prisma.minutes.update({
+    const updatedMinutes = await prisma.minutes.update({
       where: { id: minutesId },
       data: {
         title: finalTitle,
@@ -141,6 +145,20 @@ export const minutesGenerationWorker = new Worker(
       action_items: resolvedActionItems,
       status: 'draft',
     });
+
+    /*
+     * 알림(영속): 회의 참여자에게만(룸 전체 X). 생성 요청 작성자는 제외.
+     */
+    const participantIds = await getMeetingParticipantIds(meetingId);
+    await createNotifications(
+      participantIds.filter(id => id !== updatedMinutes.authorId),
+      {
+        roomId,
+        type: 'minutes_generated',
+        message: `회의록 생성 완료: ${finalTitle}`,
+        link: `/room/${roomId}`,
+      },
+    );
 
     return { success: true };
   },
@@ -195,12 +213,12 @@ minutesGenerationWorker.on('failed', async (job, err) => {
    * 빈 본문 + "생성 중" 제목인 회의록이 draft로 남으면 사용자가 혼란스러우므로
    * 'failed' 상태로 표시해 재시도 UI를 띄울 수 있게 한다.
    */
-  await prisma.minutes
+  const failedMinutes = await prisma.minutes
     .update({
       where: { id: minutesId },
       data: { status: 'failed' },
     })
-    .catch(() => {});
+    .catch(() => null);
 
   if (roomId !== undefined) {
     getIO().to(roomId).emit('minutes:generation-failed', {
@@ -209,6 +227,18 @@ minutesGenerationWorker.on('failed', async (job, err) => {
       meeting_id: meetingId,
       status: 'failed',
     });
+
+    /*
+     * 알림(영속): 생성 실패는 재시도해야 하므로 작성자(생성 API 호출자) 본인에게만.
+     */
+    if (failedMinutes !== null) {
+      await createNotifications([failedMinutes.authorId], {
+        roomId,
+        type: 'minutes_generation_failed',
+        message: '회의록 생성에 실패했습니다. 다시 시도해주세요.',
+        link: `/room/${roomId}`,
+      });
+    }
   }
 });
 
