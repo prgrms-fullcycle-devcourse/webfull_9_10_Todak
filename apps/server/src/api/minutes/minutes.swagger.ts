@@ -37,7 +37,11 @@ const ActionItemSchema = z.object({
       avatar_url: z.string().nullable(),
     })
     .nullable()
-    .openapi({ description: 'AI가 추론한 담당자(룸 멤버). 없으면 null' }),
+    .optional()
+    .openapi({
+      description:
+        'AI가 추론한 담당자(룸 멤버). 미지목/외부인이면 null. (I10 이전 데이터엔 필드 없음)',
+    }),
 });
 
 // 목록 아이템 (작성자 요약 포함, content_md/action_items 제외)
