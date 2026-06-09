@@ -12,5 +12,11 @@ export const useTodoListStore = create<TodoListState>(set => ({
   modalContent: undefined,
   isOpen: false,
   setModalContent: payload => set(() => ({ modalContent: payload })),
-  setIsModalOpen: payload => set(() => ({ isOpen: payload })),
+  setIsModalOpen: payload =>
+    set(state => {
+      if (!state.modalContent) {
+        return { isOpen: false };
+      }
+      return { isOpen: payload };
+    }),
 }));
