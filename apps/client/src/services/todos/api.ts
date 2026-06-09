@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api';
-import type { TodosResponse } from './model';
+import type { TodosDeleteResponse, TodosResponse } from './model';
 
 export interface FetchTodosParams {
   is_issued?: boolean;
@@ -21,4 +21,10 @@ export async function fetchTodos(
 
 export async function fetchMyTodos(roomID: string) {
   return apiClient.get<TodosResponse>(`rooms/${roomID}/todos/me`);
+}
+
+export async function deleteTodos(roomID: string, todoID: string) {
+  return apiClient.delete<TodosDeleteResponse>(
+    `rooms/${roomID}/todos/${todoID}`,
+  );
 }

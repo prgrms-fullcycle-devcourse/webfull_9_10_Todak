@@ -74,6 +74,16 @@ export interface PrEventPayload {
   url: string | null;
 }
 
+// GitHub Webhook → PR 리뷰 이벤트 페이로드
+export interface PrReviewEventPayload {
+  pull_number: number;
+  // approved | changes_requested | commented
+  state: string;
+  reviewer: { github_username: string; avatar_url: string | null };
+  body: string | null;
+  url: string | null;
+}
+
 // GitHub Webhook → push 이벤트의 개별 커밋
 export interface CommitItemPayload {
   id: string;
@@ -160,6 +170,10 @@ export interface ServerToClientEvents {
   'pr:opened': (data: { roomId: string; pull_request: PrEventPayload }) => void;
   'pr:merged': (data: { roomId: string; pull_request: PrEventPayload }) => void;
   'pr:closed': (data: { roomId: string; pull_request: PrEventPayload }) => void;
+  'pr:reviewed': (data: {
+    roomId: string;
+    review: PrReviewEventPayload;
+  }) => void;
 
   // 커밋 push (GitHub Webhook)
   'commit:pushed': (data: {
@@ -208,6 +222,26 @@ export interface ServerToClientEvents {
     minutes_id: string;
     meeting_id?: string;
     status: 'failed';
+  }) => void;
+  // 수동 생성 시 (AI 생성은 minutes:generated 가 담당)
+  'minutes:created': (data: {
+    room_id: string;
+    minutes_id: string;
+    title: string;
+    type: string;
+    status: string;
+    author_id: string;
+    created_at: string;
+    updated_at: string;
+  }) => void;
+  // 수정/상태 변경(확정 등) 시
+  'minutes:updated': (data: {
+    room_id: string;
+    minutes_id: string;
+    title: string;
+    type: string;
+    status: string;
+    updated_at: string;
   }) => void;
 
   // System
