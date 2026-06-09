@@ -153,7 +153,7 @@ export class MinutesService {
       content_md: newMinutes.contentMd,
       status: newMinutes.status,
       linked_issue_numbers: newMinutes.linkedIssueNumbers,
-      action_items: newMinutes.actionItems,
+      action_items: newMinutes.actionItems ?? [],
       created_at: newMinutes.createdAt.toISOString(),
       updated_at: newMinutes.updatedAt.toISOString(),
     };
@@ -288,7 +288,7 @@ export class MinutesService {
       type: tempMinutes.type,
       // 신규는 null, 재생성(draft 초안)이면 기존 본문이 잠시 유지됨
       content_md: tempMinutes.contentMd,
-      action_items: tempMinutes.actionItems,
+      action_items: tempMinutes.actionItems ?? [],
       status: tempMinutes.status, // "generating"
       linked_issue_numbers: tempMinutes.linkedIssueNumbers,
       created_at: tempMinutes.createdAt.toISOString(),
@@ -331,7 +331,7 @@ export class MinutesService {
       title: minutes.title,
       type: minutes.type,
       content_md: minutes.contentMd,
-      action_items: minutes.actionItems,
+      action_items: minutes.actionItems ?? [],
       status: minutes.status,
       linked_issue_numbers: minutes.linkedIssueNumbers,
       author: {
@@ -386,7 +386,7 @@ export class MinutesService {
       title: updated.title,
       type: updated.type,
       content_md: updated.contentMd,
-      action_items: updated.actionItems,
+      action_items: updated.actionItems ?? [],
       status: updated.status,
       linked_issue_numbers: updated.linkedIssueNumbers,
       updated_at: updated.updatedAt.toISOString(),

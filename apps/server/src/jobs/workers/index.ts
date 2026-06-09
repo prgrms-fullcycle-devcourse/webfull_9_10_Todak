@@ -5,6 +5,7 @@ import { prisma } from '../../lib/prisma.js';
 import { redis } from '../../lib/redis.js';
 import {
   generateMinutesSummary,
+  resolveActionItemAssignees,
   reviewCode,
 } from '../../services/anthropic.service.js';
 import {
@@ -79,12 +80,40 @@ export const minutesGenerationWorker = new Worker(
       throw new UnrecoverableError('MINUTES_NO_CHAT_LOG');
     }
 
+    /*
+     * 담당자 추론 후보는 룸 멤버 전체(회의 미참여 멤버도 지목될 수 있음).
+     * AI 에 명단을 주고, AI 가 지목한 github_username 을 룸 멤버로 매핑한다.
+     */
+    const members = await prisma.roomMember.findMany({
+      where: { roomId },
+      select: {
+        nickname: true,
+        user: { select: { id: true, githubUsername: true, avatarUrl: true } },
+      },
+    });
+
     // Anthropic 서비스 함수 호출하여 제목/본문/액션 아이템 추출
     const {
       title: aiTitle,
       contentMd,
       actionItems,
-    } = await generateMinutesSummary(chatMessages);
+    } = await generateMinutesSummary(
+      chatMessages,
+      members.map(m => ({
+        githubUsername: m.user.githubUsername,
+        nickname: m.nickname,
+      })),
+    );
+
+    // AI 가 지목한 담당자 github_username → 룸 멤버 User 로 매핑(없으면 null)
+    const resolvedActionItems = resolveActionItemAssignees(
+      actionItems,
+      members.map(m => ({
+        id: m.user.id,
+        githubUsername: m.user.githubUsername,
+        avatarUrl: m.user.avatarUrl,
+      })),
+    );
 
     /*
      * 제목 우선순위: 사용자가 지정한 제목 > AI 생성 제목 > 고정 기본값.
@@ -98,7 +127,7 @@ export const minutesGenerationWorker = new Worker(
       data: {
         title: finalTitle,
         contentMd,
-        actionItems: actionItems as unknown as Prisma.InputJsonValue,
+        actionItems: resolvedActionItems as unknown as Prisma.InputJsonValue,
         status: 'draft',
       },
     });
@@ -109,7 +138,7 @@ export const minutesGenerationWorker = new Worker(
       minutes_id: minutesId,
       meeting_id: meetingId,
       title: finalTitle,
-      action_items: actionItems,
+      action_items: resolvedActionItems,
       status: 'draft',
     });
 

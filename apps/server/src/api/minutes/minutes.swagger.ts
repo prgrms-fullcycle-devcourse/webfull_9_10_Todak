@@ -25,11 +25,23 @@ const AuthorSchema = z.object({
   avatar_url: z.string().nullable(),
 });
 
-// 액션 아이템 (Todo 생성 API와 동일한 title/body/labels 구조)
+// 액션 아이템 (title/body/labels + AI 추론 담당자 assignee)
 const ActionItemSchema = z.object({
   title: z.string(),
   body: z.string().optional(),
   labels: z.array(z.string()),
+  assignee: z
+    .object({
+      id: z.string(),
+      github_username: z.string(),
+      avatar_url: z.string().nullable(),
+    })
+    .nullable()
+    .optional()
+    .openapi({
+      description:
+        'AI가 추론한 담당자(룸 멤버). 미지목/외부인이면 null. (I10 이전 데이터엔 필드 없음)',
+    }),
 });
 
 // 목록 아이템 (작성자 요약 포함, content_md/action_items 제외)

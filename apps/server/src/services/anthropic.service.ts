@@ -76,10 +76,19 @@ interface MinutesActionItem {
   title: string;
   body?: string;
   labels: string[];
+  // AI 가 지목한 담당자 github_username (제공된 멤버 명단 중 하나, 없으면 undefined)
+  assigneeGithubUsername?: string;
+}
+
+// 담당자 후보(룸 멤버 전체) — 회의 미참여 멤버도 지목될 수 있어 전체를 넘긴다
+interface MinutesMember {
+  githubUsername: string;
+  nickname: string | null;
 }
 
 export async function generateMinutesSummary(
   chatMessages: ChatMessageWithUser[],
+  members: MinutesMember[] = [],
 ): Promise<{
   title: string;
   contentMd: string;
@@ -88,6 +97,18 @@ export async function generateMinutesSummary(
   const formattedChats = chatMessages
     .map(msg => `[${msg.createdAt}] ${msg.user.githubUsername}: ${msg.content}`)
     .join('\n');
+
+  const memberRoster =
+    members
+      .map(m => {
+        const name =
+          m.nickname !== null && m.nickname !== ''
+            ? `, 이름/닉네임: ${m.nickname}`
+            : '';
+
+        return `- github_username: ${m.githubUsername}${name}`;
+      })
+      .join('\n') || '(명단 없음)';
 
   /*
    * 응답 형식을 강제하기 위해 tool use(함수 호출)를 사용한다.
@@ -101,7 +122,11 @@ export async function generateMinutesSummary(
       제공된 채팅 로그를 바탕으로 회의 제목, 회의록 본문, 액션 아이템을 정리하고,
       반드시 save_minutes 도구를 호출하여 결과를 반환하세요.
       액션 아이템은 action_items 필드로만 반환하며,
-      회의록 본문(content_md)에는 별도의 '액션 아이템' 목록 섹션을 중복해서 넣지 마세요.`,
+      회의록 본문(content_md)에는 별도의 '액션 아이템' 목록 섹션을 중복해서 넣지 마세요.
+      액션 아이템의 담당자(assignee_github_username)는, 대화에서 그 일을 누가 하기로
+      명확히 정해진 경우에만 제공된 멤버 명단의 github_username 중에서 지정하세요.
+      이름/닉네임으로 언급됐어도 명단의 해당 github_username으로 매핑하세요.
+      담당자가 애매하거나 명단에 없으면 비워 두세요(필드 생략).`,
     tools: [
       {
         name: 'save_minutes',
@@ -141,6 +166,11 @@ export async function generateMinutesSummary(
                     description:
                       'GitHub 이슈 라벨로 쓸 분류 태그 (예: ["backend", "bug"]). 없으면 빈 배열.',
                   },
+                  assignee_github_username: {
+                    type: 'string',
+                    description:
+                      '이 할 일의 담당자 github_username. 반드시 제공된 멤버 명단 중 하나여야 하며, 대화에서 담당자가 명확히 정해진 경우에만 지정. 애매하면 생략.',
+                  },
                 },
                 required: ['title'],
               },
@@ -154,7 +184,7 @@ export async function generateMinutesSummary(
     messages: [
       {
         role: 'user',
-        content: `다음 대화 로그를 분석해 save_minutes 도구로 정리해 주세요:\n\n${formattedChats}`,
+        content: `[회의실 멤버 명단] (담당자는 이 명단의 github_username 중에서만 지정)\n${memberRoster}\n\n다음 대화 로그를 분석해 save_minutes 도구로 정리해 주세요:\n\n${formattedChats}`,
       },
     ],
   });
@@ -169,6 +199,7 @@ export async function generateMinutesSummary(
         title?: string;
         body?: string;
         labels?: string[];
+        assignee_github_username?: string;
       }>;
     };
 
@@ -179,6 +210,11 @@ export async function generateMinutesSummary(
         title: item.title ?? '',
         body: item.body,
         labels: item.labels ?? [],
+        assigneeGithubUsername:
+          item.assignee_github_username !== undefined &&
+          item.assignee_github_username !== ''
+            ? item.assignee_github_username
+            : undefined,
       }));
 
     return {
@@ -195,4 +231,50 @@ export async function generateMinutesSummary(
     contentMd: '',
     actionItems: [],
   };
+}
+
+interface ResolvedActionItem {
+  title: string;
+  body?: string;
+  labels: string[];
+  assignee: {
+    id: string;
+    github_username: string;
+    avatar_url: string | null;
+  } | null;
+}
+
+/*
+ * AI 가 지목한 담당자 github_username 을 룸 멤버 User 로 매핑한다.
+ * 명단에 없거나 미지목이면 assignee = null. (순수 함수 — 테스트 용이)
+ */
+export function resolveActionItemAssignees(
+  actionItems: MinutesActionItem[],
+  members: Array<{
+    id: string;
+    githubUsername: string;
+    avatarUrl: string | null;
+  }>,
+): ResolvedActionItem[] {
+  const memberByUsername = new Map(members.map(m => [m.githubUsername, m]));
+
+  return actionItems.map(item => {
+    const matched =
+      item.assigneeGithubUsername !== undefined
+        ? memberByUsername.get(item.assigneeGithubUsername)
+        : undefined;
+
+    return {
+      title: item.title,
+      body: item.body,
+      labels: item.labels,
+      assignee: matched
+        ? {
+            id: matched.id,
+            github_username: matched.githubUsername,
+            avatar_url: matched.avatarUrl,
+          }
+        : null,
+    };
+  });
 }
