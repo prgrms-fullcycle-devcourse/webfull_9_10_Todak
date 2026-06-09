@@ -50,6 +50,7 @@ export default function Chats({
           onToggle={() =>
             setMeetingStatus(prev => (prev === 'ongoing' ? 'ended' : 'ongoing'))
           }
+          roomId={room_id}
         />
       )}
       <ChatMessages tab={tab} roomId={room_id} onSendReady={handleSendReady} />
