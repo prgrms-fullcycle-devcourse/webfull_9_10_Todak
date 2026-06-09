@@ -45,6 +45,19 @@ interface PullRequestEventPayload {
   repository: GithubRepository;
 }
 
+interface PullRequestReviewEventPayload {
+  action: string;
+  review: {
+    // approved | changes_requested | commented | dismissed
+    state: string;
+    body?: string | null;
+    html_url?: string;
+    user?: { login: string; avatar_url?: string | null } | null;
+  };
+  pull_request: { number: number };
+  repository: GithubRepository;
+}
+
 interface PushEventPayload {
   ref: string;
   commits: Array<{
@@ -261,6 +274,37 @@ function handlePullRequestEvent(
 }
 
 /*
+ * PR 리뷰 이벤트 처리. 새 리뷰 제출(submitted)만 실시간 emit 한다.
+ * edited/dismissed 는 토스트 가치가 낮아 무시.
+ */
+function handlePullRequestReviewEvent(
+  roomId: string,
+  payload: PullRequestReviewEventPayload,
+): void {
+  const { action, review, pull_request: pr } = payload;
+
+  if (action !== 'submitted') {
+    return;
+  }
+
+  getIO()
+    .to(roomId)
+    .emit('pr:reviewed', {
+      roomId,
+      review: {
+        pull_number: pr.number,
+        state: review.state,
+        reviewer: {
+          github_username: review.user?.login ?? '',
+          avatar_url: review.user?.avatar_url ?? null,
+        },
+        body: review.body ?? null,
+        url: review.html_url ?? null,
+      },
+    });
+}
+
+/*
  * push 이벤트 처리. 커밋이 없는 push(브랜치/태그 삭제 등)는 무시.
  * 알림 토스트용 commit:pushed 를 emit (알림 DB 저장은 보류 중).
  */
@@ -346,6 +390,13 @@ export async function handleGithubEvent(
 
       case 'pull_request':
         handlePullRequestEvent(roomId, payload as PullRequestEventPayload);
+        break;
+
+      case 'pull_request_review':
+        handlePullRequestReviewEvent(
+          roomId,
+          payload as PullRequestReviewEventPayload,
+        );
         break;
 
       case 'push':
