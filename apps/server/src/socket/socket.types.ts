@@ -98,6 +98,20 @@ export interface CommitPushedPayload {
   commits: CommitItemPayload[];
 }
 
+/*
+ * 알림 페이로드 (REST getNotificationsList 항목과 동일 snake_case)
+ * 개인방(userId) 으로만 emit 된다.
+ */
+export interface NotificationEventPayload {
+  id: string;
+  room_id: string;
+  type: string;
+  message: string;
+  is_read: boolean;
+  link: string | null;
+  created_at: string;
+}
+
 // 유저 정보 (JWT 검증 후 socket.data.user 에 저장됨)
 export interface SocketUser {
   id: string;
@@ -229,6 +243,9 @@ export interface ServerToClientEvents {
     status: string;
     updated_at: string;
   }) => void;
+
+  // 알림 (개인방 userId 으로 emit)
+  'notification:created': (data: NotificationEventPayload) => void;
 
   // System
   error: (data: { message: string; code: string }) => void;
