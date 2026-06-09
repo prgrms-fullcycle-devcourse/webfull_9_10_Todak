@@ -58,6 +58,7 @@ const db = prisma as any;
 const ROOM_ID = 'room-1';
 const USER_ID = 'user-1';
 const TODO_ID = 'todo-1';
+const REPO_ID = 'repo-1';
 
 // "호출하면 특정 code 의 AppError 가 던져진다"를 검증하는 헬퍼
 async function expectAppError(promise: Promise<unknown>, code: string) {
@@ -211,7 +212,7 @@ describe('createTodos', () => {
     db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
     db.room.findUnique.mockResolvedValue({
       id: ROOM_ID,
-      repos: [{ fullName: 'jiyun/todak' }],
+      repos: [{ id: REPO_ID, fullName: 'jiyun/todak' }],
     });
     db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
     db.user.findMany.mockResolvedValue([
@@ -242,11 +243,11 @@ describe('createTodos', () => {
       todos: [{ ...baseTodo, create_issue: true, assignee_id: 'assignee-1' }],
     });
 
-    // unique(roomId, githubIssueNumber) 키로 기존 Todo 를 앱 값으로 보강
+    // unique(repoId, githubIssueNumber) 키로 기존 Todo 를 앱 값으로 보강
     expect(db.todo.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          roomId_githubIssueNumber: { roomId: ROOM_ID, githubIssueNumber: 42 },
+          repoId_githubIssueNumber: { repoId: REPO_ID, githubIssueNumber: 42 },
         },
         data: expect.objectContaining({ assigneeId: 'assignee-1' }),
       }),
