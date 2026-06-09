@@ -33,7 +33,6 @@ export async function createTodos(
     throw new AppError('ROOM_NOT_FOUND');
   }
 
-  // 이슈 기반 Todo 의 레포 스코프 (이슈 유일성·웹훅 echo 화해 키). 회의 전용 Todo 는 null.
   const repoId = room.repos[0]?.id ?? null;
 
   // 3. GitHub 이슈 발행이 필요한지 확인
@@ -177,6 +176,7 @@ export async function createTodos(
     return createdTodos.map(created => ({
       id: created.id,
       room_id: created.roomId,
+      repo_id: created.repoId,
       title: created.title,
       body: created.body,
       labels: created.labels,
@@ -242,6 +242,7 @@ export async function getTodos(
   return todos.map(todo => ({
     id: todo.id,
     room_id: todo.roomId,
+    repo_id: todo.repoId,
     title: todo.title,
     body: todo.body,
     labels: todo.labels,
