@@ -68,6 +68,31 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       PIXI.TextureSource.defaultOptions.scaleMode = 'nearest';
 
+      const roomData = await fetchRoomMembers(roomId);
+
+      if (roomData && roomData.members) {
+        useSpaceStore.getState().setMembers(roomData.members);
+
+        // 유저 id 기준 내 프로필 탐색
+        const myId = useSpaceStore.getState().myChar.id;
+        const myFreshRoomProfile = roomData.members.find(m => m.id === myId);
+
+        if (myFreshRoomProfile) {
+          // Zustand 초기화 및 현재 룸에 있는 정보 동기화
+          useSpaceStore.getState().setMyChar({
+            id: myFreshRoomProfile.id,
+            name: myFreshRoomProfile.nickname ?? '미지정',
+            avatarId: myFreshRoomProfile.character_type as AnimalType,
+            status:
+              STATUS_TO_LABEL_MAP[myFreshRoomProfile.status] ||
+              myFreshRoomProfile.status ||
+              '🔥 집중',
+            roles: myFreshRoomProfile.roles ?? ['frontend'],
+            detailedRole: myFreshRoomProfile.detailed_role ?? 'Team Member',
+          });
+        }
+      }
+
       const newApp = new PIXI.Application();
       await newApp.init({
         width: container.clientWidth,
