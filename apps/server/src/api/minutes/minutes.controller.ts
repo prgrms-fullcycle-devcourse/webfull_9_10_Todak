@@ -68,6 +68,17 @@ export class MinutesController {
         },
       );
 
+      getIO().to(roomId).emit('minutes:created', {
+        room_id: roomId,
+        minutes_id: formattedMinutes.id,
+        title: formattedMinutes.title,
+        type: formattedMinutes.type,
+        status: formattedMinutes.status,
+        author_id: formattedMinutes.author_id,
+        created_at: formattedMinutes.created_at,
+        updated_at: formattedMinutes.updated_at,
+      });
+
       return res.status(201).json({
         success: true,
         data: formattedMinutes,
@@ -149,6 +160,15 @@ export class MinutesController {
         minutesId,
         dto,
       );
+
+      getIO().to(roomId).emit('minutes:updated', {
+        room_id: roomId,
+        minutes_id: updatedData.id,
+        title: updatedData.title,
+        type: updatedData.type,
+        status: updatedData.status,
+        updated_at: updatedData.updated_at,
+      });
 
       return res.status(200).json({
         success: true,

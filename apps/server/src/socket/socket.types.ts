@@ -195,6 +195,26 @@ export interface ServerToClientEvents {
     meeting_id?: string;
     status: 'failed';
   }) => void;
+  // 수동 생성 시 (AI 생성은 minutes:generated 가 담당)
+  'minutes:created': (data: {
+    room_id: string;
+    minutes_id: string;
+    title: string;
+    type: string;
+    status: string;
+    author_id: string;
+    created_at: string;
+    updated_at: string;
+  }) => void;
+  // 수정/상태 변경(확정 등) 시
+  'minutes:updated': (data: {
+    room_id: string;
+    minutes_id: string;
+    title: string;
+    type: string;
+    status: string;
+    updated_at: string;
+  }) => void;
 
   // System
   error: (data: { message: string; code: string }) => void;
