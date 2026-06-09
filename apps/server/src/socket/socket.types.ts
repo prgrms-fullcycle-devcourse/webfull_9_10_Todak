@@ -72,6 +72,16 @@ export interface PrEventPayload {
   url: string | null;
 }
 
+// GitHub Webhook → PR 리뷰 이벤트 페이로드
+export interface PrReviewEventPayload {
+  pull_number: number;
+  // approved | changes_requested | commented
+  state: string;
+  reviewer: { github_username: string; avatar_url: string | null };
+  body: string | null;
+  url: string | null;
+}
+
 // GitHub Webhook → push 이벤트의 개별 커밋
 export interface CommitItemPayload {
   id: string;
@@ -146,6 +156,10 @@ export interface ServerToClientEvents {
   'pr:opened': (data: { roomId: string; pull_request: PrEventPayload }) => void;
   'pr:merged': (data: { roomId: string; pull_request: PrEventPayload }) => void;
   'pr:closed': (data: { roomId: string; pull_request: PrEventPayload }) => void;
+  'pr:reviewed': (data: {
+    roomId: string;
+    review: PrReviewEventPayload;
+  }) => void;
 
   // 커밋 push (GitHub Webhook)
   'commit:pushed': (data: {
