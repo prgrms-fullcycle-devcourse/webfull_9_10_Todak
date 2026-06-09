@@ -66,6 +66,8 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       const container = canvasRef.current;
       if (!container) return;
 
+      PIXI.TextureSource.defaultOptions.scaleMode = 'nearest';
+
       const newApp = new PIXI.Application();
       await newApp.init({
         width: container.clientWidth,
@@ -73,6 +75,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         backgroundAlpha: 0,
         resolution: window.devicePixelRatio || 1, // 레티나 대응
         autoDensity: true,
+        antialias: false,
       });
 
       if (!isMounted) {
@@ -82,6 +85,8 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       app = newApp;
       app.ticker.maxFPS = 60;
+
+      app.canvas.style.imageRendering = 'pixelated';
 
       if (canvasRef.current) {
         canvasRef.current.innerHTML = '';
