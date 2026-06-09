@@ -50,6 +50,8 @@ export type ChatReactAck =
 export interface TodoEventPayload {
   id: string;
   room_id: string;
+  // 현재 연결된 레포 기준 Todo 인지 구분용 (해제/교체로 끊긴 Todo 는 null)
+  repo_id?: string | null;
   title: string;
   body: string | null;
   labels: string[];
@@ -122,6 +124,13 @@ export interface ServerToClientEvents {
     userId: string;
     status: string;
   }) => void;
+  'room:member-profile-changed': (data: {
+    userId: string;
+    nickname: string | null;
+    character_type: string | null;
+    roles: string[];
+    detailed_role: string | null;
+  }) => void;
   'room:member-moved': (data: {
     userId: string;
     posX: number;
@@ -145,6 +154,11 @@ export interface ServerToClientEvents {
   }) => void;
 
   // Repo
+  'repo:connected': (data: {
+    roomId: string;
+    repoId: string;
+    repo_full_name: string;
+  }) => void;
   'repo:deleted': (data: { roomId: string; repoId: string }) => void;
 
   // 이슈

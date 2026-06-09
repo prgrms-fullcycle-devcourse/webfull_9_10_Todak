@@ -77,6 +77,15 @@ export async function updateRoomMemberHandler(
 
     const member = await updateRoomMember(userId, roomId, input);
 
+    // 같은 룸 전역에 프로필 변경 브로드캐스트 (상대 화면 실시간 반영용)
+    getIO().to(roomId).emit('room:member-profile-changed', {
+      userId,
+      nickname: member.nickname,
+      character_type: member.character_type,
+      roles: member.roles,
+      detailed_role: member.detailed_role,
+    });
+
     res.status(200).json({ success: true, data: member });
   } catch (err) {
     next(err);

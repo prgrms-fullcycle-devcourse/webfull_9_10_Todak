@@ -83,7 +83,8 @@ model Repo {
   statsCache    Json?     @map("stats_cache") // 마지막으로 조회한 stats 저장
   statsCachedAt DateTime? @map("stats_cached_at") // 언제 캐싱했는지
 
-  room Room @relation(fields: [roomId], references: [id])
+  room  Room   @relation(fields: [roomId], references: [id])
+  todos Todo[]
 
   @@index([roomId])
   @@index([fullName])
@@ -207,6 +208,7 @@ model Minutes {
 model Todo {
   id                String   @id @default(uuid()) @db.Uuid
   roomId            String   @map("room_id") @db.Uuid
+  repoId            String?  @map("repo_id") @db.Uuid
   assigneeId        String?  @map("assignee_id") @db.Uuid
   minutesId         String?  @map("minutes_id") @db.Uuid
   githubIssueNumber Int?     @map("github_issue_number")
@@ -217,11 +219,14 @@ model Todo {
   createdAt         DateTime @default(now()) @map("created_at")
 
   room     Room     @relation(fields: [roomId], references: [id])
+  // 레포 해제/교체 시 Todo 는 보존하고 연결만 끊기 위해 onDelete: SetNull
+  repo     Repo?    @relation(fields: [repoId], references: [id], onDelete: SetNull)
   assignee User?    @relation(fields: [assigneeId], references: [id])
   minutes  Minutes? @relation(fields: [minutesId], references: [id])
 
-  // 회의당 GitHub 이슈는 룸 내에서 유일 (웹훅 echo 경쟁 시 중복 Todo 생성 방지)
-  @@unique([roomId, githubIssueNumber])
+  // GitHub 이슈는 레포 내에서 유일 (웹훅 echo 경쟁 시 중복 Todo 생성 방지)
+  @@unique([repoId, githubIssueNumber])
+  @@index([roomId])
   @@index([assigneeId])
   @@map("todo")
 }
