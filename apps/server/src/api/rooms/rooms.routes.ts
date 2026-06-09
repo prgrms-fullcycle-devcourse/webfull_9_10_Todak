@@ -14,6 +14,8 @@ import './chat/chat.swagger.js';
 import privateRoomRoutes from './private-room/private-room.routes.js';
 import './prs/prs.swagger.js';
 import prsRoutes from './prs/prs.routes.js';
+import './repo/repo.swagger.js';
+import repoRoutes from './repo/repo.routes.js';
 import {
   createRoomHandler,
   deleteRoomHandler,
@@ -47,5 +49,6 @@ router.use('/:roomId/chats', chatRoutes);
 router.use('/:roomId/meetings', meetingsRoutes);
 router.use('/:roomId/todos', todosRoutes);
 router.use('/:roomId/prs', prsRoutes);
+router.use('/:roomId/repo', repoRoutes);
 
 export default router;
