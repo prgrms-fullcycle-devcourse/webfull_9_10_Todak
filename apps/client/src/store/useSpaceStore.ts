@@ -48,6 +48,10 @@ interface SpaceState {
   // 룸 맴버 상태와 액션
   members: RoomProfile[];
   setMembers: (members: RoomProfile[]) => void;
+
+  // 프라이빗룸 회의
+  currentMeetingId: string | null;
+  setCurrentMeetingId: (id: string | null) => void;
 }
 
 export const useSpaceStore = create<SpaceState>()(
@@ -98,5 +102,9 @@ export const useSpaceStore = create<SpaceState>()(
     // 룸 맴버 상태 초기값과 업데이트 액션
     members: [],
     setMembers: members => set({ members }),
+
+    // 프라이빗룸 회의 초기값 추가
+    currentMeetingId: null,
+    setCurrentMeetingId: id => set({ currentMeetingId: id }),
   })),
 );
