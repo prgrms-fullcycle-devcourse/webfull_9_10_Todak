@@ -1,8 +1,14 @@
 import { CreateRepoInput } from '../api/repos/repos.schema.js';
 import { AppError } from '../errors/AppError.js';
+import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
 
-import { createRepo, deleteRepo, unregisterWebhook } from './github.service.js';
+import {
+  createRepo,
+  deleteRepo,
+  registerWebhook,
+  unregisterWebhook,
+} from './github.service.js';
 import { assertRoomHost } from './room-guards.js';
 
 export async function createGithubRepo(
@@ -44,6 +50,74 @@ export async function disconnectRepo(
   await prisma.repo.delete({ where: { id: repo.id } });
 
   return { repoId: repo.id };
+}
+
+// 연결된 레포가 없으면 신규 연결, 있으면 교체(재연결)
+export async function connectRepo(
+  userId: string,
+  roomId: string,
+  accessToken: string,
+  repoFullName: string,
+) {
+  await assertRoomHost(roomId, userId);
+
+  // 다른 룸이 이미 같은 레포를 쓰고 있으면 연결 불가
+  const usedByOther = await prisma.repo.findFirst({
+    where: { fullName: repoFullName, NOT: { roomId } },
+  });
+  if (usedByOther !== null) {
+    throw new AppError('REPO_ALREADY_IN_USE');
+  }
+
+  const existing = await prisma.repo.findFirst({ where: { roomId } });
+
+  // 새 레포에 웹훅 등록 (admin 권한·레포 존재 검증 겸함), 실패하면 DB 는 그대로
+  const [owner, repo] = repoFullName.split('/');
+  const webhookId = await registerWebhook(accessToken, owner, repo);
+
+  // 다른 레포로 교체하는 경우에만 이전 웹훅 해제
+  if (
+    existing !== null &&
+    existing.webhookId !== null &&
+    existing.fullName !== repoFullName
+  ) {
+    const [oldOwner, oldRepo] = existing.fullName.split('/');
+    try {
+      await unregisterWebhook(
+        accessToken,
+        oldOwner,
+        oldRepo,
+        existing.webhookId,
+      );
+    } catch {
+      // 이전 웹훅 해제 실패해도(권한 없음·이미 삭제됨 등) 연결 교체는 계속 진행
+      console.error(
+        `[connectRepo] 이전 webhook 해제 실패: ${existing.fullName}`,
+      );
+    }
+  }
+
+  const saved =
+    existing === null
+      ? await prisma.repo.create({
+          data: { roomId, fullName: repoFullName, webhookId },
+        })
+      : await prisma.repo.update({
+          where: { id: existing.id },
+          data: {
+            fullName: repoFullName,
+            webhookId,
+            statsCache: Prisma.DbNull,
+            statsCachedAt: null,
+          },
+        });
+
+  return {
+    repo_id: saved.id,
+    room_id: roomId,
+    repo_full_name: saved.fullName,
+    webhook_registered: true,
+  };
 }
 
 export async function deleteGithubRepo(userId: string, repoId: string) {

@@ -135,6 +135,11 @@ export interface ServerToClientEvents {
   }) => void;
 
   // Repo
+  'repo:connected': (data: {
+    roomId: string;
+    repoId: string;
+    repo_full_name: string;
+  }) => void;
   'repo:deleted': (data: { roomId: string; repoId: string }) => void;
 
   // 이슈
