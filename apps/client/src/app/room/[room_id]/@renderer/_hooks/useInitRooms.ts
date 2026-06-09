@@ -197,8 +197,19 @@ export function useInitRooms(roomId: string) {
       fetchAndUpdateRooms();
     });
 
+    // 팀원 간 회의 상태 동기화
+    socket.on('meeting:started', ({ meetingId }: { meetingId: string }) => {
+      useSpaceStore.getState().setCurrentMeetingId(meetingId);
+    });
+
+    socket.on('meeting:ended', () => {
+      useSpaceStore.getState().setCurrentMeetingId(null);
+    });
+
     // 컴포넌트 언마운트 시 리스너 해제
     return () => {
+      socket.off('meeting:started');
+      socket.off('meeting:ended');
       socket.off('connect');
       socket.off('connect_error');
       socket.off('room:private-rooms-updated');
