@@ -86,7 +86,7 @@ export async function registerWebhook(
         secret: env.WEBHOOK_SECRET,
         insecure_ssl: '0',
       },
-      events: ['issues', 'pull_request', 'push'],
+      events: ['issues', 'pull_request', 'push', 'pull_request_review'],
       active: true,
     });
 
