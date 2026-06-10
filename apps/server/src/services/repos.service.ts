@@ -31,7 +31,10 @@ export async function disconnectRepo(
 ) {
   await assertRoomHost(roomId, userId);
 
-  const repo = await prisma.repo.findFirst({ where: { roomId } });
+  const repo = await prisma.repo.findFirst({
+    where: { roomId },
+    select: { id: true, webhookId: true, fullName: true },
+  });
   if (repo === null) {
     throw new AppError('ROOM_REPO_NOT_FOUND');
   }
@@ -63,12 +66,16 @@ export async function connectRepo(
   // 다른 룸이 이미 같은 레포를 쓰고 있으면 연결 불가
   const usedByOther = await prisma.repo.findFirst({
     where: { fullName: repoFullName, NOT: { roomId } },
+    select: { id: true },
   });
   if (usedByOther !== null) {
     throw new AppError('REPO_ALREADY_IN_USE');
   }
 
-  const existing = await prisma.repo.findFirst({ where: { roomId } });
+  const existing = await prisma.repo.findFirst({
+    where: { roomId },
+    select: { id: true, fullName: true, webhookId: true },
+  });
 
   // 새 레포에 웹훅 등록 (admin 권한·레포 존재 검증 겸함), 실패하면 DB 는 그대로
   const [owner, repo] = repoFullName.split('/');
@@ -133,6 +140,7 @@ export async function deleteGithubRepo(userId: string, repoId: string) {
   // 1. 레포 조회
   const repo = await prisma.repo.findUnique({
     where: { id: repoId },
+    select: { roomId: true, fullName: true },
   });
   if (repo === null) {
     throw new AppError('REPO_NOT_FOUND');
@@ -141,6 +149,7 @@ export async function deleteGithubRepo(userId: string, repoId: string) {
   // 2. 해당 룸의 멤버인지 검증
   const membership = await prisma.roomMember.findFirst({
     where: { roomId: repo.roomId, userId },
+    select: { isHost: true },
   });
   if (membership === null) {
     throw new AppError('ROOM_MEMBER_NOT_FOUND');

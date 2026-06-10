@@ -9,6 +9,7 @@ import { prisma } from '../lib/prisma.js';
 export async function getRoomMembers(userId: string, roomId: string) {
   const membership = await prisma.roomMember.findFirst({
     where: { roomId, userId },
+    select: { id: true },
   });
 
   if (membership === null) {
@@ -17,7 +18,9 @@ export async function getRoomMembers(userId: string, roomId: string) {
 
   const members = await prisma.roomMember.findMany({
     where: { roomId, characterType: { not: null } },
-    include: { user: true },
+    include: {
+      user: { select: { id: true, githubUsername: true, avatarUrl: true } },
+    },
     orderBy: { joinedAt: 'asc' },
   });
 
@@ -47,7 +50,7 @@ export async function setupRoomMember(
 ) {
   const member = await prisma.roomMember.findFirst({
     where: { roomId, userId },
-    include: { user: true },
+    select: { id: true, characterType: true },
   });
 
   if (member === null) {
@@ -91,6 +94,7 @@ export async function updateRoomMemberStatus(
 ) {
   const member = await prisma.roomMember.findFirst({
     where: { roomId, userId },
+    select: { id: true },
   });
 
   if (member === null) {
@@ -133,7 +137,7 @@ export async function updateRoomMember(
 ) {
   const member = await prisma.roomMember.findFirst({
     where: { roomId, userId },
-    include: { user: true },
+    select: { id: true, characterType: true },
   });
 
   if (member === null) {

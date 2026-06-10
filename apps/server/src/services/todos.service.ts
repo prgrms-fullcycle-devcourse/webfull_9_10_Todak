@@ -19,6 +19,7 @@ export async function createTodos(
   // 1. 룸 멤버 검증
   const membership = await prisma.roomMember.findFirst({
     where: { roomId, userId },
+    select: { id: true },
   });
   if (membership === null) {
     throw new AppError('ROOM_MEMBER_NOT_FOUND');
@@ -27,7 +28,7 @@ export async function createTodos(
   // 2. 룸 + 레포 조회
   const room = await prisma.room.findUnique({
     where: { id: roomId },
-    include: { repos: true },
+    include: { repos: { select: { id: true, fullName: true } } },
   });
   if (room === null) {
     throw new AppError('ROOM_NOT_FOUND');
@@ -213,6 +214,7 @@ export async function getTodos(
   // 룸 멤버 검증
   const membership = await prisma.roomMember.findFirst({
     where: { roomId, userId },
+    select: { id: true },
   });
   if (membership === null) {
     throw new AppError('ROOM_MEMBER_NOT_FOUND');
@@ -269,6 +271,7 @@ export async function deleteTodo(
   // 1. 룸 멤버 검증
   const membership = await prisma.roomMember.findFirst({
     where: { roomId, userId },
+    select: { id: true },
   });
   if (membership === null) {
     throw new AppError('ROOM_MEMBER_NOT_FOUND');
@@ -277,6 +280,7 @@ export async function deleteTodo(
   // 2. Todo 조회
   const todo = await prisma.todo.findFirst({
     where: { id: todoId, roomId },
+    select: { githubIssueNumber: true, repoId: true },
   });
   if (todo === null) {
     throw new AppError('TODO_NOT_FOUND');
@@ -297,6 +301,7 @@ export async function deleteTodo(
      */
     const repo = await prisma.repo.findUnique({
       where: { id: todo.repoId },
+      select: { fullName: true },
     });
     if (repo === null) {
       throw new AppError('ROOM_REPO_NOT_FOUND');
