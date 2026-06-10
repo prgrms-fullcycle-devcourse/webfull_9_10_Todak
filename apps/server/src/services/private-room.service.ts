@@ -207,3 +207,51 @@ export async function leavePrivateRoom(
     meeting_cancelled: meetingCancelled,
   };
 }
+
+/**
+ * 비정상 종료(새로고침/탭 닫기) 정합성 보정.
+ * leavePrivateRoom 이 호출되지 않아 남은 이 유저의 active 세션(leftAt === null)을 모두 닫고,
+ * 그로 인해 비게 된 프라이빗 룸의 ongoing 회의는 취소한다.
+ * 화면 갱신 broadcast 를 위해 영향받은 "메인 룸" id 목록을 반환한다. (없으면 빈 배열)
+ */
+export async function clearActivePrivateRoomSessions(
+  userId: string,
+): Promise<string[]> {
+  const now = new Date();
+
+  // 닫을 세션이 어느 프라이빗룸/메인룸 소속인지 알아야 회의 취소·broadcast 가 가능
+  const sessions = await prisma.privateRoomSession.findMany({
+    where: { userId, leftAt: null },
+    select: {
+      privateRoomId: true,
+      privateRoom: { select: { roomId: true } },
+    },
+  });
+
+  if (sessions.length === 0) {
+    return [];
+  }
+
+  // 이 유저의 active 세션을 한 번에 닫는다
+  await prisma.privateRoomSession.updateMany({
+    where: { userId, leftAt: null },
+    data: { leftAt: now },
+  });
+
+  // 비게 된 프라이빗 룸의 ongoing 회의 취소 (leavePrivateRoom 과 동일 규칙)
+  const privateRoomIds = [...new Set(sessions.map(s => s.privateRoomId))];
+  for (const privateRoomId of privateRoomIds) {
+    const remaining = await prisma.privateRoomSession.count({
+      where: { privateRoomId, leftAt: null },
+    });
+    if (remaining === 0) {
+      await prisma.meeting.updateMany({
+        where: { privateRoomId, status: 'ongoing' },
+        data: { status: 'cancelled', endedAt: now },
+      });
+    }
+  }
+
+  // broadcast 대상 메인 룸 id (중복 제거)
+  return [...new Set(sessions.map(s => s.privateRoom.roomId))];
+}

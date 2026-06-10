@@ -1,4 +1,6 @@
 import { prisma } from '../../lib/prisma.js';
+import { clearActivePrivateRoomSessions } from '../../services/private-room.service.js';
+import { broadcastPrivateRooms } from '../broadcast.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 
 // 이동 좌표 DB 저장 주기 (throttle) — 브로드캐스트는 실시간, 저장만 이 간격으로
@@ -19,6 +21,16 @@ export function registerRoomHandlers(io: TypedIO, socket: TypedSocket) {
       avatarUrl: user.avatarUrl,
     });
     console.log(`[room:join] ${user.login} → ${roomId}`);
+
+    // 안전망: 이전 비정상 종료로 남은 프라이빗룸 세션 정리 (disconnect 청소 누락/경합 대비)
+    try {
+      const affectedRoomIds = await clearActivePrivateRoomSessions(user.id);
+      for (const affectedRoomId of affectedRoomIds) {
+        await broadcastPrivateRooms(io, affectedRoomId);
+      }
+    } catch {
+      console.error(`[room:join] 프라이빗룸 세션 정리 실패: ${user.login}`);
+    }
   });
 
   // 룸 퇴장
