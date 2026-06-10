@@ -31,3 +31,14 @@ export async function endMeeting(
   );
   return response.data;
 }
+
+export function generateMinutes(
+  roomId: string,
+  meetingId: string,
+  title: string,
+): Promise<MinuteDetail> {
+  return apiClient.post<MinuteDetail>(`/rooms/${roomId}/minutes/generate`, {
+    meeting_id: meetingId,
+    title,
+  });
+}
