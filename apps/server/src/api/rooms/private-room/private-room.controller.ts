@@ -8,6 +8,7 @@ import {
   leavePrivateRoom,
 } from '../../../services/private-room.service.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
+import { slim } from '../chat/chat.controller.js';
 import { ChatsQuery } from '../chat/chat.schema.js';
 
 export async function getPrivateRoomsHandler(
@@ -78,24 +79,6 @@ export async function leavePrivateRoomHandler(
   } catch (err) {
     next(err);
   }
-}
-
-function slim(chat: {
-  id: string;
-  user: { github_username: string; avatar_url: string | null };
-  content: string | null;
-  type: string;
-  created_at: string;
-  reactions: { emoji: string; count: number; me: boolean }[];
-}) {
-  return {
-    id: chat.id,
-    user: chat.user,
-    content: chat.content,
-    type: chat.type,
-    created_at: chat.created_at,
-    reactions: chat.reactions,
-  };
 }
 
 export async function getPrivateRoomChatsHandler(
