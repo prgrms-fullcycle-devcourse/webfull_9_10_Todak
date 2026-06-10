@@ -140,6 +140,10 @@ export function setupMovement(
             currentRoomId = roomToEnter;
             useSpaceStore.getState().setMyStatus('💬 회의중');
             useSpaceStore.getState().setCurrentPrivateRoomId(newRoomId);
+
+            updateMemberStatus(roomId, 'meeting').catch(err =>
+              console.error('❌ 회의중 상태 DB 각인 실패:', err),
+            );
           })
           .catch(err => console.error(`입장 실패:`, err))
           .finally(() => {
@@ -181,6 +185,9 @@ export function setupMovement(
           .finally(() => {
             isProcessing = false;
             useSpaceStore.getState().setMyStatus('🔥 집중');
+            updateMemberStatus(roomId, 'focus').catch(err =>
+              console.error('❌ 집중 상태 DB 원복 실패:', err),
+            );
           });
       }
     }

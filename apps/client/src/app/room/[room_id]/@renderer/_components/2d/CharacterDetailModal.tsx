@@ -17,6 +17,7 @@ import {
   detailJobs,
   roleValueByPart,
 } from '@/app/[user_id]/join/customize/_components/UserProfileForm';
+import { getSocket } from '@/lib/socket';
 
 const AVATAR_MAP = {
   rabbit: { label: '🐰 토끼', src: '/assets/rabbit_front.png' },
@@ -181,6 +182,14 @@ function ModalFormContent({
         avatarId: profile.character_type as AnimalType,
         roles: profile.roles ?? ['frontend'],
         detailedRole: profile.detailed_role ?? 'Team Member',
+      });
+
+      getSocket().emit('room:member-profile-changed', {
+        userId: profile.id,
+        nickname: profile.nickname,
+        character_type: profile.character_type,
+        roles: profile.roles,
+        detailed_role: profile.detailed_role,
       });
 
       setIsEditing(false);
