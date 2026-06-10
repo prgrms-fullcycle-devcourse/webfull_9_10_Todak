@@ -44,6 +44,9 @@ export function initSocket(httpServer: HttpServer): TypedIO {
     const { login } = socket.data.user;
     console.log(`🔌 [${login}] connected (${socket.id})`);
 
+    // 개인 알림 라우팅용 개인방(userId) 입장 → to(userId).emit('notification:created')
+    void socket.join(socket.data.user.id);
+
     registerHandlers(io, socket);
 
     socket.on('disconnect', async () => {

@@ -7,6 +7,10 @@ import {
   listMeetings,
   startMeeting,
 } from '../../../services/meeting.service.js';
+import {
+  createNotifications,
+  getRoomMemberIds,
+} from '../../../services/notifications.service.js';
 import { getPrivateRooms } from '../../../services/private-room.service.js';
 import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
@@ -58,6 +62,18 @@ export async function startMeetingHandler(
     // is_meeting_active(false → true) 갱신을 다른 멤버 화면에 즉시 반영
     const privateRooms = await getPrivateRooms(roomId);
     io.to(roomId).emit('room:private-rooms-updated', privateRooms);
+
+    // 알림(영속): 룸 전체에서 호스트(본인) 제외
+    const members = await getRoomMemberIds(roomId);
+    await createNotifications(
+      members.filter(id => id !== userId),
+      {
+        roomId,
+        type: 'meeting_started',
+        message: '회의가 시작되었습니다.',
+        link: `/room/${roomId}`,
+      },
+    );
 
     res.status(201).json(meeting);
   } catch (err) {

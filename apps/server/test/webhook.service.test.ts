@@ -14,7 +14,8 @@ vi.mock('@/lib/prisma.js', () => ({
   prisma: {
     repo: { findFirst: vi.fn() },
     todo: { findFirst: vi.fn(), create: vi.fn() },
-    roomMember: { findFirst: vi.fn() },
+    roomMember: { findFirst: vi.fn(), findMany: vi.fn() },
+    notification: { create: vi.fn() },
   },
 }));
 
@@ -56,6 +57,16 @@ describe('handleGithubEvent - issues.opened assignee 매핑', () => {
     r.set.mockResolvedValue('OK'); // dedup 선점 성공
     r.del.mockResolvedValue(1);
     db.repo.findFirst.mockResolvedValue({ roomId: ROOM_ID });
+    db.roomMember.findMany.mockResolvedValue([]); // 알림 수신자 기본 없음
+    db.notification.create.mockResolvedValue({
+      id: 'noti-1',
+      roomId: ROOM_ID,
+      type: 'new_issue',
+      message: '',
+      isRead: false,
+      link: null,
+      createdAt: new Date(0),
+    });
     db.todo.findFirst.mockResolvedValue(null); // 기존 Todo 없음 → 생성
     // create 는 전달된 data 를 그대로 반영한 레코드 반환
     db.todo.create.mockImplementation(async (args: { data: any }) => ({
@@ -141,6 +152,8 @@ describe('handleGithubEvent - pull_request_review', () => {
     r.set.mockResolvedValue('OK');
     r.del.mockResolvedValue(1);
     db.repo.findFirst.mockResolvedValue({ roomId: ROOM_ID });
+    db.roomMember.findFirst.mockResolvedValue(null);
+    db.roomMember.findMany.mockResolvedValue([]); // 알림 수신자 기본 없음
     emit = vi.fn();
     io.mockReturnValue({ to: () => ({ emit }) });
   });

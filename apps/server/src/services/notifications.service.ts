@@ -1,5 +1,112 @@
 import { Prisma } from '@/generated/prisma/client/index.js';
 import { prisma } from '@/lib/prisma.js';
+import { getIO } from '@/socket/index.js';
+
+/*
+ * 알림 producer 공용 헬퍼.
+ * - 영속이 필요한 도메인 이벤트(PR/이슈/회의록/회의)에서 호출한다.
+ * - DB Notification insert + 대상 유저 개인방으로 notification:created emit 를 함께 수행.
+ * - 휘발성 토스트로 충분한 이벤트(채팅/presence 등)는 여기서 만들지 않는다.
+ */
+interface NotificationCreateData {
+  roomId: string;
+  type: string;
+  message: string;
+  link?: string | null;
+}
+
+// 룸 전체 멤버 userId
+export async function getRoomMemberIds(roomId: string): Promise<string[]> {
+  const members = await prisma.roomMember.findMany({
+    where: { roomId },
+    select: { userId: true },
+  });
+
+  return members.map(m => m.userId);
+}
+
+// 회의 참여자 userId (중도 퇴장자 포함, 재입장 중복 제거)
+export async function getMeetingParticipantIds(
+  meetingId: string,
+): Promise<string[]> {
+  const participants = await prisma.meetingParticipant.findMany({
+    where: { meetingId },
+    select: { userId: true },
+  });
+
+  return [...new Set(participants.map(p => p.userId))];
+}
+
+// GitHub login → 룸 멤버 userId (외부 협업자/미매핑이면 null) — 행위자 제외용
+export async function resolveMemberIdByLogin(
+  roomId: string,
+  login: string | null | undefined,
+): Promise<string | null> {
+  if (login === null || login === undefined || login === '') {
+    return null;
+  }
+
+  const member = await prisma.roomMember.findFirst({
+    where: { roomId, user: { githubUsername: login } },
+    select: { userId: true },
+  });
+
+  return member?.userId ?? null;
+}
+
+/*
+ * 대상 유저들에게 알림 생성(DB insert) + 개인방(userId)으로 notification:created emit.
+ * - 중복 userId 제거. 수신자 0명이면 아무것도 하지 않는다(no-op).
+ * - 응답 포맷은 getNotificationsList 항목과 동일 snake_case.
+ *
+ * best-effort: 알림은 부차적 side-effect 이므로 어떤 실패도 호출부(웹훅/워커/컨트롤러)의
+ * 핵심 흐름을 깨지 않는다. 실패는 유저 단위로 격리(allSettled)해 로깅만 하고, 이 함수는
+ * 절대 throw 하지 않는다. (웹훅에서 throw 시 dedup 해제→재시도→알림 중복 생성 방지)
+ */
+export async function createNotifications(
+  targetUserIds: string[],
+  data: NotificationCreateData,
+): Promise<void> {
+  const uniqueIds = [...new Set(targetUserIds)];
+  if (uniqueIds.length === 0) {
+    return;
+  }
+
+  const io = getIO();
+
+  const results = await Promise.allSettled(
+    uniqueIds.map(async userId => {
+      const created = await prisma.notification.create({
+        data: {
+          roomId: data.roomId,
+          userId,
+          type: data.type,
+          message: data.message,
+          link: data.link ?? null,
+        },
+      });
+
+      io.to(userId).emit('notification:created', {
+        id: created.id,
+        room_id: created.roomId,
+        type: created.type,
+        message: created.message,
+        is_read: created.isRead,
+        link: created.link,
+        created_at: created.createdAt.toISOString(),
+      });
+    }),
+  );
+
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      console.error(
+        `❌ 알림 생성 실패 (type=${data.type}, room=${data.roomId}):`,
+        result.reason,
+      );
+    }
+  }
+}
 
 interface GetNotificationsOptions {
   unreadOnly: boolean;
