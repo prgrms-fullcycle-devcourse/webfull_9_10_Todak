@@ -30,6 +30,7 @@ async function createUniqueInviteCode(): Promise<string> {
     const code = generateInviteCode();
     const exists = await prisma.room.findUnique({
       where: { inviteCode: code },
+      select: { id: true },
     });
     if (!exists) {
       return code;
@@ -113,9 +114,18 @@ export async function getRooms(userId: string) {
     include: {
       room: {
         include: {
-          repos: true,
+          repos: {
+            select: {
+              id: true,
+              fullName: true,
+              statsCache: true,
+              statsCachedAt: true,
+            },
+          },
           members: {
-            include: { user: true },
+            select: {
+              user: { select: { githubUsername: true, avatarUrl: true } },
+            },
           },
         },
       },
@@ -152,9 +162,19 @@ export async function getRoomById(userId: string, roomId: string) {
   const room = await prisma.room.findUnique({
     where: { id: roomId },
     include: {
-      repos: true,
+      repos: {
+        select: {
+          id: true,
+          fullName: true,
+          defaultBranch: true,
+          statsCache: true,
+          statsCachedAt: true,
+        },
+      },
       members: {
-        include: { user: true },
+        include: {
+          user: { select: { id: true, githubUsername: true, avatarUrl: true } },
+        },
       },
     },
   });
@@ -214,7 +234,7 @@ export async function updateRoom(
 ) {
   const membership = await prisma.roomMember.findFirst({
     where: { roomId, userId },
-    include: { room: { include: { members: true } } },
+    include: { room: { include: { members: { select: { id: true } } } } },
   });
 
   if (membership === null) {

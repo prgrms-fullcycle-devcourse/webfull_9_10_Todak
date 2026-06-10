@@ -415,7 +415,10 @@ describe('deleteTodo', () => {
     await deleteTodo(USER_ID, ROOM_ID, TODO_ID);
 
     // 올바른 레포(todo.repoId)로 조회했는가
-    expect(db.repo.findUnique).toHaveBeenCalledWith({ where: { id: REPO_ID } });
+    expect(db.repo.findUnique).toHaveBeenCalledWith({
+      where: { id: REPO_ID },
+      select: { fullName: true },
+    });
     // owner/repo + 이슈 번호로 close 를 호출했는가
     expect(closeIssue).toHaveBeenCalledWith('gho_token', 'jiyun', 'todak', 42);
     expect(db.todo.delete).toHaveBeenCalledWith({ where: { id: TODO_ID } });
