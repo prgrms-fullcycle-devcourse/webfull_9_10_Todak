@@ -35,9 +35,7 @@ export function createMascotNpc(
     e.stopPropagation();
 
     // NPC 클릭 이벤트 및 알림 기능 추가 예정
-    alert(
-      `${npcName}: "반갑습니다 정화님! i-Station 가상 타운에 오신 것을 환영해요!"`,
-    );
+    alert(`${npcName}: "반갑습니다! 토닥윗미 가상 타운에 오신 것을 환영해요!"`);
   });
 
   return container;

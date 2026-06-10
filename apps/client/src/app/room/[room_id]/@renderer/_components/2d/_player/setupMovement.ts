@@ -2,7 +2,11 @@ import * as PIXI from 'pixi.js';
 import type { AnimalAssetPack } from '../_animals/types';
 import { type Player, CHAR_HEIGHT } from './createPlayer';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
-import { enterPrivateRoom, leavePrivateRoom } from '@/services/rooms/api';
+import {
+  enterPrivateRoom,
+  leavePrivateRoom,
+  updateMemberStatus,
+} from '@/services/rooms/api';
 import { getSocket } from '@/lib/socket';
 import { useSpaceStore } from '@/store/useSpaceStore';
 
@@ -89,11 +93,11 @@ export function setupMovement(
       lastSentY = container.y;
 
       const currentStatus = useSpaceStore.getState().myChar.status;
+
       if (currentStatus === '💤 부재' || currentStatus === '☕ 휴식') {
         useSpaceStore.getState().setMyStatus('🔥 집중');
-        getSocket().emit('room:status-change', {
-          roomId,
-          status: 'focus',
+        updateMemberStatus(roomId, 'focus').catch(err => {
+          console.error('❌ 상태 변경 API 호출 실패:', err);
         });
       }
     }
@@ -136,6 +140,10 @@ export function setupMovement(
             currentRoomId = roomToEnter;
             useSpaceStore.getState().setMyStatus('💬 회의중');
             useSpaceStore.getState().setCurrentPrivateRoomId(newRoomId);
+
+            updateMemberStatus(roomId, 'meeting').catch(err =>
+              console.error('❌ 회의중 상태 DB 각인 실패:', err),
+            );
           })
           .catch(err => console.error(`입장 실패:`, err))
           .finally(() => {
@@ -177,6 +185,9 @@ export function setupMovement(
           .finally(() => {
             isProcessing = false;
             useSpaceStore.getState().setMyStatus('🔥 집중');
+            updateMemberStatus(roomId, 'focus').catch(err =>
+              console.error('❌ 집중 상태 DB 원복 실패:', err),
+            );
           });
       }
     }
