@@ -16,6 +16,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '@/lib/prisma.js';
 import {
+  clearActivePrivateRoomSessions,
   enterPrivateRoom,
   getPrivateRooms,
   leavePrivateRoom,
@@ -28,8 +29,10 @@ vi.mock('@/lib/prisma.js', () => ({
     privateRoom: { findUnique: vi.fn(), findMany: vi.fn() },
     privateRoomSession: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       count: vi.fn(),
     },
     meeting: { updateMany: vi.fn() },
@@ -255,5 +258,41 @@ describe('leavePrivateRoom', () => {
     // 아직 사람이 남아있으니 회의를 취소하면 안 됨
     expect(db.meeting.updateMany).not.toHaveBeenCalled();
     expect(result.meeting_cancelled).toBe(false);
+  });
+});
+
+describe('clearActivePrivateRoomSessions', () => {
+  it('남은 active 세션이 없으면 빈 배열을 반환하고 아무것도 닫지 않는다', async () => {
+    db.privateRoomSession.findMany.mockResolvedValue([]);
+
+    const result = await clearActivePrivateRoomSessions(USER_ID);
+
+    expect(result).toEqual([]);
+    expect(db.privateRoomSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('남은 active 세션을 모두 닫고, 비게 된 방의 회의는 취소하며, 영향 룸 id를 반환한다', async () => {
+    // 비정상 종료로 pr-1(room-1) 에 active 세션이 남아있는 상태
+    db.privateRoomSession.findMany.mockResolvedValue([
+      { privateRoomId: PRIVATE_ROOM_ID, privateRoom: { roomId: ROOM_ID } },
+    ]);
+    db.privateRoomSession.updateMany.mockResolvedValue({ count: 1 });
+    db.privateRoomSession.count.mockResolvedValue(0); // 닫고 나니 빈 방
+    db.meeting.updateMany.mockResolvedValue({ count: 1 });
+
+    const result = await clearActivePrivateRoomSessions(USER_ID);
+
+    // 이 유저의 active 세션을 닫았는가
+    expect(db.privateRoomSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: USER_ID, leftAt: null } }),
+    );
+    // 빈 방의 ongoing 회의를 취소했는가
+    expect(db.meeting.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { privateRoomId: PRIVATE_ROOM_ID, status: 'ongoing' },
+      }),
+    );
+    // broadcast 대상 메인 룸 id 반환
+    expect(result).toEqual([ROOM_ID]);
   });
 });

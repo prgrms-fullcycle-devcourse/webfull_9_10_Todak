@@ -107,6 +107,7 @@ async function snapshotParticipants(
 
   await prisma.meetingParticipant.createMany({
     data: toCreate.map(userId => ({ meetingId, userId })),
+    skipDuplicates: true, // @@unique([meetingId, userId]) 와 함께 동시 insert race 방어
   });
 }
 

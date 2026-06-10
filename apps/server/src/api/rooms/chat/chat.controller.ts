@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 
-import { AppError } from '../../../errors/AppError.js';
+import { getUserId } from '../../../middleware/auth.middleware.js';
 import {
   ChatPayload,
   getMainRoomChats,
@@ -9,8 +9,11 @@ import { AuthenticatedRequest } from '../../../types/index.js';
 
 import { ChatsQuery } from './chat.schema.js';
 
-// url 컨텍스트로 알 수 있는 room_id / private_room_id 는 응답에서 제외
-function slim(chat: ChatPayload) {
+/*
+ * url 컨텍스트로 알 수 있는 room_id / private_room_id 는 응답에서 제외
+ * (메인 룸 / 프라이빗 룸 채팅 응답 공통 — private-room.controller 도 재사용)
+ */
+export function slim(chat: ChatPayload) {
   return {
     id: chat.id,
     user: chat.user,
@@ -27,10 +30,7 @@ export async function getMainRoomChatsHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const { roomId } = req.params as { roomId: string };
     const { before, limit } = req.query as unknown as ChatsQuery;

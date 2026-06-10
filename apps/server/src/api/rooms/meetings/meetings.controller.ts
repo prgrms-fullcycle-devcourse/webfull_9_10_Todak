@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 
-import { AppError } from '../../../errors/AppError.js';
+import { getUserId } from '../../../middleware/auth.middleware.js';
 import {
   endMeeting,
   getMeetingChats,
@@ -11,7 +11,7 @@ import {
   createNotifications,
   getRoomMemberIds,
 } from '../../../services/notifications.service.js';
-import { getPrivateRooms } from '../../../services/private-room.service.js';
+import { broadcastPrivateRooms } from '../../../socket/broadcast.js';
 import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 
@@ -23,10 +23,7 @@ export async function getMeetingsHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const { roomId } = req.params as { roomId: string };
 
@@ -44,10 +41,7 @@ export async function startMeetingHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const { roomId } = req.params as { roomId: string };
     const { private_room_id } = req.body as StartMeetingBody;
@@ -60,8 +54,7 @@ export async function startMeetingHandler(
       hostId: meeting.host_id,
     });
     // is_meeting_active(false → true) 갱신을 다른 멤버 화면에 즉시 반영
-    const privateRooms = await getPrivateRooms(roomId);
-    io.to(roomId).emit('room:private-rooms-updated', privateRooms);
+    await broadcastPrivateRooms(io, roomId);
 
     // 알림(영속): 룸 전체에서 호스트(본인) 제외
     const members = await getRoomMemberIds(roomId);
@@ -87,10 +80,7 @@ export async function endMeetingHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const { roomId, meetingId } = req.params as {
       roomId: string;
@@ -102,8 +92,7 @@ export async function endMeetingHandler(
     const io = getIO();
     io.to(roomId).emit('meeting:ended', { meetingId: meeting.id });
     // is_meeting_active(true → false) 갱신을 다른 멤버 화면에 즉시 반영
-    const privateRooms = await getPrivateRooms(roomId);
-    io.to(roomId).emit('room:private-rooms-updated', privateRooms);
+    await broadcastPrivateRooms(io, roomId);
 
     res.json(meeting);
   } catch (err) {
@@ -117,10 +106,7 @@ export async function getMeetingChatsHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const { roomId, meetingId } = req.params as {
       roomId: string;

@@ -1,3 +1,4 @@
+import { toSocketError } from '../socket-error.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 
 /*
@@ -14,18 +15,34 @@ export function registerMeetingHandlers(_io: TypedIO, socket: TypedSocket) {
 
   // 회의 참여
   socket.on('meeting:join', async ({ meetingId }) => {
-    await socket.join(meetingId);
-    socket.to(meetingId).emit('meeting:user-joined', {
-      userId: user.id,
-      login: user.login,
-    });
-    console.log(`[meeting:join] ${user.login} → meeting:${meetingId}`);
+    try {
+      await socket.join(meetingId);
+      socket.to(meetingId).emit('meeting:user-joined', {
+        userId: user.id,
+        login: user.login,
+      });
+      console.log(`[meeting:join] ${user.login} → meeting:${meetingId}`);
+    } catch (err) {
+      console.error(`[meeting:join] ${user.login} error:`, err);
+      socket.emit(
+        'error',
+        toSocketError(err, 'MEETING_JOIN_ERROR', '회의 참여에 실패했습니다.'),
+      );
+    }
   });
 
   // 회의 퇴장
   socket.on('meeting:leave', async ({ meetingId }) => {
-    await socket.leave(meetingId);
-    socket.to(meetingId).emit('meeting:user-left', { userId: user.id });
-    console.log(`[meeting:leave] ${user.login} → meeting:${meetingId}`);
+    try {
+      await socket.leave(meetingId);
+      socket.to(meetingId).emit('meeting:user-left', { userId: user.id });
+      console.log(`[meeting:leave] ${user.login} → meeting:${meetingId}`);
+    } catch (err) {
+      console.error(`[meeting:leave] ${user.login} error:`, err);
+      socket.emit(
+        'error',
+        toSocketError(err, 'MEETING_LEAVE_ERROR', '회의 퇴장에 실패했습니다.'),
+      );
+    }
   });
 }

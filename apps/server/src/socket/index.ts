@@ -3,8 +3,10 @@ import { Server as HttpServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 
 import { env } from '../config/env.js';
+import { clearActivePrivateRoomSessions } from '../services/private-room.service.js';
 import { setUserStatusInAllRooms } from '../services/room-member.service.js';
 
+import { broadcastPrivateRooms } from './broadcast.js';
 import { registerHandlers } from './handlers/index.js';
 import { socketAuthMiddleware } from './socket.auth.js';
 import {
@@ -64,6 +66,18 @@ export function initSocket(httpServer: HttpServer): TypedIO {
         }
       } catch {
         console.error(`[disconnect] status away 처리 실패: ${login}`);
+      }
+
+      // 비정상 종료(새로고침/탭닫기)로 남은 프라이빗룸 세션 정리 + 다른 멤버 화면 갱신
+      try {
+        const affectedRoomIds = await clearActivePrivateRoomSessions(
+          socket.data.user.id,
+        );
+        for (const roomId of affectedRoomIds) {
+          await broadcastPrivateRooms(io, roomId);
+        }
+      } catch {
+        console.error(`[disconnect] 프라이빗룸 세션 정리 실패: ${login}`);
       }
     });
   });
