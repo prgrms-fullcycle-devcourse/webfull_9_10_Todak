@@ -1,9 +1,9 @@
 import {
-  getPrivateRooms,
   enterPrivateRoom,
   leavePrivateRoom,
 } from '../../services/private-room.service.js';
 import { updateRoomMemberStatus } from '../../services/room-member.service.js';
+import { broadcastPrivateRooms } from '../broadcast.js';
 import { toSocketError } from '../socket-error.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 
@@ -33,9 +33,7 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
       });
 
       // 최신 상태 broadcast
-      const privateRooms = await getPrivateRooms(roomId);
-
-      io.to(roomId).emit('room:private-rooms-updated', privateRooms);
+      await broadcastPrivateRooms(io, roomId);
 
       console.log(
         `[private-room:enter] ${user.login} → privateRoom:${privateRoomId}`,
@@ -71,9 +69,7 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
       });
 
       // 최신 상태 broadcast
-      const privateRooms = await getPrivateRooms(roomId);
-
-      io.to(roomId).emit('room:private-rooms-updated', privateRooms);
+      await broadcastPrivateRooms(io, roomId);
 
       console.log(
         `[private-room:leave] ${user.login} → privateRoom:${privateRoomId}`,

@@ -7,6 +7,8 @@ import {
   enterPrivateRoom,
   leavePrivateRoom,
 } from '../../../services/private-room.service.js';
+import { broadcastPrivateRooms } from '../../../socket/broadcast.js';
+import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 import { slim } from '../chat/chat.controller.js';
 import { ChatsQuery } from '../chat/chat.schema.js';
@@ -41,12 +43,8 @@ export async function enterPrivateRoomHandler(
 
     const result = await enterPrivateRoom(roomId, privateRoomId, userId);
 
-    // Socket 이벤트 트리거: 같은 룸의 모든 멤버에게 업데이트 브로드캐스트
-    const io = req.app.get('io');
-    if (io !== undefined) {
-      const privateRooms = await getPrivateRooms(roomId);
-      io.to(roomId).emit('room:private-rooms-updated', privateRooms);
-    }
+    // 같은 룸의 모든 멤버에게 최신 프라이빗룸 상태 broadcast
+    await broadcastPrivateRooms(getIO(), roomId);
 
     res.status(201).json(result);
   } catch (err) {
@@ -68,12 +66,8 @@ export async function leavePrivateRoomHandler(
 
     const result = await leavePrivateRoom(roomId, privateRoomId, userId);
 
-    // Socket 이벤트 트리거: 같은 룸의 모든 멤버에게 업데이트 브로드캐스트
-    const io = req.app.get('io');
-    if (io !== undefined) {
-      const privateRooms = await getPrivateRooms(roomId);
-      io.to(roomId).emit('room:private-rooms-updated', privateRooms);
-    }
+    // 같은 룸의 모든 멤버에게 최신 프라이빗룸 상태 broadcast
+    await broadcastPrivateRooms(getIO(), roomId);
 
     res.status(200).json(result);
   } catch (err) {
