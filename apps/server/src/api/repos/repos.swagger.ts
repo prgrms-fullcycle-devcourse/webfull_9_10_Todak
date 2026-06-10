@@ -18,6 +18,29 @@ const errorResponse = (description: string, code: string, message: string) => ({
   },
 });
 
+/*
+ * GitHub API 를 호출하는 엔드포인트의 공통 401.
+ * 앱 인증 누락/만료(UNAUTHORIZED) 또는 GitHub 토큰 만료·무효로 재로그인 필요(GITHUB_REAUTH_REQUIRED).
+ */
+const githubReauth401 = {
+  description:
+    '인증 실패 — 앱 인증 누락/만료(UNAUTHORIZED) 또는 GitHub 토큰 만료·무효로 GitHub 재로그인 필요(GITHUB_REAUTH_REQUIRED)',
+  content: {
+    'application/json': {
+      schema: z.object({
+        success: z.literal(false),
+        error: z.string(),
+        code: z.enum(['UNAUTHORIZED', 'GITHUB_REAUTH_REQUIRED']),
+      }),
+      example: {
+        success: false,
+        error: 'GitHub 인증이 만료되었습니다. 다시 로그인해주세요.',
+        code: 'GITHUB_REAUTH_REQUIRED',
+      },
+    },
+  },
+};
+
 // ─── POST /repos ──────────────────────────────────────────────────────────────
 registry.registerPath({
   method: 'post',
@@ -69,7 +92,7 @@ registry.registerPath({
         },
       },
     },
-    401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
+    401: githubReauth401,
     502: errorResponse(
       'GitHub API 오류',
       'GITHUB_API_ERROR',
