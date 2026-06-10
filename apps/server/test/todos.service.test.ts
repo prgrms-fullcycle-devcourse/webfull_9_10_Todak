@@ -28,6 +28,7 @@ vi.mock('@/lib/prisma.js', () => ({
   prisma: {
     roomMember: { findFirst: vi.fn() },
     room: { findUnique: vi.fn() },
+    repo: { findUnique: vi.fn() },
     user: { findUnique: vi.fn(), findMany: vi.fn() },
     todo: {
       create: vi.fn(),
@@ -376,16 +377,36 @@ describe('deleteTodo', () => {
     expect(db.todo.delete).toHaveBeenCalledWith({ where: { id: TODO_ID } });
   });
 
+  it('레포 연결이 끊긴(repoId=null) Todo 는 close 없이 카드만 삭제', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.todo.findFirst.mockResolvedValue({
+      id: TODO_ID,
+      roomId: ROOM_ID,
+      repoId: null, // 레포 disconnect 로 연결 끊김(onDelete: SetNull)
+      githubIssueNumber: 42, // 과거 발행 이슈 번호는 남아 있음
+    });
+    db.todo.delete.mockResolvedValue({});
+
+    await deleteTodo(USER_ID, ROOM_ID, TODO_ID);
+
+    // 닫을 레포가 없으므로 GitHub 닫기는 스킵, 카드만 삭제
+    expect(db.repo.findUnique).not.toHaveBeenCalled();
+    expect(closeIssue).not.toHaveBeenCalled();
+    expect(db.todo.delete).toHaveBeenCalledWith({ where: { id: TODO_ID } });
+  });
+
   it('GitHub 이슈가 있으면 이슈를 close 한 뒤 DB 에서 삭제', async () => {
     db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
     db.todo.findFirst.mockResolvedValue({
       id: TODO_ID,
       roomId: ROOM_ID,
+      repoId: REPO_ID, // Todo 가 속한 레포
       githubIssueNumber: 42, // 발행된 이슈 있음
     });
-    db.room.findUnique.mockResolvedValue({
-      id: ROOM_ID,
-      repos: [{ fullName: 'jiyun/todak' }],
+    // 멀티레포 정합성: todo.repoId 로 정확한 레포를 찾아 이슈를 닫는다
+    db.repo.findUnique.mockResolvedValue({
+      id: REPO_ID,
+      fullName: 'jiyun/todak',
     });
     db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
     vi.mocked(closeIssue).mockResolvedValue(undefined);
@@ -393,6 +414,8 @@ describe('deleteTodo', () => {
 
     await deleteTodo(USER_ID, ROOM_ID, TODO_ID);
 
+    // 올바른 레포(todo.repoId)로 조회했는가
+    expect(db.repo.findUnique).toHaveBeenCalledWith({ where: { id: REPO_ID } });
     // owner/repo + 이슈 번호로 close 를 호출했는가
     expect(closeIssue).toHaveBeenCalledWith('gho_token', 'jiyun', 'todak', 42);
     expect(db.todo.delete).toHaveBeenCalledWith({ where: { id: TODO_ID } });
