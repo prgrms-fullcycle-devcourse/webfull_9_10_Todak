@@ -3,7 +3,7 @@ import type {
   GetTodosQuery,
 } from '../api/rooms/todos/todos.schema.js';
 import { AppError } from '../errors/AppError.js';
-import { Prisma } from '../generated/prisma/client/index.js';
+import { isUniqueConstraintError } from '../errors/prisma.js';
 import { prisma } from '../lib/prisma.js';
 
 import { closeIssue, createIssue } from './github.service.js';
@@ -145,8 +145,7 @@ export async function createTodos(
         createdTodos.push(await prisma.todo.create({ data }));
       } catch (createError) {
         if (
-          createError instanceof Prisma.PrismaClientKnownRequestError &&
-          createError.code === 'P2002' &&
+          isUniqueConstraintError(createError) &&
           data.githubIssueNumber !== null &&
           data.repoId !== null
         ) {

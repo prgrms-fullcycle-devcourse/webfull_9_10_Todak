@@ -226,6 +226,11 @@ export const ERROR_CODES = {
     code: 'INTERNAL_SERVER_ERROR',
     message: '서버 오류가 발생했습니다.',
   },
+  INVITE_CODE_GENERATION_FAILED: {
+    statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+    code: 'INVITE_CODE_GENERATION_FAILED',
+    message: '초대 코드 생성에 실패했습니다. 잠시 후 다시 시도해주세요.',
+  },
 
   // 502
   GITHUB_API_ERROR: {
