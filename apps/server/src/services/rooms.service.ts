@@ -36,7 +36,7 @@ async function createUniqueInviteCode(): Promise<string> {
       return code;
     }
   }
-  throw new Error('초대 코드 생성에 실패했습니다.');
+  throw new AppError('INVITE_CODE_GENERATION_FAILED');
 }
 
 // 룸 생성
