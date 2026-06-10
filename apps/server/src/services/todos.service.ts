@@ -120,7 +120,7 @@ export async function createTodos(
 
     /*
      * 6. Todo 저장(항목별). echo 웹훅이 먼저 같은 이슈의 Todo 를 만들어
-     *    unique(roomId, githubIssueNumber) 위반(P2002)이 나는 레이스에서는,
+     *    unique(repoId, githubIssueNumber) 위반(P2002)이 나는 레이스에서는,
      *    실패·이슈 close 대신 그 Todo 를 앱의 값으로 보강(화해)해 일관되게 처리한다.
      *    (레이스 화해를 위해 단일 트랜잭션 대신 항목별로 처리)
      */
@@ -286,14 +286,18 @@ export async function deleteTodo(
    * 3. GitHub 이슈가 연결돼 있으면, 먼저 닫는 데 성공해야 DB에서도 삭제한다.
    *    토큰/레포가 없거나 close 가 실패하면 삭제를 중단해 GitHub-DB 불일치
    *    (이슈는 열려 있는데 보드 카드만 사라지는 상황)를 방지한다.
+   *
+   *    단 repoId 가 null 이면 레포 연결이 끊긴(disconnect) Todo 이므로 닫을 레포가
+   *    없다. 이 경우 GitHub 닫기를 건너뛰고 보드 카드만 삭제한다(끊긴 카드 삭제 허용).
    */
-  if (todo.githubIssueNumber !== null) {
-    const room = await prisma.room.findUnique({
-      where: { id: roomId },
-      include: { repos: true },
+  if (todo.githubIssueNumber !== null && todo.repoId !== null) {
+    /*
+     * 이 Todo 가 속한 레포로 이슈를 닫는다. repos[0] 을 쓰면 멀티레포에서
+     * 다른 레포의 이슈를 닫으려다 실패할 수 있으므로 todo.repoId 로 정확히 찾는다.
+     */
+    const repo = await prisma.repo.findUnique({
+      where: { id: todo.repoId },
     });
-
-    const repo = room?.repos[0] ?? null;
     if (repo === null) {
       throw new AppError('ROOM_REPO_NOT_FOUND');
     }

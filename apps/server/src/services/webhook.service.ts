@@ -173,13 +173,15 @@ async function resolveAssigneeId(
  */
 async function handleIssuesEvent(
   roomId: string,
+  repoId: string,
   payload: IssuesEventPayload,
 ): Promise<void> {
   const { action, issue } = payload;
   const io = getIO();
 
+  // Todo 는 레포 단위로 유일(@@unique([repoId, githubIssueNumber])) → repoId 기준 조회
   const existing = await prisma.todo.findFirst({
-    where: { roomId, githubIssueNumber: issue.number },
+    where: { repoId, githubIssueNumber: issue.number },
   });
 
   if (action === 'opened') {
@@ -194,6 +196,7 @@ async function handleIssuesEvent(
       const created = await prisma.todo.create({
         data: {
           roomId,
+          repoId,
           assigneeId,
           title: issue.title,
           body: issue.body ?? null,
@@ -229,7 +232,7 @@ async function handleIssuesEvent(
       );
     } catch (error) {
       /*
-       * unique(roomId, githubIssueNumber) 위반(P2002) = 앱 생성과 echo 웹훅이
+       * unique(repoId, githubIssueNumber) 위반(P2002) = 앱 생성과 echo 웹훅이
        * 거의 동시에 들어와 이미 같은 이슈의 Todo가 만들어진 경우. 멱등하게 무시한다.
        */
       if (
@@ -439,18 +442,18 @@ export async function handleGithubEvent(
     const fullName = `${repository.owner.login}/${repository.name}`;
     const repo = await prisma.repo.findFirst({
       where: { fullName },
-      select: { roomId: true },
+      select: { id: true, roomId: true },
     });
 
     if (repo === null) {
       return;
     }
 
-    const { roomId } = repo;
+    const { id: repoId, roomId } = repo;
 
     switch (event) {
       case 'issues':
-        await handleIssuesEvent(roomId, payload as IssuesEventPayload);
+        await handleIssuesEvent(roomId, repoId, payload as IssuesEventPayload);
         break;
 
       case 'pull_request':
