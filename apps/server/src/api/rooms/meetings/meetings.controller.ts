@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 
-import { AppError } from '../../../errors/AppError.js';
+import { getUserId } from '../../../middleware/auth.middleware.js';
 import {
   endMeeting,
   getMeetingChats,
@@ -23,10 +23,7 @@ export async function getMeetingsHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const { roomId } = req.params as { roomId: string };
 
@@ -44,10 +41,7 @@ export async function startMeetingHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const { roomId } = req.params as { roomId: string };
     const { private_room_id } = req.body as StartMeetingBody;
@@ -87,10 +81,7 @@ export async function endMeetingHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const { roomId, meetingId } = req.params as {
       roomId: string;
@@ -117,10 +108,7 @@ export async function getMeetingChatsHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const { roomId, meetingId } = req.params as {
       roomId: string;

@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 
-import { AppError } from '../../../errors/AppError.js';
+import { getUserId } from '../../../middleware/auth.middleware.js';
 import {
   ChatPayload,
   getMainRoomChats,
@@ -27,10 +27,7 @@ export async function getMainRoomChatsHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const { roomId } = req.params as { roomId: string };
     const { before, limit } = req.query as unknown as ChatsQuery;

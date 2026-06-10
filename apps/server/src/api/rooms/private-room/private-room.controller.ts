@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 
-import { AppError } from '../../../errors/AppError.js';
+import { getUserId } from '../../../middleware/auth.middleware.js';
 import { getPrivateRoomChats } from '../../../services/chat.service.js';
 import {
   getPrivateRooms,
@@ -36,11 +36,7 @@ export async function enterPrivateRoomHandler(
       roomId: string;
       privateRoomId: string;
     };
-    const userId = req.user?.id;
-
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const result = await enterPrivateRoom(roomId, privateRoomId, userId);
 
@@ -67,11 +63,7 @@ export async function leavePrivateRoomHandler(
       roomId: string;
       privateRoomId: string;
     };
-    const userId = req.user?.id;
-
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const result = await leavePrivateRoom(roomId, privateRoomId, userId);
 
@@ -112,10 +104,7 @@ export async function getPrivateRoomChatsHandler(
   next: NextFunction,
 ) {
   try {
-    const userId = req.user?.id;
-    if (userId === undefined) {
-      throw new AppError('UNAUTHORIZED');
-    }
+    const userId = getUserId(req);
 
     const { roomId, privateRoomId } = req.params as {
       roomId: string;
