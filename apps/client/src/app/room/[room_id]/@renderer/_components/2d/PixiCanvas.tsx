@@ -208,27 +208,44 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       socket.emit('room:join', { roomId });
 
-      socket.on(
-        'room:user-joined',
-        (data: { userId: string; login: string; avatarUrl: string }) => {
-          console.log(
-            '👋 [입장 감지] 새로운 팀원이 맵에 접속했습니다. 패킷 정보:',
-            data,
-          );
+      socket.on('room:user-joined', () => {
+        setTimeout(async () => {
+          const store = useSpaceStore.getState();
 
-          setTimeout(async () => {
-            const freshData = await fetchRoomMembers(roomId);
-            if (freshData && freshData.members) {
-              queryClient.setQueryData<RoomMembers>(
-                ['room-members', roomId],
-                freshData,
-              );
-              useSpaceStore.getState().setMembers(freshData.members);
-              syncMembers(freshData.members);
-            }
-          }, 200);
-        },
-      );
+          const freshRoomData = await fetchRoomMembers(roomId);
+          if (!freshRoomData || !freshRoomData.members) return;
+          for (const remotePlayer of remotePlayers.values()) {
+            world.removeChild(remotePlayer.container);
+            remotePlayer.container.destroy({ children: true });
+          }
+          remotePlayers.clear();
+
+          queryClient.setQueryData<RoomMembers>(
+            ['room-members', roomId],
+            freshRoomData,
+          );
+          store.setMembers(freshRoomData.members);
+          const myId = store.myChar.id;
+          const myFreshProfile = freshRoomData.members.find(m => m.id === myId);
+          if (myFreshProfile && player) {
+            player.nameText.text = myFreshProfile.nickname ?? '미지정';
+
+            store.setMyChar({
+              id: myFreshProfile.id,
+              name: myFreshProfile.nickname ?? '미지정',
+              avatarId: myFreshProfile.character_type as AnimalType,
+              status:
+                STATUS_TO_LABEL_MAP[myFreshProfile.status] ||
+                myFreshProfile.status ||
+                '🔥 집중',
+              roles: myFreshProfile.roles ?? ['frontend'],
+              detailedRole: myFreshProfile.detailed_role ?? 'Team Member',
+            });
+          }
+
+          syncMembers(freshRoomData.members);
+        }, 200);
+      });
 
       // 맴버 소켓 이벤트 수신
       socket.on(
@@ -305,89 +322,29 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
           roles: string[];
           detailed_role: string | null;
         }) => {
-          console.log(
-            '🚨 [소켓 감지] room:member-profile-changed 이벤트 신호가 정상 도달했습니다!',
-          );
-          console.log(
-            '📦 백엔드 서버가 실시간으로 배달해준 원본 패킷 데이터(data):',
-            data,
-          );
-
-          console.log(
-            '⏱️ DB 동기화 정착을 위해 안전망 타이머 0.2초(200ms) 가동을 시작합니다.',
-          );
-
           setTimeout(async () => {
             const store = useSpaceStore.getState();
-            console.log(
-              '⏱️ 0.2초 대기 마감. 백엔드 최신 멤버 목록 HTTP API(fetchRoomMembers)를 찌릅니다.',
-            );
 
-            // 1️⃣ 최신 명부 수신
+            // 최신 목록 수신 및 안전망 검증
             const freshRoomData = await fetchRoomMembers(roomId);
+            if (!freshRoomData || !freshRoomData.members) return;
 
-            if (!freshRoomData) {
-              console.error(
-                '❌ [에러] 최신 멤버 목록 API 응답 객체가 통째로 비어있습니다 (freshRoomData가 비정상)',
-              );
-              return;
-            }
-            if (!freshRoomData.members) {
-              console.error(
-                '❌ [에러] freshRoomData는 왔으나 내부 members 배열이 존재하지 않습니다:',
-                freshRoomData,
-              );
-              return;
-            }
-
-            // 📢 STEP 2: 서버 DB가 돌려준 진짜 오피셜 데이터 상태를 감시합니다.
-            console.log(
-              '📡 [API 응답 성공] 현재 서버 데이터베이스(DB)에 최종 저장되어 있는 회원 목록:',
-              freshRoomData.members,
-            );
-
-            // 이번에 소켓을 보낸 그 유저가 API 결과물 속에 어떤 상태(닉네임, 동물)로 박혀있는지 핀포인트 검증
-            const updatedUserInApi = freshRoomData.members.find(
-              m => String(m.id) === String(data.userId),
-            );
-            console.log(
-              `🔍 [정밀 매칭 검증] 프로필을 바꾼 유저(ID: ${data.userId})의 현재 서버 DB 저장 상태:`,
-              updatedUserInApi,
-            );
-
-            // 2️⃣ 기존 화면의 그래픽 명부 청소 가동
-            console.log(
-              '🧹 [캔버스 청소 작업 시작] 현재 2D 맵 화면에 그려져 서 있는 원격 유저 ID들:',
-              Array.from(remotePlayers.keys()),
-            );
-
-            for (const [userId, remotePlayer] of remotePlayers.entries()) {
-              console.log(
-                `  -> 🧼 화면에서 원격 캐릭터 제거 중: ID = ${userId}`,
-              );
+            // 기존 화면의 그래픽 제거
+            for (const remotePlayer of remotePlayers.values()) {
               world.removeChild(remotePlayer.container);
               remotePlayer.container.destroy({ children: true });
             }
             remotePlayers.clear();
-            console.log(
-              '✅ [청소 완료] 2D 맵 위의 모든 원격 캐릭터 그래픽 찌꺼기가 도화지에서 사라졌습니다.',
-            );
 
-            // 3️⃣ 리액트 쿼리 캐시 및 Zustand 명부 스왑
-            console.log(
-              '💾 React Query 캐시 구조와 Zustand 전역 명부(members)를 갓 받아온 최신 데이터로 일제히 스왑합니다.',
-            );
+            // React Query 캐시 및 Zustand 명부 일제히 업데이트
             queryClient.setQueryData<RoomMembers>(
               ['room-members', roomId],
               freshRoomData,
             );
             store.setMembers(freshRoomData.members);
 
-            // 4️⃣ 변경 주체 분기 처리 감시
+            // 변경 주체가 '나'인지 '타인'인지 판별 후 처리
             const isMe = String(data.userId) === String(store.myChar.id);
-            console.log(
-              `👤 [주체 판정] 프로필을 변경한 주인공은 누구인가요? ➡️ ${isMe ? '나 자신(A)입니다.' : '다른 팀원(B)입니다.'}`,
-            );
 
             if (isMe) {
               const myFreshProfile = freshRoomData.members.find(
@@ -409,26 +366,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
                   roles: myFreshProfile.roles ?? ['frontend'],
                   detailedRole: myFreshProfile.detailed_role ?? 'Team Member',
                 });
-                console.log(
-                  '✅ 나 자신의 캐릭터 전역 스토어(myChar) 및 머리 위 이름표 최종 갱신 완료:',
-                  store.myChar,
-                );
               }
-            } else {
-              // 5️⃣ 원격 플레이어 리렌더링 가동 감시
-              console.log(
-                '🎨 [리렌더링 가동] 깨끗해진 도화지에 최신 API 명부를 주입하여 팀원들을 새로 그립니다. (syncMembers 호출)',
-              );
-              syncMembers(freshRoomData.members);
-              console.log(
-                '🎨 [리렌더링 마감] syncMembers 함수 작동 후 최종 복구된 화면 속 원격 명부:',
-                Array.from(remotePlayers.keys()),
-              );
             }
-
-            console.log(
-              '================= 실시간 동기화 파이프라인 흐름 종료 =================',
-            );
+            syncMembers(freshRoomData.members);
           }, 200);
         },
       );
