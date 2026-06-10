@@ -179,6 +179,8 @@ model MeetingParticipant {
   meeting Meeting @relation(fields: [meetingId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
 
+  // 동시 종료 등 race 로 같은 (회의, 유저) 참가자 행이 중복 생성되는 것을 DB 차원에서 차단
+  @@unique([meetingId, userId])
   @@map("meeting_participant")
 }
 

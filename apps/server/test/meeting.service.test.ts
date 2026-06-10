@@ -235,6 +235,7 @@ describe('endMeeting', () => {
         { meetingId: MEETING_ID, userId: 'user-a' },
         { meetingId: MEETING_ID, userId: 'user-b' },
       ],
+      skipDuplicates: true,
     });
     expect(result.status).toBe('ended');
     expect(result.message_count).toBe(3); // 채팅 메시지 "총 개수"(사람 수 아님)
