@@ -1,11 +1,10 @@
-import { AppError } from '@/errors/AppError.js';
-
 import {
   getPrivateRooms,
   enterPrivateRoom,
   leavePrivateRoom,
 } from '../../services/private-room.service.js';
 import { updateRoomMemberStatus } from '../../services/room-member.service.js';
+import { toSocketError } from '../socket-error.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 
 /*
@@ -43,15 +42,14 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
       );
     } catch (err) {
       console.error('[private-room:enter] error:', err);
-
-      socket.emit('error', {
-        code: err instanceof AppError ? err.code : 'PRIVATE_ROOM_ENTER_ERROR',
-
-        message:
-          err instanceof Error
-            ? err.message
-            : '프라이빗 룸 입장 중 오류가 발생했습니다.',
-      });
+      socket.emit(
+        'error',
+        toSocketError(
+          err,
+          'PRIVATE_ROOM_ENTER_ERROR',
+          '프라이빗 룸 입장 중 오류가 발생했습니다.',
+        ),
+      );
     }
   });
 
@@ -82,15 +80,14 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
       );
     } catch (err) {
       console.error('[private-room:leave] error:', err);
-
-      socket.emit('error', {
-        code: err instanceof AppError ? err.code : 'PRIVATE_ROOM_LEAVE_ERROR',
-
-        message:
-          err instanceof Error
-            ? err.message
-            : '프라이빗 룸 퇴장 중 오류가 발생했습니다.',
-      });
+      socket.emit(
+        'error',
+        toSocketError(
+          err,
+          'PRIVATE_ROOM_LEAVE_ERROR',
+          '프라이빗 룸 퇴장 중 오류가 발생했습니다.',
+        ),
+      );
     }
   });
 }
