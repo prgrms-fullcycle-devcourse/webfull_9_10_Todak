@@ -258,7 +258,6 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
             fetchRoomMembers(roomId).then(res => {
               if (res?.members) {
                 useSpaceStore.getState().setMembers(res.members);
-                syncMembers(res.members);
               }
             });
           }

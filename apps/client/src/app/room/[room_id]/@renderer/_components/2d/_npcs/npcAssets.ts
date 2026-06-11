@@ -7,10 +7,10 @@ export interface NpcAssetPack {
 }
 
 export async function loadMascotNpcAssets(): Promise<NpcAssetPack> {
-  const front = await PIXI.Assets.load('/assets/npc_front.png');
-  const back = await PIXI.Assets.load('/assets/npc_back.png');
-  const walk1 = await PIXI.Assets.load('/assets/npc_left.png');
-  const walk2 = await PIXI.Assets.load('/assets/npc_right.png');
+  const front = await PIXI.Assets.load('/assets/npc_front.webp');
+  const back = await PIXI.Assets.load('/assets/npc_back.webp');
+  const walk1 = await PIXI.Assets.load('/assets/npc_left.webp');
+  const walk2 = await PIXI.Assets.load('/assets/npc_right.webp');
 
   return {
     front,
