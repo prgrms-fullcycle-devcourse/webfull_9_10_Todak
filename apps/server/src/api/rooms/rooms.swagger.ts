@@ -320,6 +320,57 @@ registry.registerPath({
   },
 });
 
+// ─── GET /rooms/:roomId/public ────────────────────────────────────────────────
+registry.registerPath({
+  method: 'get',
+  path: '/rooms/{roomId}/public',
+  tags: ['Rooms'],
+  summary: '룸 공개 정보 조회 (인증 불필요)',
+  description:
+    '링크 공유 시 카카오톡·슬랙 등의 OG(Open Graph) 미리보기에 사용하는 간략한 룸 정보입니다. 인증 토큰 없이 호출 가능합니다.',
+  request: {
+    params: RoomIdParamSchema,
+  },
+  responses: {
+    200: {
+      description: '룸 공개 정보 조회 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({
+              room_name: z.string(),
+              host_name: z.string().nullable(),
+              repo_name: z.string().nullable(),
+              created_at: z.string().datetime(),
+              member_count: z.number(),
+              max_members: z.number(),
+              member_names: z.array(z.string()),
+            }),
+          }),
+          example: {
+            success: true,
+            data: {
+              room_name: '개발팀 룸',
+              host_name: 'jiyun-dev',
+              repo_name: 'org/my-repo',
+              created_at: '2026-05-26T09:00:00.000Z',
+              member_count: 3,
+              max_members: 6,
+              member_names: ['jiyun-dev', 'minho', 'sua'],
+            },
+          },
+        },
+      },
+    },
+    404: errorResponse(
+      '룸을 찾을 수 없음',
+      'ROOM_NOT_FOUND',
+      '룸을 찾을 수 없습니다.',
+    ),
+  },
+});
+
 // ─── PATCH /rooms/:roomId ─────────────────────────────────────────────────────
 registry.registerPath({
   method: 'patch',

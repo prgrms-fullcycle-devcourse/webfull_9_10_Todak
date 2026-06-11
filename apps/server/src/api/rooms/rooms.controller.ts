@@ -1,10 +1,11 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 
 import { AppError } from '../../errors/AppError.js';
 import {
   createRoom,
   deleteRoom,
   getRoomById,
+  getRoomPublicInfo,
   getRooms,
   joinRoom,
   leaveRoom,
@@ -80,6 +81,22 @@ export async function getRoomByIdHandler(
     const room = await getRoomById(userId, roomId);
 
     res.status(200).json({ success: true, data: room });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// 룸 공개 정보 조회 (인증 불필요) — 링크 공유 OG 미리보기용
+export async function getRoomPublicInfoHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { roomId } = req.params as { roomId: string };
+    const info = await getRoomPublicInfo(roomId);
+
+    res.status(200).json({ success: true, data: info });
   } catch (err) {
     next(err);
   }
