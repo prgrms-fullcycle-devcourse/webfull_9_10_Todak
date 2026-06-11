@@ -28,7 +28,8 @@ import {
 } from '@/services/rooms/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { loadMascotNpcAssets } from '../2d/_npcs/npcAssets';
-import { createMascotNpc } from '../2d/_npcs/createNpc';
+import { createMascotNpc, MascotNpcContainer } from '../2d/_npcs/createNpc';
+import { useNotifications } from '@/services/notifications/query';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -50,6 +51,11 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   // 캔버스를 마운트할 DOM 컨테이너 참조
   const canvasRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  // 🌟 [핵심] 리액트 생명주기와 독립적으로 NPC 인스턴스를 붙잡아 둘 참조선 개설
+  const npcRef = useRef<MascotNpcContainer | null>(null);
+
+  // 🌟 하단 배너가 사용하는 알림 데이터 원본 그대로 동기화 호출
+  const { data: notificationData } = useNotifications(roomId);
 
   useEffect(() => {
     let isMounted = true;
@@ -147,6 +153,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       const helperNpc = createMascotNpc(mascotTextures, 1500, 500, '토닥이');
       helperNpc.zIndex = 8;
       world.addChild(helperNpc);
+      npcRef.current = helperNpc;
 
       // 회의실 입장 시 화면을 어둡게 하는 오버레이
       const darkOverlay = new PIXI.Graphics();
@@ -472,6 +479,33 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       }
     };
   }, [roomId, queryClient]);
+
+  // 실시간 알림 연동
+  useEffect(() => {
+    const notifications = notificationData?.notifications ?? [];
+    if (notifications.length === 0) {
+      npcRef.current?.say('오늘도 토닥윗미에서\n즐거운 협업 마라톤 화이팅! 🚀');
+      return;
+    }
+
+    let activeIndex = 0;
+
+    // 첫 진입 시 최초 알림 문구 즉시 출력
+    npcRef.current?.say(notifications[0].message);
+
+    // 하단 롤링 배너와 싱크를 맞춰 4초마다 다음 알림으로 말풍선 문구 교체
+    const intervalId = window.setInterval(() => {
+      activeIndex = (activeIndex + 1) % notifications.length;
+      const currentNotice = notifications[activeIndex];
+
+      if (npcRef.current) {
+        // 확장해 둔 say 메서드 호출
+        npcRef.current.say(currentNotice.message);
+      }
+    }, 4000);
+
+    return () => window.clearInterval(intervalId);
+  }, [notificationData, roomId]);
 
   return (
     <div className="flex flex-col items-center justify-start gap-2 pt-0 h-full w-full">
