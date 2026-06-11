@@ -25,6 +25,17 @@ export interface MinutesList {
   };
 }
 
+export interface ActionItem {
+  title: string;
+  body?: string;
+  labels: string[];
+  assignee: {
+    id: string;
+    github_username: string;
+    avatar_url: string;
+  } | null;
+}
+
 export interface MinuteDetail {
   id: string;
   room_id: string;
@@ -32,7 +43,7 @@ export interface MinuteDetail {
   title: string;
   type: string;
   content_md: string;
-  action_items: string[];
+  action_items: ActionItem[];
   status: string;
   linked_issue_numbers: number[];
   author: Author;
