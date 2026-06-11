@@ -50,6 +50,8 @@ export type ChatReactAck =
 export interface TodoEventPayload {
   id: string;
   room_id: string;
+  // 현재 연결된 레포 기준 Todo 인지 구분용 (해제/교체로 끊긴 Todo 는 null)
+  repo_id?: string | null;
   title: string;
   body: string | null;
   labels: string[];
@@ -72,6 +74,16 @@ export interface PrEventPayload {
   url: string | null;
 }
 
+// GitHub Webhook → PR 리뷰 이벤트 페이로드
+export interface PrReviewEventPayload {
+  pull_number: number;
+  // approved | changes_requested | commented
+  state: string;
+  reviewer: { github_username: string; avatar_url: string | null };
+  body: string | null;
+  url: string | null;
+}
+
 // GitHub Webhook → push 이벤트의 개별 커밋
 export interface CommitItemPayload {
   id: string;
@@ -86,6 +98,20 @@ export interface CommitPushedPayload {
   branch: string;
   pusher: string | null;
   commits: CommitItemPayload[];
+}
+
+/*
+ * 알림 페이로드 (REST getNotificationsList 항목과 동일 snake_case)
+ * 개인방(userId) 으로만 emit 된다.
+ */
+export interface NotificationEventPayload {
+  id: string;
+  room_id: string;
+  type: string;
+  message: string;
+  is_read: boolean;
+  link: string | null;
+  created_at: string;
 }
 
 // 유저 정보 (JWT 검증 후 socket.data.user 에 저장됨)
@@ -112,6 +138,13 @@ export interface ServerToClientEvents {
     userId: string;
     status: string;
   }) => void;
+  'room:member-profile-changed': (data: {
+    userId: string;
+    nickname: string | null;
+    character_type: string | null;
+    roles: string[];
+    detailed_role: string | null;
+  }) => void;
   'room:member-moved': (data: {
     userId: string;
     posX: number;
@@ -135,6 +168,11 @@ export interface ServerToClientEvents {
   }) => void;
 
   // Repo
+  'repo:connected': (data: {
+    roomId: string;
+    repoId: string;
+    repo_full_name: string;
+  }) => void;
   'repo:deleted': (data: { roomId: string; repoId: string }) => void;
 
   // 이슈
@@ -146,6 +184,10 @@ export interface ServerToClientEvents {
   'pr:opened': (data: { roomId: string; pull_request: PrEventPayload }) => void;
   'pr:merged': (data: { roomId: string; pull_request: PrEventPayload }) => void;
   'pr:closed': (data: { roomId: string; pull_request: PrEventPayload }) => void;
+  'pr:reviewed': (data: {
+    roomId: string;
+    review: PrReviewEventPayload;
+  }) => void;
 
   // 커밋 push (GitHub Webhook)
   'commit:pushed': (data: {
@@ -215,6 +257,9 @@ export interface ServerToClientEvents {
     status: string;
     updated_at: string;
   }) => void;
+
+  // 알림 (개인방 userId 으로 emit)
+  'notification:created': (data: NotificationEventPayload) => void;
 
   // System
   error: (data: { message: string; code: string }) => void;

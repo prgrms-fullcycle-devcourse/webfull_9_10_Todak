@@ -51,6 +51,11 @@ export const ERROR_CODES = {
     code: 'WEBHOOK_SIGNATURE_INVALID',
     message: 'Webhook 서명 검증에 실패했습니다.',
   },
+  GITHUB_REAUTH_REQUIRED: {
+    statusCode: StatusCodes.UNAUTHORIZED,
+    code: 'GITHUB_REAUTH_REQUIRED',
+    message: 'GitHub 인증이 만료되었습니다. 다시 로그인해주세요.',
+  },
 
   // 403
   REPO_ADMIN_REQUIRED: {
@@ -220,6 +225,11 @@ export const ERROR_CODES = {
     statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
     code: 'INTERNAL_SERVER_ERROR',
     message: '서버 오류가 발생했습니다.',
+  },
+  INVITE_CODE_GENERATION_FAILED: {
+    statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+    code: 'INVITE_CODE_GENERATION_FAILED',
+    message: '초대 코드 생성에 실패했습니다. 잠시 후 다시 시도해주세요.',
   },
 
   // 502

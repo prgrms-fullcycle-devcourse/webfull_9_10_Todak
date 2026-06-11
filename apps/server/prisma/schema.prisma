@@ -68,7 +68,8 @@ model RoomMember {
   room Room @relation(fields: [roomId], references: [id])
   user User @relation(fields: [userId], references: [id])
 
-  @@index([roomId, userId])
+  // 같은 유저가 한 룸에 중복 가입되는 것을 DB 차원에서 차단 (입장 race)
+  @@unique([roomId, userId])
   @@index([userId])
   @@map("room_member")
 }
@@ -76,17 +77,17 @@ model RoomMember {
 model Repo {
   id            String    @id @default(uuid()) @db.Uuid
   roomId        String    @map("room_id") @db.Uuid
-  fullName      String    @map("full_name") // owner/repo-name
+  fullName      String    @unique @map("full_name") // owner/repo-name (한 레포는 한 룸에만 연결)
   defaultBranch String    @default("main") @map("default_branch")
   webhookId     String?   @map("webhook_id")
   createdAt     DateTime  @default(now()) @map("created_at")
   statsCache    Json?     @map("stats_cache") // 마지막으로 조회한 stats 저장
   statsCachedAt DateTime? @map("stats_cached_at") // 언제 캐싱했는지
 
-  room Room @relation(fields: [roomId], references: [id])
+  room  Room   @relation(fields: [roomId], references: [id])
+  todos Todo[]
 
   @@index([roomId])
-  @@index([fullName])
   @@map("repo")
 }
 
@@ -122,17 +123,35 @@ model ChatMessage {
   roomId        String   @map("room_id") @db.Uuid
   privateRoomId String?  @map("private_room_id") @db.Uuid // null = 메인룸 채팅
   userId        String   @map("user_id") @db.Uuid
-  content       String
+  content       String? // 텍스트 없이 첨부만 있는 메시지는 null 가능
   type          String   @default("text") // text | meeting_start | meeting_end
   createdAt     DateTime @default(now()) @map("created_at")
 
-  room        Room           @relation(fields: [roomId], references: [id])
-  privateRoom PrivateRoom?   @relation(fields: [privateRoomId], references: [id])
-  user        User           @relation(fields: [userId], references: [id])
+  room        Room             @relation(fields: [roomId], references: [id])
+  privateRoom PrivateRoom?     @relation(fields: [privateRoomId], references: [id])
+  user        User             @relation(fields: [userId], references: [id])
   reactions   ChatReaction[]
+  attachments ChatAttachment[] // 한 메시지에 이미지/PDF 여러 개 첨부 가능
 
   @@index([roomId, privateRoomId, createdAt])
   @@map("chat_message")
+}
+
+// 채팅 첨부 파일(이미지/PDF) 메타. 실제 바이너리는 S3 에 있고 s3Key 로 참조.
+// (URL 은 조회 시점에 presigned 로 생성하므로 저장하지 않는다)
+model ChatAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  messageId    String   @map("message_id") @db.Uuid // 한 메시지에 여러 첨부 가능
+  s3Key        String   @map("s3_key")
+  mime         String // image/png, image/jpeg, application/pdf 등
+  size         Int // 바이트
+  originalName String   @map("original_name") // 다운로드/표시용 원본 파일명
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("chat_attachment")
 }
 
 model ChatReaction {
@@ -178,6 +197,8 @@ model MeetingParticipant {
   meeting Meeting @relation(fields: [meetingId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
 
+  // 동시 종료 등 race 로 같은 (회의, 유저) 참가자 행이 중복 생성되는 것을 DB 차원에서 차단
+  @@unique([meetingId, userId])
   @@map("meeting_participant")
 }
 
@@ -207,6 +228,7 @@ model Minutes {
 model Todo {
   id                String   @id @default(uuid()) @db.Uuid
   roomId            String   @map("room_id") @db.Uuid
+  repoId            String?  @map("repo_id") @db.Uuid
   assigneeId        String?  @map("assignee_id") @db.Uuid
   minutesId         String?  @map("minutes_id") @db.Uuid
   githubIssueNumber Int?     @map("github_issue_number")
@@ -217,11 +239,14 @@ model Todo {
   createdAt         DateTime @default(now()) @map("created_at")
 
   room     Room     @relation(fields: [roomId], references: [id])
+  // 레포 해제/교체 시 Todo 는 보존하고 연결만 끊기 위해 onDelete: SetNull
+  repo     Repo?    @relation(fields: [repoId], references: [id], onDelete: SetNull)
   assignee User?    @relation(fields: [assigneeId], references: [id])
   minutes  Minutes? @relation(fields: [minutesId], references: [id])
 
-  // 회의당 GitHub 이슈는 룸 내에서 유일 (웹훅 echo 경쟁 시 중복 Todo 생성 방지)
-  @@unique([roomId, githubIssueNumber])
+  // GitHub 이슈는 레포 내에서 유일 (웹훅 echo 경쟁 시 중복 Todo 생성 방지)
+  @@unique([repoId, githubIssueNumber])
+  @@index([roomId])
   @@index([assigneeId])
   @@map("todo")
 }

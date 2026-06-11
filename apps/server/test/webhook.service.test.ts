@@ -14,7 +14,8 @@ vi.mock('@/lib/prisma.js', () => ({
   prisma: {
     repo: { findFirst: vi.fn() },
     todo: { findFirst: vi.fn(), create: vi.fn() },
-    roomMember: { findFirst: vi.fn() },
+    roomMember: { findFirst: vi.fn(), findMany: vi.fn() },
+    notification: { create: vi.fn() },
   },
 }));
 
@@ -34,6 +35,7 @@ const r = redis as any;
 const io = getIO as any;
 
 const ROOM_ID = 'room-1';
+const REPO_ID = 'repo-1';
 
 function openedPayload(assignees?: Array<{ login: string }>) {
   return {
@@ -55,7 +57,17 @@ describe('handleGithubEvent - issues.opened assignee 매핑', () => {
     vi.clearAllMocks();
     r.set.mockResolvedValue('OK'); // dedup 선점 성공
     r.del.mockResolvedValue(1);
-    db.repo.findFirst.mockResolvedValue({ roomId: ROOM_ID });
+    db.repo.findFirst.mockResolvedValue({ id: REPO_ID, roomId: ROOM_ID });
+    db.roomMember.findMany.mockResolvedValue([]); // 알림 수신자 기본 없음
+    db.notification.create.mockResolvedValue({
+      id: 'noti-1',
+      roomId: ROOM_ID,
+      type: 'new_issue',
+      message: '',
+      isRead: false,
+      link: null,
+      createdAt: new Date(0),
+    });
     db.todo.findFirst.mockResolvedValue(null); // 기존 Todo 없음 → 생성
     // create 는 전달된 data 를 그대로 반영한 레코드 반환
     db.todo.create.mockImplementation(async (args: { data: any }) => ({
@@ -115,5 +127,82 @@ describe('handleGithubEvent - issues.opened assignee 매핑', () => {
         data: expect.objectContaining({ assigneeId: null }),
       }),
     );
+  });
+
+  it('Todo 조회/생성을 repoId 기준으로 한다', async () => {
+    await handleGithubEvent('issues', 'D4', openedPayload());
+
+    // 기존 Todo 조회가 roomId 가 아닌 repoId + 이슈번호 기준인지
+    expect(db.todo.findFirst).toHaveBeenCalledWith({
+      where: { repoId: REPO_ID, githubIssueNumber: 5 },
+    });
+    // 생성 시 repoId 가 채워지는지
+    expect(db.todo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ repoId: REPO_ID, roomId: ROOM_ID }),
+      }),
+    );
+  });
+});
+
+function reviewPayload(action: string) {
+  return {
+    action,
+    review: {
+      state: 'approved',
+      body: 'LGTM',
+      html_url: 'https://github.com/owner/repo/pull/7#review-1',
+      user: { login: 'kim', avatar_url: 'https://avatars/kim.png' },
+    },
+    pull_request: { number: 7 },
+    repository: { name: 'repo', owner: { login: 'owner' } },
+  };
+}
+
+describe('handleGithubEvent - pull_request_review', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let emit: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    r.set.mockResolvedValue('OK');
+    r.del.mockResolvedValue(1);
+    db.repo.findFirst.mockResolvedValue({ roomId: ROOM_ID });
+    db.roomMember.findFirst.mockResolvedValue(null);
+    db.roomMember.findMany.mockResolvedValue([]); // 알림 수신자 기본 없음
+    emit = vi.fn();
+    io.mockReturnValue({ to: () => ({ emit }) });
+  });
+
+  it('submitted 리뷰면 pr:reviewed 를 emit', async () => {
+    await handleGithubEvent(
+      'pull_request_review',
+      'R1',
+      reviewPayload('submitted'),
+    );
+
+    expect(emit).toHaveBeenCalledWith('pr:reviewed', {
+      roomId: ROOM_ID,
+      review: {
+        pull_number: 7,
+        state: 'approved',
+        reviewer: {
+          github_username: 'kim',
+          avatar_url: 'https://avatars/kim.png',
+        },
+        body: 'LGTM',
+        url: 'https://github.com/owner/repo/pull/7#review-1',
+      },
+    });
+  });
+
+  it('submitted 가 아니면(dismissed) emit 안 함', async () => {
+    await handleGithubEvent(
+      'pull_request_review',
+      'R2',
+      reviewPayload('dismissed'),
+    );
+
+    expect(emit).not.toHaveBeenCalled();
   });
 });

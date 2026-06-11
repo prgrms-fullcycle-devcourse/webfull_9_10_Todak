@@ -18,3 +18,7 @@ process.env.GITHUB_CALLBACK_URL ??=
 process.env.ANTHROPIC_API_KEY ??= 'test';
 process.env.JWT_SECRET ??= 'test_jwt_secret_test_jwt_secret_test';
 process.env.WEBHOOK_SECRET ??= 'test';
+process.env.AWS_REGION ??= 'ap-northeast-2';
+process.env.S3_BUCKET ??= 'test-bucket';
+process.env.AWS_ACCESS_KEY_ID ??= 'test';
+process.env.AWS_SECRET_ACCESS_KEY ??= 'test';

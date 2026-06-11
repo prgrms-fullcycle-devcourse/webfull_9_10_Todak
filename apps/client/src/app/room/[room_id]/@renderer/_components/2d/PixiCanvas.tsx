@@ -66,6 +66,33 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       const container = canvasRef.current;
       if (!container) return;
 
+      PIXI.TextureSource.defaultOptions.scaleMode = 'nearest';
+
+      const roomData = await fetchRoomMembers(roomId);
+
+      if (roomData && roomData.members) {
+        useSpaceStore.getState().setMembers(roomData.members);
+
+        // 유저 id 기준 내 프로필 탐색
+        const myId = useSpaceStore.getState().myChar.id;
+        const myFreshRoomProfile = roomData.members.find(m => m.id === myId);
+
+        if (myFreshRoomProfile) {
+          // Zustand 초기화 및 현재 룸에 있는 정보 동기화
+          useSpaceStore.getState().setMyChar({
+            id: myFreshRoomProfile.id,
+            name: myFreshRoomProfile.nickname ?? '미지정',
+            avatarId: myFreshRoomProfile.character_type as AnimalType,
+            status:
+              STATUS_TO_LABEL_MAP[myFreshRoomProfile.status] ||
+              myFreshRoomProfile.status ||
+              '🔥 집중',
+            roles: myFreshRoomProfile.roles ?? ['frontend'],
+            detailedRole: myFreshRoomProfile.detailed_role ?? 'Team Member',
+          });
+        }
+      }
+
       const newApp = new PIXI.Application();
       await newApp.init({
         width: container.clientWidth,
@@ -73,6 +100,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         backgroundAlpha: 0,
         resolution: window.devicePixelRatio || 1, // 레티나 대응
         autoDensity: true,
+        antialias: false,
       });
 
       if (!isMounted) {
@@ -82,6 +110,8 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       app = newApp;
       app.ticker.maxFPS = 60;
+
+      app.canvas.style.imageRendering = 'pixelated';
 
       if (canvasRef.current) {
         canvasRef.current.innerHTML = '';
@@ -176,6 +206,47 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       const socket = getSocket();
 
+      socket.emit('room:join', { roomId });
+
+      socket.on('room:user-joined', () => {
+        setTimeout(async () => {
+          const store = useSpaceStore.getState();
+
+          const freshRoomData = await fetchRoomMembers(roomId);
+          if (!freshRoomData || !freshRoomData.members) return;
+          for (const remotePlayer of remotePlayers.values()) {
+            world.removeChild(remotePlayer.container);
+            remotePlayer.container.destroy({ children: true });
+          }
+          remotePlayers.clear();
+
+          queryClient.setQueryData<RoomMembers>(
+            ['room-members', roomId],
+            freshRoomData,
+          );
+          store.setMembers(freshRoomData.members);
+          const myId = store.myChar.id;
+          const myFreshProfile = freshRoomData.members.find(m => m.id === myId);
+          if (myFreshProfile && player) {
+            player.nameText.text = myFreshProfile.nickname ?? '미지정';
+
+            store.setMyChar({
+              id: myFreshProfile.id,
+              name: myFreshProfile.nickname ?? '미지정',
+              avatarId: myFreshProfile.character_type as AnimalType,
+              status:
+                STATUS_TO_LABEL_MAP[myFreshProfile.status] ||
+                myFreshProfile.status ||
+                '🔥 집중',
+              roles: myFreshProfile.roles ?? ['frontend'],
+              detailedRole: myFreshProfile.detailed_role ?? 'Team Member',
+            });
+          }
+
+          syncMembers(freshRoomData.members);
+        }, 200);
+      });
+
       // 맴버 소켓 이벤트 수신
       socket.on(
         'room:member-moved',
@@ -187,6 +258,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
             fetchRoomMembers(roomId).then(res => {
               if (res?.members) {
                 useSpaceStore.getState().setMembers(res.members);
+                syncMembers(res.members);
               }
             });
           }
@@ -242,7 +314,66 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         },
       );
 
-      // Zustand 구독
+      socket.on(
+        'room:member-profile-changed',
+        (data: {
+          userId: string;
+          nickname: string | null;
+          character_type: string | null;
+          roles: string[];
+          detailed_role: string | null;
+        }) => {
+          setTimeout(async () => {
+            const store = useSpaceStore.getState();
+
+            // 최신 목록 수신 및 안전망 검증
+            const freshRoomData = await fetchRoomMembers(roomId);
+            if (!freshRoomData || !freshRoomData.members) return;
+
+            // 기존 화면의 그래픽 제거
+            for (const remotePlayer of remotePlayers.values()) {
+              world.removeChild(remotePlayer.container);
+              remotePlayer.container.destroy({ children: true });
+            }
+            remotePlayers.clear();
+
+            // React Query 캐시 및 Zustand 명부 일제히 업데이트
+            queryClient.setQueryData<RoomMembers>(
+              ['room-members', roomId],
+              freshRoomData,
+            );
+            store.setMembers(freshRoomData.members);
+
+            // 변경 주체가 '나'인지 '타인'인지 판별 후 처리
+            const isMe = String(data.userId) === String(store.myChar.id);
+
+            if (isMe) {
+              const myFreshProfile = freshRoomData.members.find(
+                m => String(m.id) === String(data.userId),
+              );
+              if (myFreshProfile && player) {
+                const normalizedNickname =
+                  myFreshProfile.nickname ?? String(data.nickname);
+                player.nameText.text = normalizedNickname;
+
+                store.setMyChar({
+                  id: myFreshProfile.id,
+                  name: normalizedNickname,
+                  avatarId: myFreshProfile.character_type as AnimalType,
+                  status:
+                    STATUS_TO_LABEL_MAP[myFreshProfile.status] ||
+                    myFreshProfile.status ||
+                    '🔥 집중',
+                  roles: myFreshProfile.roles ?? ['frontend'],
+                  detailedRole: myFreshProfile.detailed_role ?? 'Team Member',
+                });
+              }
+            }
+            syncMembers(freshRoomData.members);
+          }, 200);
+        },
+      );
+
       unsubscribeStatus = useSpaceStore.subscribe(
         state => state.myChar.status,
         newStatus => {
@@ -252,7 +383,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       // 동물 종류 변경 시 텍스처 스왑
       unsubscribeAnimal = useSpaceStore.subscribe(
-        state => state.currentAnimal,
+        state => state.myChar.avatarId,
         newAnimal => {
           activeTextures = animalAssets[newAnimal] ?? animalAssets.rabbit;
           player.sprite.texture = activeTextures.front;
@@ -327,8 +458,10 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       unsubscribeModal?.();
 
       // 맴버 소켓 이벤트 리스너 제거
+      getSocket().off('room:user-joined');
       getSocket().off('room:member-moved');
       getSocket().off('room:member-status-changed');
+      getSocket().off('room:member-profile-changed');
 
       // 리사이즈 이벤트 리스너 제거
       if (handleResize) {

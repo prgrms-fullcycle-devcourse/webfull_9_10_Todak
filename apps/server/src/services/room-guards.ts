@@ -22,6 +22,26 @@ export async function assertRoomMember(
   }
 }
 
+export async function assertRoomHost(
+  roomId: string,
+  userId: string,
+): Promise<void> {
+  const membership = await prisma.roomMember.findFirst({
+    where: { roomId, userId },
+    select: { isHost: true },
+  });
+
+  // 비멤버
+  if (membership === null) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  // 비방장
+  if (!membership.isHost) {
+    throw new AppError('FORBIDDEN');
+  }
+}
+
 // 프라이빗 룸이 없거나 해당 룸 소속이 아니면 throw. (존재 여부 비노출을 위해 두 경우 동일 에러)
 export async function assertPrivateRoomBelongsToRoom(
   roomId: string,

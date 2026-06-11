@@ -17,13 +17,14 @@ import {
   detailJobs,
   roleValueByPart,
 } from '@/app/[user_id]/join/customize/_components/UserProfileForm';
+import { getSocket } from '@/lib/socket';
 
 const AVATAR_MAP = {
-  rabbit: { label: '🐰 토끼', src: '/assets/rabbit_front.png' },
-  cat: { label: '🐱 고양이', src: '/assets/cat_front.png' },
-  dog: { label: '🐶 강아지', src: '/assets/dog_front.png' },
-  bear: { label: '🐻 곰', src: '/assets/bear_front.png' },
-  hamster: { label: '🐹 햄스터', src: '/assets/hamster_front.png' },
+  rabbit: { label: '🐰 토끼', src: '/assets/rabbit_front.webp' },
+  cat: { label: '🐱 고양이', src: '/assets/cat_front.webp' },
+  dog: { label: '🐶 강아지', src: '/assets/dog_front.webp' },
+  bear: { label: '🐻 곰', src: '/assets/bear_front.webp' },
+  hamster: { label: '🐹 햄스터', src: '/assets/hamster_front.webp' },
 } as const;
 
 const STATUS_MAP: Record<string, string> = {
@@ -94,7 +95,7 @@ export default function CharacterDetailModal() {
   const unifiedMember = getUnifiedMember(selectedMember, serverMembers);
 
   return (
-    <Modal isOpen={isCharacterModalOpen} onOpenChange={closeCharacterModal}>
+    <Modal isOpen={isCharacterModalOpen}>
       <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4">
         <div className="absolute inset-0" onClick={closeCharacterModal} />
 
@@ -183,6 +184,14 @@ function ModalFormContent({
         detailedRole: profile.detailed_role ?? 'Team Member',
       });
 
+      getSocket().emit('room:member-profile-changed', {
+        userId: profile.id,
+        nickname: profile.nickname,
+        character_type: profile.character_type,
+        roles: profile.roles,
+        detailed_role: profile.detailed_role,
+      });
+
       setIsEditing(false);
       closeCharacterModal();
     },
@@ -231,7 +240,7 @@ function ModalFormContent({
           <div className="flex gap-4 items-start">
             <div className="w-20 h-20 rounded-2xl bg-white border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm p-1">
               <Image
-                src={AVATAR_MAP[editAvatar]?.src || '/assets/rabbit_front.png'}
+                src={AVATAR_MAP[editAvatar]?.src || '/assets/rabbit_front.webp'}
                 alt={`${editNickname} 아바타`}
                 width={80}
                 height={80}

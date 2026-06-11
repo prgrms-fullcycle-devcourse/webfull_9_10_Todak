@@ -1,3 +1,7 @@
+import { AppError } from '../../errors/AppError.js';
+import { prisma } from '../../lib/prisma.js';
+import { assertRoomMember } from '../../services/room-guards.js';
+import { toSocketError } from '../socket-error.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 
 /*
@@ -14,18 +18,44 @@ export function registerMeetingHandlers(_io: TypedIO, socket: TypedSocket) {
 
   // 회의 참여
   socket.on('meeting:join', async ({ meetingId }) => {
-    await socket.join(meetingId);
-    socket.to(meetingId).emit('meeting:user-joined', {
-      userId: user.id,
-      login: user.login,
-    });
-    console.log(`[meeting:join] ${user.login} → meeting:${meetingId}`);
+    try {
+      // 회의가 속한 룸의 멤버만 입장 가능 (타 룸 회의 도청/주입 차단)
+      const meeting = await prisma.meeting.findUnique({
+        where: { id: meetingId },
+        select: { roomId: true },
+      });
+      if (meeting === null) {
+        throw new AppError('MEETING_NOT_FOUND');
+      }
+      await assertRoomMember(meeting.roomId, user.id);
+
+      await socket.join(meetingId);
+      socket.to(meetingId).emit('meeting:user-joined', {
+        userId: user.id,
+        login: user.login,
+      });
+      console.log(`[meeting:join] ${user.login} → meeting:${meetingId}`);
+    } catch (err) {
+      console.error(`[meeting:join] ${user.login} error:`, err);
+      socket.emit(
+        'error',
+        toSocketError(err, 'MEETING_JOIN_ERROR', '회의 참여에 실패했습니다.'),
+      );
+    }
   });
 
   // 회의 퇴장
   socket.on('meeting:leave', async ({ meetingId }) => {
-    await socket.leave(meetingId);
-    socket.to(meetingId).emit('meeting:user-left', { userId: user.id });
-    console.log(`[meeting:leave] ${user.login} → meeting:${meetingId}`);
+    try {
+      await socket.leave(meetingId);
+      socket.to(meetingId).emit('meeting:user-left', { userId: user.id });
+      console.log(`[meeting:leave] ${user.login} → meeting:${meetingId}`);
+    } catch (err) {
+      console.error(`[meeting:leave] ${user.login} error:`, err);
+      socket.emit(
+        'error',
+        toSocketError(err, 'MEETING_LEAVE_ERROR', '회의 퇴장에 실패했습니다.'),
+      );
+    }
   });
 }

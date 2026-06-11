@@ -5,6 +5,8 @@ import { getServerAuthUser } from '@/lib/auth.server';
 import HomeLeft from './_components/HomeLeft';
 import HomeRight from './_components/HomeRight';
 
+export const dynamic = 'force-static';
+
 export default async function Home() {
   const user = await getServerAuthUser();
 

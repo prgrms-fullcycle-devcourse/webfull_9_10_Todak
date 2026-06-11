@@ -1,28 +1,13 @@
 'use client';
 
-interface Issue {
-  id: string;
-  title: string;
-  assignee: string;
-  label: 'FEAT' | 'BUG' | 'DOCS' | 'REFACTOR';
-}
-
-const LABEL_COLORS = {
-  FEAT: 'bg-green-100 text-green-600',
-  BUG: 'bg-red-100 text-red-500',
-  DOCS: 'bg-blue-100 text-blue-500',
-  REFACTOR: 'bg-purple-100 text-purple-500',
-};
+import type { ActionItem } from '@/services/minutes/model';
 
 interface Props {
-  issues: Issue[];
-  selected: Set<string>;
+  issues: ActionItem[];
   onClose: () => void;
 }
 
-export default function CompleteModal({ issues, selected, onClose }: Props) {
-  const selectedIssues = issues.filter(i => selected.has(i.id));
-
+export default function CompleteModal({ issues, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-[520px] rounded-2xl bg-white p-8 shadow-2xl">
@@ -50,8 +35,8 @@ export default function CompleteModal({ issues, selected, onClose }: Props) {
           등록되었습니다!
         </p>
         <div className="mb-4 space-y-2">
-          {selectedIssues.map((issue, idx) => (
-            <div key={issue.id} className="rounded-xl border border-border p-3">
+          {issues.map((issue, idx) => (
+            <div key={idx} className="rounded-xl border border-border p-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-todak-coral-400">
                   #ISSUE_{String(idx + 101)}
@@ -64,14 +49,19 @@ export default function CompleteModal({ issues, selected, onClose }: Props) {
                 {issue.title}
               </p>
               <div className="mt-1.5 flex items-center gap-1.5">
-                <span className="text-[10px] text-slate-400">
-                  담당: {issue.assignee}
-                </span>
-                <span
-                  className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${LABEL_COLORS[issue.label]}`}
-                >
-                  {issue.label}
-                </span>
+                {issue.assignee && (
+                  <span className="text-[10px] text-slate-400">
+                    담당: @{issue.assignee.github_username}
+                  </span>
+                )}
+                {issue.labels.map(label => (
+                  <span
+                    key={label}
+                    className="rounded px-1.5 py-0.5 text-[9px] font-bold bg-slate-100 text-slate-500"
+                  >
+                    {label}
+                  </span>
+                ))}
               </div>
             </div>
           ))}
@@ -80,8 +70,8 @@ export default function CompleteModal({ issues, selected, onClose }: Props) {
           <p className="text-[11px] text-slate-600">
             🦉 이슈 업로드 완료!
             <br />
-            `이슈 일괄 등록으로 팀의 백로그를 빠르게 정리 완료했어요! 이제
-            팀원들과 다시 가상 타운으로 이동하여 개발에만 집중해 볼까요? 🚀`
+            이슈 일괄 등록으로 팀의 백로그를 빠르게 정리 완료했어요! 이제
+            팀원들과 다시 가상 타운으로 이동하여 개발에만 집중해 볼까요? 🚀
           </p>
         </div>
         <button

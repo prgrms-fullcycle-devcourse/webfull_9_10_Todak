@@ -4,6 +4,7 @@ import { AppError } from '../../errors/AppError.js';
 import { consumeRateLimit } from '../../middleware/rateLimit.middleware.js';
 import { createChat } from '../../services/chat.service.js';
 import { toggleReaction } from '../../services/reaction.service.js';
+import { toSocketError } from '../socket-error.js';
 import {
   ChatReactionEventPayload,
   TypedIO,
@@ -70,19 +71,16 @@ export function registerChatHandlers(io: TypedIO, socket: TypedSocket) {
 
       safeAck?.({ ok: true, chat });
     } catch (err) {
-      const code =
-        err instanceof AppError
-          ? err.code
-          : err instanceof z.ZodError
-            ? 'BAD_REQUEST'
-            : 'CHAT_SEND_ERROR';
-      const message =
-        err instanceof Error ? err.message : '채팅 전송에 실패했습니다.';
+      const payload = toSocketError(
+        err,
+        'CHAT_SEND_ERROR',
+        '채팅 전송에 실패했습니다.',
+      );
 
       console.error(`[chat:send] ${user.login} error:`, err);
 
-      safeAck?.({ ok: false, code, message });
-      socket.emit('error', { code, message });
+      safeAck?.({ ok: false, ...payload });
+      socket.emit('error', payload);
     }
   });
 
@@ -115,19 +113,16 @@ export function registerChatHandlers(io: TypedIO, socket: TypedSocket) {
 
       safeAck?.({ ok: true, reaction: payload });
     } catch (err) {
-      const code =
-        err instanceof AppError
-          ? err.code
-          : err instanceof z.ZodError
-            ? 'BAD_REQUEST'
-            : 'CHAT_REACT_ERROR';
-      const message =
-        err instanceof Error ? err.message : '반응 처리에 실패했습니다.';
+      const payload = toSocketError(
+        err,
+        'CHAT_REACT_ERROR',
+        '반응 처리에 실패했습니다.',
+      );
 
       console.error(`[chat:react] ${user.login} error:`, err);
 
-      safeAck?.({ ok: false, code, message });
-      socket.emit('error', { code, message });
+      safeAck?.({ ok: false, ...payload });
+      socket.emit('error', payload);
     }
   });
 }

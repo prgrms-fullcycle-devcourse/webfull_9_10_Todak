@@ -77,6 +77,23 @@ export async function updateRoomMemberHandler(
 
     const member = await updateRoomMember(userId, roomId, input);
 
+    // [DEBUG] 핸들러 도달 + DB 저장 완료 확인용
+    console.log(
+      `🟢 [profile] 핸들러 도달 / roomId=${roomId} / userId=${userId} / nickname=${member.nickname}`,
+    );
+
+    // 같은 룸 전역에 프로필 변경 브로드캐스트 (상대 화면 실시간 반영용)
+    getIO().to(roomId).emit('room:member-profile-changed', {
+      userId,
+      nickname: member.nickname,
+      character_type: member.character_type,
+      roles: member.roles,
+      detailed_role: member.detailed_role,
+    });
+
+    // [DEBUG] emit 실제 실행 확인용
+    console.log(`🔔 [profile] emit 완료 / roomId=${roomId}`);
+
     res.status(200).json({ success: true, data: member });
   } catch (err) {
     next(err);

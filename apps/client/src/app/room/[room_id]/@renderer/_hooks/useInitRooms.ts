@@ -197,8 +197,34 @@ export function useInitRooms(roomId: string) {
       fetchAndUpdateRooms();
     });
 
+    // 팀원 간 회의 상태 동기화
+    socket.on('meeting:started', ({ meetingId }: { meetingId: string }) => {
+      useSpaceStore.getState().setCurrentMeetingId(meetingId);
+    });
+
+    socket.on('meeting:ended', () => {
+      useSpaceStore.getState().setCurrentMeetingId(null);
+    });
+
+    socket.on(
+      'minutes:generation-started',
+      ({ minutes_id }: { minutes_id: string }) => {
+        useSpaceStore.getState().setCurrentMinutesId(minutes_id);
+      },
+    );
+
+    socket.on('minutes:generated', ({ minutes_id }: { minutes_id: string }) => {
+      useSpaceStore.getState().setCurrentMinutesId(minutes_id);
+    });
+
+    socket.on('minutes:generation-failed', () => {
+      console.error('AI 회의록 생성 실패');
+    });
+
     // 컴포넌트 언마운트 시 리스너 해제
     return () => {
+      socket.off('meeting:started');
+      socket.off('meeting:ended');
       socket.off('connect');
       socket.off('connect_error');
       socket.off('room:private-rooms-updated');

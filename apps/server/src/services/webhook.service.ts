@@ -4,6 +4,11 @@ import { env } from '../config/env.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
 import { redis } from '../lib/redis.js';
+import {
+  createNotifications,
+  getRoomMemberIds,
+  resolveMemberIdByLogin,
+} from '../services/notifications.service.js';
 import { getIO } from '../socket/index.js';
 import { TodoEventPayload } from '../socket/socket.types.js';
 
@@ -29,7 +34,9 @@ interface IssuesEventPayload {
     labels?: Array<{ name: string } | string>;
     assignee?: { login: string } | null;
     assignees?: Array<{ login: string }>;
+    html_url?: string;
   };
+  sender?: { login: string };
   repository: GithubRepository;
 }
 
@@ -42,6 +49,20 @@ interface PullRequestEventPayload {
     merged: boolean;
     html_url?: string;
   };
+  sender?: { login: string };
+  repository: GithubRepository;
+}
+
+interface PullRequestReviewEventPayload {
+  action: string;
+  review: {
+    // approved | changes_requested | commented | dismissed
+    state: string;
+    body?: string | null;
+    html_url?: string;
+    user?: { login: string; avatar_url?: string | null } | null;
+  };
+  pull_request: { number: number };
   repository: GithubRepository;
 }
 
@@ -152,13 +173,15 @@ async function resolveAssigneeId(
  */
 async function handleIssuesEvent(
   roomId: string,
+  repoId: string,
   payload: IssuesEventPayload,
 ): Promise<void> {
   const { action, issue } = payload;
   const io = getIO();
 
+  // Todo 는 레포 단위로 유일(@@unique([repoId, githubIssueNumber])) → repoId 기준 조회
   const existing = await prisma.todo.findFirst({
-    where: { roomId, githubIssueNumber: issue.number },
+    where: { repoId, githubIssueNumber: issue.number },
   });
 
   if (action === 'opened') {
@@ -173,6 +196,7 @@ async function handleIssuesEvent(
       const created = await prisma.todo.create({
         data: {
           roomId,
+          repoId,
           assigneeId,
           title: issue.title,
           body: issue.body ?? null,
@@ -186,9 +210,29 @@ async function handleIssuesEvent(
         roomId,
         todos: [toTodoPayload(created)],
       });
+
+      /*
+       * 알림(영속): 담당자가 있으면 담당자 1명에게만, 없으면 룸 전체.
+       * 이슈 발행자(sender)가 룸 멤버면 본인 행동이므로 제외.
+       */
+      const actorId = await resolveMemberIdByLogin(
+        roomId,
+        payload.sender?.login,
+      );
+      const baseTargets =
+        assigneeId !== null ? [assigneeId] : await getRoomMemberIds(roomId);
+      await createNotifications(
+        baseTargets.filter(id => id !== actorId),
+        {
+          roomId,
+          type: 'new_issue',
+          message: `새 이슈: ${issue.title}`,
+          link: issue.html_url ?? null,
+        },
+      );
     } catch (error) {
       /*
-       * unique(roomId, githubIssueNumber) 위반(P2002) = 앱 생성과 echo 웹훅이
+       * unique(repoId, githubIssueNumber) 위반(P2002) = 앱 생성과 echo 웹훅이
        * 거의 동시에 들어와 이미 같은 이슈의 Todo가 만들어진 경우. 멱등하게 무시한다.
        */
       if (
@@ -232,10 +276,10 @@ async function handleIssuesEvent(
  * - closed & merged: pr:merged
  * - closed & !merged: pr:closed
  */
-function handlePullRequestEvent(
+async function handlePullRequestEvent(
   roomId: string,
   payload: PullRequestEventPayload,
-): void {
+): Promise<void> {
   const { action, pull_request: pr } = payload;
   const io = getIO();
 
@@ -250,14 +294,82 @@ function handlePullRequestEvent(
     },
   };
 
+  // 알림 대상: 룸 전체에서 행위자(PR 연/머지한 사람) 제외
+  const notifyRoomExceptActor = async (
+    type: string,
+    message: string,
+  ): Promise<void> => {
+    const actorId = await resolveMemberIdByLogin(roomId, payload.sender?.login);
+    const members = await getRoomMemberIds(roomId);
+    await createNotifications(
+      members.filter(id => id !== actorId),
+      { roomId, type, message, link: pr.html_url ?? null },
+    );
+  };
+
   if (action === 'opened') {
     io.to(roomId).emit('pr:opened', data);
+    await notifyRoomExceptActor(
+      'pr_opened',
+      `PR 열림: #${pr.number} ${pr.title}`,
+    );
     return;
   }
 
   if (action === 'closed') {
     io.to(roomId).emit(pr.merged ? 'pr:merged' : 'pr:closed', data);
+    // 머지된 경우만 알림(영속). 머지 안 된 단순 닫힘은 알림 없음.
+    if (pr.merged) {
+      await notifyRoomExceptActor(
+        'pr_merged',
+        `PR 머지됨: #${pr.number} ${pr.title}`,
+      );
+    }
   }
+}
+
+/*
+ * PR 리뷰 이벤트 처리. 새 리뷰 제출(submitted)만 실시간 emit 한다.
+ * edited/dismissed 는 토스트 가치가 낮아 무시.
+ */
+async function handlePullRequestReviewEvent(
+  roomId: string,
+  payload: PullRequestReviewEventPayload,
+): Promise<void> {
+  const { action, review, pull_request: pr } = payload;
+
+  if (action !== 'submitted') {
+    return;
+  }
+
+  getIO()
+    .to(roomId)
+    .emit('pr:reviewed', {
+      roomId,
+      review: {
+        pull_number: pr.number,
+        state: review.state,
+        reviewer: {
+          github_username: review.user?.login ?? '',
+          avatar_url: review.user?.avatar_url ?? null,
+        },
+        body: review.body ?? null,
+        url: review.html_url ?? null,
+      },
+    });
+
+  // 알림(영속): 룸 전체에서 리뷰어 제외
+  const actorId = await resolveMemberIdByLogin(roomId, review.user?.login);
+  const members = await getRoomMemberIds(roomId);
+  await createNotifications(
+    members.filter(id => id !== actorId),
+    {
+      roomId,
+      type: 'pr_reviewed',
+      message: `PR 리뷰(${review.state}): #${pr.number}`,
+      link: review.html_url ?? null,
+    },
+  );
 }
 
 /*
@@ -330,22 +442,32 @@ export async function handleGithubEvent(
     const fullName = `${repository.owner.login}/${repository.name}`;
     const repo = await prisma.repo.findFirst({
       where: { fullName },
-      select: { roomId: true },
+      select: { id: true, roomId: true },
     });
 
     if (repo === null) {
       return;
     }
 
-    const { roomId } = repo;
+    const { id: repoId, roomId } = repo;
 
     switch (event) {
       case 'issues':
-        await handleIssuesEvent(roomId, payload as IssuesEventPayload);
+        await handleIssuesEvent(roomId, repoId, payload as IssuesEventPayload);
         break;
 
       case 'pull_request':
-        handlePullRequestEvent(roomId, payload as PullRequestEventPayload);
+        await handlePullRequestEvent(
+          roomId,
+          payload as PullRequestEventPayload,
+        );
+        break;
+
+      case 'pull_request_review':
+        await handlePullRequestReviewEvent(
+          roomId,
+          payload as PullRequestReviewEventPayload,
+        );
         break;
 
       case 'push':

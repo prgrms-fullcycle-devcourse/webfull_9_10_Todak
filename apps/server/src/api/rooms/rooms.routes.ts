@@ -14,10 +14,13 @@ import './chat/chat.swagger.js';
 import privateRoomRoutes from './private-room/private-room.routes.js';
 import './prs/prs.swagger.js';
 import prsRoutes from './prs/prs.routes.js';
+import './repo/repo.swagger.js';
+import repoRoutes from './repo/repo.routes.js';
 import {
   createRoomHandler,
   deleteRoomHandler,
   getRoomByIdHandler,
+  getRoomPublicInfoHandler,
   getRoomsHandler,
   joinRoomHandler,
   leaveRoomHandler,
@@ -31,6 +34,9 @@ import {
 import todosRoutes from './todos/todos.routes.js';
 
 const router = Router();
+
+// 인증 불필요 — 링크 공유 시 OG 미리보기용 공개 정보
+router.get('/:roomId/public', getRoomPublicInfoHandler);
 
 router.use(requireAuth);
 
@@ -47,5 +53,6 @@ router.use('/:roomId/chats', chatRoutes);
 router.use('/:roomId/meetings', meetingsRoutes);
 router.use('/:roomId/todos', todosRoutes);
 router.use('/:roomId/prs', prsRoutes);
+router.use('/:roomId/repo', repoRoutes);
 
 export default router;

@@ -79,6 +79,16 @@ export type RoomInfo = {
   member_count: number;
 };
 
+export type PublicRoomInfo = {
+  room_name: string;
+  host_name: string;
+  repo_name: string;
+  created_at: string;
+  member_count: number;
+  max_members: number;
+  member_names: string[];
+};
+
 export type RoomMembers = {
   members: RoomProfile[];
   member_count: number;
