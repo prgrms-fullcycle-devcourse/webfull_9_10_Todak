@@ -24,6 +24,12 @@ const EnvSchema = z.object({
   CLIENT_URL: z.string().url().default('http://localhost:3000'),
 
   WEBHOOK_SECRET: z.string().min(1),
+
+  // 채팅 첨부(이미지/PDF) 저장용 S3 — presigned URL 발급에 사용
+  AWS_REGION: z.string().min(1),
+  S3_BUCKET: z.string().min(1),
+  AWS_ACCESS_KEY_ID: z.string().min(1),
+  AWS_SECRET_ACCESS_KEY: z.string().min(1),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
