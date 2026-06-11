@@ -1,6 +1,7 @@
 'use client';
 
 import type { Minute } from '@/services/minutes/model';
+import { useSpaceStore } from '@/store/useSpaceStore';
 
 import { Button } from '@heroui/react';
 
@@ -9,6 +10,14 @@ interface Props {
 }
 
 export default function RecentMeetingLogs({ meetingLogs }: Props) {
+  const setCurrentMinutesId = useSpaceStore(state => state.setCurrentMinutesId);
+  const setCurrentView = useSpaceStore(state => state.setCurrentView);
+
+  const handleClick = (minutesId: string) => {
+    setCurrentMinutesId(minutesId);
+    setCurrentView('meeting');
+  };
+
   const hasMeetingLogs = meetingLogs.length > 0;
 
   return (
@@ -29,6 +38,7 @@ export default function RecentMeetingLogs({ meetingLogs }: Props) {
               className="h-auto min-w-0 w-full rounded-2xl border border-border bg-surface p-4 text-left shadow-surface transition-colors hover:bg-surface-secondary"
               key={`${log.id}-${log.title}`}
               variant="ghost"
+              onClick={() => handleClick(log.id)}
             >
               <span className="block min-w-0">
                 <span className="block truncate text-sm font-black text-foreground">
