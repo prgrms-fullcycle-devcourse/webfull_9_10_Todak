@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import RoomMainContainer from './_components/RoomMainContainer';
 import SidebarContainer from './_components/SidebarContainer';
 
@@ -17,7 +18,6 @@ export default async function RoomLayout({
   return (
     <div className="room-layout-container">
       <SidebarContainer>{sidebar}</SidebarContainer>
-
       <RoomMainContainer chats={chats}>
         {renderer ?? children}
       </RoomMainContainer>

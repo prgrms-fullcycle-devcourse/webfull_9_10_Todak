@@ -7,6 +7,7 @@ import BottomInfoContainer from '../_components/BottomInfoContainer';
 import PullRequestNotifications from '../_components/PullRequestNotifications';
 import CharacterDetailModal from './_components/2d/CharacterDetailModal';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { redirect } from 'next/navigation';
 
 export default function RendererPage({
   searchParams,
@@ -14,6 +15,9 @@ export default function RendererPage({
   searchParams: Promise<{ room_id: string }>;
 }) {
   const { room_id } = use(searchParams);
+  if (!room_id) {
+    redirect('/');
+  }
   const { isReady } = useInitRooms(room_id);
   const currentView = useSpaceStore(state => state.currentView);
   const isMeetingView = currentView === 'meeting';
