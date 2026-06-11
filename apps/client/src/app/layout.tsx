@@ -1,12 +1,32 @@
-import type { Metadata } from 'next';
-
+import './globals.css';
 import { QueryProvider } from '@/providers/query-provider';
 
-import './globals.css';
+import type { Metadata } from 'next';
+import { SITE_CONFIG } from '@/constants/metadata';
 
 export const metadata: Metadata = {
-  title: '토닥윗미',
-  description: 'AI와 GitHub를 연결하는 2D 가상 협업 타운',
+  metadataBase: process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000',
+  openGraph: {
+    siteName: SITE_CONFIG.siteName,
+    locale: 'ko_KR',
+    type: 'website',
+    title: SITE_CONFIG.title,
+    description: SITE_CONFIG.description,
+    images: [
+      {
+        url: '/metadata/todak-main-image.webp',
+        width: 1200,
+        height: 630,
+        alt: '토닥윗미 대표 이미지',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_CONFIG.title,
+    description: SITE_CONFIG.description,
+    images: ['/metadata/todak-main-image.webp'],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
