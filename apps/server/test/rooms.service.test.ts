@@ -22,6 +22,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { Prisma } from '@/generated/prisma/client/index.js';
 import { prisma } from '@/lib/prisma.js';
 import {
   registerWebhook,
@@ -53,7 +54,9 @@ vi.mock('@/lib/prisma.js', () => ({
     },
     roomMember: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
       findMany: vi.fn(),
+      count: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
@@ -67,6 +70,8 @@ vi.mock('@/lib/prisma.js', () => ({
     meetingParticipant: { deleteMany: vi.fn() },
     minutes: { deleteMany: vi.fn() },
     chatMessage: { deleteMany: vi.fn() },
+    // 정원/멤버 판정 race 방지를 위한 룸 행 잠금(FOR UPDATE)에 쓰임
+    $queryRaw: vi.fn(),
     $transaction: vi.fn(),
   },
 }));
@@ -176,6 +181,33 @@ describe('createRoom', () => {
       repo_full_name: 'jiyun/todak',
       webhook_registered: true,
     });
+  });
+
+  it('findFirst 통과 후 동시 생성 race(P2002)는 REPO_ALREADY_IN_USE 로 변환하고 고아 webhook 을 정리', async () => {
+    db.repo.findFirst.mockResolvedValue(null); // 체크 시점엔 비어 있음
+    vi.mocked(registerWebhook).mockResolvedValue('webhook-1');
+    db.room.findUnique.mockResolvedValue(null);
+    db.room.create.mockResolvedValue({ id: ROOM_ID });
+    // 다른 요청이 먼저 같은 레포로 룸을 만들어 repo.full_name unique 위반
+    db.repo.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+      }),
+    );
+    vi.mocked(unregisterWebhook).mockResolvedValue(undefined);
+
+    await expectAppError(
+      createRoom(USER_ID, ACCESS_TOKEN, input),
+      'REPO_ALREADY_IN_USE',
+    );
+    // 방금 등록한 중복 webhook 은 정리돼야 함
+    expect(unregisterWebhook).toHaveBeenCalledWith(
+      ACCESS_TOKEN,
+      'jiyun',
+      'todak',
+      'webhook-1',
+    );
   });
 });
 
@@ -376,10 +408,13 @@ describe('joinRoom', () => {
       id: ROOM_ID,
       name: '두두',
       maxMembers: 6,
-      members: [{ userId: USER_ID }], // 내가 이미 멤버
     });
+    // 룸 행 잠금 후 멤버십 재조회 → 내가 이미 멤버
+    db.roomMember.findUnique.mockResolvedValue({ id: 'rm-1' });
 
     await expectAppError(joinRoom(USER_ID, input), 'ALREADY_JOINED');
+    // 이미 멤버면 정원 체크/생성까지 가면 안 됨
+    expect(db.roomMember.create).not.toHaveBeenCalled();
   });
 
   it('정원이 가득 찼으면 ROOM_FULL', async () => {
@@ -387,10 +422,12 @@ describe('joinRoom', () => {
       id: ROOM_ID,
       name: '두두',
       maxMembers: 2,
-      members: [{ userId: 'a' }, { userId: 'b' }], // 이미 2/2
     });
+    db.roomMember.findUnique.mockResolvedValue(null); // 아직 멤버 아님
+    db.roomMember.count.mockResolvedValue(2); // 이미 2/2
 
     await expectAppError(joinRoom(USER_ID, input), 'ROOM_FULL');
+    expect(db.roomMember.create).not.toHaveBeenCalled();
   });
 
   it('정상 입장 시 roomMember 생성 후 room_id/name 반환', async () => {
@@ -398,8 +435,9 @@ describe('joinRoom', () => {
       id: ROOM_ID,
       name: '두두',
       maxMembers: 6,
-      members: [{ userId: 'a' }],
     });
+    db.roomMember.findUnique.mockResolvedValue(null);
+    db.roomMember.count.mockResolvedValue(1);
     db.roomMember.create.mockResolvedValue({});
 
     const result = await joinRoom(USER_ID, input);
@@ -410,6 +448,25 @@ describe('joinRoom', () => {
       }),
     );
     expect(result).toEqual({ room_id: ROOM_ID, name: '두두' });
+  });
+
+  it('체크 통과 후 동시 입장 race(P2002)는 ALREADY_JOINED 로 변환', async () => {
+    db.room.findUnique.mockResolvedValue({
+      id: ROOM_ID,
+      name: '두두',
+      maxMembers: 6,
+    });
+    db.roomMember.findUnique.mockResolvedValue(null);
+    db.roomMember.count.mockResolvedValue(1);
+    // create 직전 다른 요청이 먼저 같은 (room, user) 를 만들어 unique 위반
+    db.roomMember.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+      }),
+    );
+
+    await expectAppError(joinRoom(USER_ID, input), 'ALREADY_JOINED');
   });
 });
 
@@ -493,9 +550,12 @@ describe('leaveRoom', () => {
       isHost: true,
       room: {
         repos: [{ fullName: 'jiyun/todak', webhookId: 'webhook-1' }],
-        members: [{ id: 'rm-1', userId: USER_ID }], // 나 혼자
       },
     });
+    // 룸 행 잠금 후 tx 안에서 멤버 재조회 → 나 혼자
+    db.roomMember.findMany.mockResolvedValue([
+      { id: 'rm-1', userId: USER_ID, isHost: true },
+    ]);
     vi.mocked(unregisterWebhook).mockResolvedValue(undefined);
 
     const result = await leaveRoom(USER_ID, ROOM_ID, ACCESS_TOKEN);
@@ -521,16 +581,14 @@ describe('leaveRoom', () => {
       id: 'rm-1',
       userId: USER_ID,
       isHost: true,
-      room: {
-        repos: [],
-        // joinedAt 오름차순 — 방장(나) 다음이 user-2
-        members: [
-          { id: 'rm-1', userId: USER_ID },
-          { id: 'rm-2', userId: 'user-2' },
-          { id: 'rm-3', userId: 'user-3' },
-        ],
-      },
+      room: { repos: [] },
     });
+    // joinedAt 오름차순 — 방장(나) 다음이 user-2
+    db.roomMember.findMany.mockResolvedValue([
+      { id: 'rm-1', userId: USER_ID, isHost: true },
+      { id: 'rm-2', userId: 'user-2', isHost: false },
+      { id: 'rm-3', userId: 'user-3', isHost: false },
+    ]);
 
     const result = await leaveRoom(USER_ID, ROOM_ID, ACCESS_TOKEN);
 
@@ -557,14 +615,12 @@ describe('leaveRoom', () => {
       id: 'rm-2',
       userId: USER_ID,
       isHost: false,
-      room: {
-        repos: [],
-        members: [
-          { id: 'rm-1', userId: 'host-user' },
-          { id: 'rm-2', userId: USER_ID },
-        ],
-      },
+      room: { repos: [] },
     });
+    db.roomMember.findMany.mockResolvedValue([
+      { id: 'rm-1', userId: 'host-user', isHost: true },
+      { id: 'rm-2', userId: USER_ID, isHost: false },
+    ]);
 
     const result = await leaveRoom(USER_ID, ROOM_ID, ACCESS_TOKEN);
 
