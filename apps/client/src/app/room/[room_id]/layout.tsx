@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           url: '/metadata/todak-room-image.webp',
           width: 1200,
           height: 630,
-          alt: '토닥윗미 대표 이미지',
+          alt: '토닥윗미 룸 이미지',
         },
       ],
     },
