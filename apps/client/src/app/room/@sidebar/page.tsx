@@ -10,13 +10,13 @@ import type { MinutesList } from '@/services/minutes/model';
 import type { MyRooms, RoomMembers } from '@/services/rooms/model';
 
 interface SidebarProps {
-  params: Promise<{
+  searchParams: Promise<{
     room_id: string;
   }>;
 }
 
-export default async function Sidebar({ params }: SidebarProps) {
-  const roomID = (await params).room_id;
+export default async function Sidebar({ searchParams }: SidebarProps) {
+  const roomID = (await searchParams).room_id;
   const minutesSearchParams = new URLSearchParams({
     type: 'meeting',
     page: '1',

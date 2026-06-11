@@ -6,7 +6,7 @@ export default function RoomLayout({
   sidebar,
   chats,
   renderer,
-}: LayoutProps<'/room/[room_id]'>) {
+}: LayoutProps<'/room'>) {
   return (
     <div className="room-layout-container">
       <SidebarContainer>{sidebar}</SidebarContainer>
