@@ -68,7 +68,8 @@ model RoomMember {
   room Room @relation(fields: [roomId], references: [id])
   user User @relation(fields: [userId], references: [id])
 
-  @@index([roomId, userId])
+  // 같은 유저가 한 룸에 중복 가입되는 것을 DB 차원에서 차단 (입장 race)
+  @@unique([roomId, userId])
   @@index([userId])
   @@map("room_member")
 }
@@ -76,7 +77,7 @@ model RoomMember {
 model Repo {
   id            String    @id @default(uuid()) @db.Uuid
   roomId        String    @map("room_id") @db.Uuid
-  fullName      String    @map("full_name") // owner/repo-name
+  fullName      String    @unique @map("full_name") // owner/repo-name (한 레포는 한 룸에만 연결)
   defaultBranch String    @default("main") @map("default_branch")
   webhookId     String?   @map("webhook_id")
   createdAt     DateTime  @default(now()) @map("created_at")
@@ -87,7 +88,6 @@ model Repo {
   todos Todo[]
 
   @@index([roomId])
-  @@index([fullName])
   @@map("repo")
 }
 

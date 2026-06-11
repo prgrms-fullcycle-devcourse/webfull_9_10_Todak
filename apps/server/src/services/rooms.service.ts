@@ -4,6 +4,7 @@ import {
   UpdateRoomInput,
 } from '../api/rooms/rooms.schema.js';
 import { AppError } from '../errors/AppError.js';
+import { isUniqueConstraintError } from '../errors/prisma.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
 
@@ -59,8 +60,9 @@ export async function createRoom(
 
   const inviteCode = await createUniqueInviteCode();
 
-  const room = await prisma.$transaction(
-    async (tx: Prisma.TransactionClient) => {
+  let room;
+  try {
+    room = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const newRoom = await tx.room.create({
         data: {
           name: input.name,
@@ -95,8 +97,25 @@ export async function createRoom(
       });
 
       return newRoom;
-    },
-  );
+    });
+  } catch (error) {
+    /*
+     * findFirst 체크 통과 후 다른 요청이 먼저 같은 레포로 룸을 만든 race.
+     * repo.full_name UNIQUE 위반(P2002)을 409 로 변환한다.
+     * 방금 등록한 webhook 은 주인 없는 중복이 되므로 정리한다(best-effort).
+     */
+    if (isUniqueConstraintError(error)) {
+      try {
+        await unregisterWebhook(accessToken, owner, repo, webhookId);
+      } catch {
+        console.error(
+          `[createRoom] 중복 webhook 해제 실패: ${input.repo_full_name}`,
+        );
+      }
+      throw new AppError('REPO_ALREADY_IN_USE');
+    }
+    throw error;
+  }
 
   return {
     id: room.id,
@@ -305,25 +324,47 @@ export async function updateRoom(
 export async function joinRoom(userId: string, input: JoinRoomInput) {
   const room = await prisma.room.findUnique({
     where: { inviteCode: input.invite_code },
-    include: { members: true },
+    select: { id: true, name: true, maxMembers: true },
   });
 
   if (room === null) {
     throw new AppError('INVALID_INVITE_CODE');
   }
 
-  const alreadyMember = room.members.some(m => m.userId === userId);
-  if (alreadyMember) {
-    throw new AppError('ALREADY_JOINED');
-  }
+  try {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      /*
+       * 같은 룸에 동시 입장하는 요청들을 직렬화하기 위해 룸 행을 잠근다.
+       * (정원 카운트와 멤버 생성 사이의 race 로 정원이 초과되는 것을 방지)
+       */
+      await tx.$queryRaw`SELECT id FROM "room" WHERE id = ${room.id}::uuid FOR UPDATE`;
 
-  if (room.members.length >= room.maxMembers) {
-    throw new AppError('ROOM_FULL');
-  }
+      const existing = await tx.roomMember.findUnique({
+        where: { roomId_userId: { roomId: room.id, userId } },
+        select: { id: true },
+      });
+      if (existing !== null) {
+        throw new AppError('ALREADY_JOINED');
+      }
 
-  await prisma.roomMember.create({
-    data: { roomId: room.id, userId, ...SPAWN_POS },
-  });
+      const memberCount = await tx.roomMember.count({
+        where: { roomId: room.id },
+      });
+      if (memberCount >= room.maxMembers) {
+        throw new AppError('ROOM_FULL');
+      }
+
+      await tx.roomMember.create({
+        data: { roomId: room.id, userId, ...SPAWN_POS },
+      });
+    });
+  } catch (error) {
+    // 락이 막지 못한 잔여 race 도 unique(room_id, user_id) 위반(P2002)으로 한 번 더 차단
+    if (isUniqueConstraintError(error)) {
+      throw new AppError('ALREADY_JOINED');
+    }
+    throw error;
+  }
 
   return { room_id: room.id, name: room.name };
 }
@@ -396,47 +437,68 @@ export async function leaveRoom(
 ) {
   const membership = await prisma.roomMember.findFirst({
     where: { roomId, userId },
-    include: {
-      room: {
-        include: {
-          repos: true,
-          members: { orderBy: { joinedAt: 'asc' } },
-        },
-      },
-    },
+    include: { room: { include: { repos: true } } },
   });
 
   if (membership === null) {
     throw new AppError('ROOM_NOT_FOUND');
   }
 
-  const { members } = membership.room;
+  /*
+   * 동시 탈퇴 race 에서 멤버 수/방장 판정이 어긋나지 않도록
+   * 룸 행을 잠그고 멤버를 tx 안에서 재조회해 판정한다.
+   * (마지막 멤버 판정은 tx 안에서 하되, 실제 룸 삭제는 webhook 해제(네트워크)를
+   *  포함하므로 락을 풀고 tx 밖에서 purgeRoom 으로 처리한다.)
+   */
+  const decision = await prisma.$transaction(
+    async (tx: Prisma.TransactionClient) => {
+      await tx.$queryRaw`SELECT id FROM "room" WHERE id = ${roomId}::uuid FOR UPDATE`;
 
-  // 내가 마지막 멤버 => 룸 자체를 삭제
-  if (members.length <= 1) {
+      const members = await tx.roomMember.findMany({
+        where: { roomId },
+        orderBy: { joinedAt: 'asc' },
+        select: { id: true, userId: true, isHost: true },
+      });
+
+      // 동시 요청이 먼저 내 멤버십을 처리한 경우
+      const me = members.find(m => m.userId === userId);
+      if (me === undefined) {
+        throw new AppError('ROOM_NOT_FOUND');
+      }
+
+      // 내가 마지막 멤버 => 룸 삭제는 tx 밖에서 처리하도록 신호만 반환
+      if (members.length <= 1) {
+        return { shouldPurge: true, newHostUserId: null as string | null };
+      }
+
+      // 남은 멤버가 있는 경우 => (방장이면) 위임 후 내 멤버십만 제거
+      let newHostUserId: string | null = null;
+      if (me.isHost) {
+        // joinedAt 오름차순이므로 나를 제외한 첫 멤버 = 다음으로 가입한 멤버
+        const nextHost = members.find(m => m.userId !== userId);
+        if (nextHost !== undefined) {
+          await tx.roomMember.update({
+            where: { id: nextHost.id },
+            data: { isHost: true },
+          });
+          newHostUserId = nextHost.userId;
+        }
+      }
+
+      await tx.roomMember.delete({ where: { id: me.id } });
+      return { shouldPurge: false, newHostUserId };
+    },
+  );
+
+  if (decision.shouldPurge) {
     const linkedRepo = membership.room.repos[0] ?? null;
     await purgeRoom(roomId, accessToken, linkedRepo);
     return { left: true, room_deleted: true, new_host_user_id: null };
   }
 
-  // 남은 멤버가 있는 경우 => (방장이면) 위임 후 내 멤버십만 제거
-  let newHostUserId: string | null = null;
-
-  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    if (membership.isHost) {
-      // joinedAt 오름차순이므로 나를 제외한 첫 멤버 = 다음으로 가입한 멤버
-      const nextHost = members.find(m => m.userId !== userId);
-      if (nextHost !== undefined) {
-        await tx.roomMember.update({
-          where: { id: nextHost.id },
-          data: { isHost: true },
-        });
-        newHostUserId = nextHost.userId;
-      }
-    }
-
-    await tx.roomMember.delete({ where: { id: membership.id } });
-  });
-
-  return { left: true, room_deleted: false, new_host_user_id: newHostUserId };
+  return {
+    left: true,
+    room_deleted: false,
+    new_host_user_id: decision.newHostUserId,
+  };
 }
