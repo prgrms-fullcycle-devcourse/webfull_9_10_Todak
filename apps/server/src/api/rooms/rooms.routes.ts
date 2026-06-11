@@ -20,6 +20,7 @@ import {
   createRoomHandler,
   deleteRoomHandler,
   getRoomByIdHandler,
+  getRoomPublicInfoHandler,
   getRoomsHandler,
   joinRoomHandler,
   leaveRoomHandler,
@@ -33,6 +34,9 @@ import {
 import todosRoutes from './todos/todos.routes.js';
 
 const router = Router();
+
+// 인증 불필요 — 링크 공유 시 OG 미리보기용 공개 정보
+router.get('/:roomId/public', getRoomPublicInfoHandler);
 
 router.use(requireAuth);
 

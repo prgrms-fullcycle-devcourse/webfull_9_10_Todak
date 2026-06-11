@@ -226,6 +226,39 @@ export async function getRoomById(userId: string, roomId: string) {
   };
 }
 
+// 룸 공개 정보 조회 (인증 불필요) — 링크 공유 시 OG 미리보기용 간략 정보
+export async function getRoomPublicInfo(roomId: string) {
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    include: {
+      repos: { select: { fullName: true } },
+      members: {
+        select: {
+          isHost: true,
+          user: { select: { githubUsername: true } },
+        },
+      },
+    },
+  });
+
+  if (room === null) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  const host = room.members.find(m => m.isHost) ?? null;
+  const linkedRepo = room.repos[0] ?? null;
+
+  return {
+    room_name: room.name,
+    host_name: host?.user.githubUsername ?? null,
+    repo_name: linkedRepo?.fullName ?? null,
+    created_at: room.createdAt,
+    member_count: room.members.length,
+    max_members: room.maxMembers,
+    member_names: room.members.map(m => m.user.githubUsername),
+  };
+}
+
 // 룸 정보 수정
 export async function updateRoom(
   userId: string,
