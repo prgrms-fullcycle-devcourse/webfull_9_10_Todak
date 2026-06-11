@@ -16,7 +16,7 @@ import ModalTodoTabs from './ModalTodoTabs';
 import {
   detailJobs,
   roleValueByPart,
-} from '@/app/[user_id]/join/customize/_components/UserProfileForm';
+} from '@/app/projects/join/customize/_components/UserProfileForm';
 import { getSocket } from '@/lib/socket';
 
 const AVATAR_MAP = {

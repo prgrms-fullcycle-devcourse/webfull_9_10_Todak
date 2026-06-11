@@ -9,7 +9,7 @@ export default async function Home() {
   const user = await getServerAuthUser();
 
   if (user !== null) {
-    redirect(`/${encodeURIComponent(user.id)}/join`);
+    redirect(`/projects/join`);
   }
 
   return (
