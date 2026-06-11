@@ -1,6 +1,8 @@
 import { prisma } from '../../lib/prisma.js';
 import { clearActivePrivateRoomSessions } from '../../services/private-room.service.js';
+import { assertRoomMember } from '../../services/room-guards.js';
 import { broadcastPrivateRooms } from '../broadcast.js';
+import { toSocketError } from '../socket-error.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 
 // 이동 좌표 DB 저장 주기 (throttle) — 브로드캐스트는 실시간, 저장만 이 간격으로
@@ -14,6 +16,17 @@ export function registerRoomHandlers(io: TypedIO, socket: TypedSocket) {
 
   // 룸 입장
   socket.on('room:join', async (roomId: string) => {
+    // 멤버가 아닌 룸에 입장(=실시간 채팅·위치·상태 도청/주입)하지 못하도록 검증
+    try {
+      await assertRoomMember(roomId, user.id);
+    } catch (err) {
+      socket.emit(
+        'error',
+        toSocketError(err, 'ROOM_JOIN_ERROR', '룸 입장에 실패했습니다.'),
+      );
+      return;
+    }
+
     await socket.join(roomId);
     socket.to(roomId).emit('room:user-joined', {
       userId: user.id,
@@ -42,6 +55,10 @@ export function registerRoomHandlers(io: TypedIO, socket: TypedSocket) {
 
   // 캐릭터 상태 변경 (focus | rest | meeting | away)
   socket.on('room:status-change', ({ roomId, status }) => {
+    // join 하지 않은(=멤버 검증을 통과하지 않은) 룸에는 주입 불가 (in-memory 체크라 저렴)
+    if (!socket.rooms.has(roomId)) {
+      return;
+    }
     socket.to(roomId).emit('room:member-status-changed', {
       userId: user.id,
       status,
@@ -50,6 +67,11 @@ export function registerRoomHandlers(io: TypedIO, socket: TypedSocket) {
 
   // 캐릭터 위치 이동
   socket.on('room:move', async ({ roomId, posX, posY }) => {
+    // join 하지 않은 룸으로의 좌표 주입 차단
+    if (!socket.rooms.has(roomId)) {
+      return;
+    }
+
     // 1. 실시간 브로드캐스트 (즉시 — 화면은 부드럽게)
     socket.to(roomId).emit('room:member-moved', {
       userId: user.id,

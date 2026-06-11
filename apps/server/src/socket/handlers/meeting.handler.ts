@@ -1,3 +1,6 @@
+import { AppError } from '../../errors/AppError.js';
+import { prisma } from '../../lib/prisma.js';
+import { assertRoomMember } from '../../services/room-guards.js';
 import { toSocketError } from '../socket-error.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 
@@ -16,6 +19,16 @@ export function registerMeetingHandlers(_io: TypedIO, socket: TypedSocket) {
   // 회의 참여
   socket.on('meeting:join', async ({ meetingId }) => {
     try {
+      // 회의가 속한 룸의 멤버만 입장 가능 (타 룸 회의 도청/주입 차단)
+      const meeting = await prisma.meeting.findUnique({
+        where: { id: meetingId },
+        select: { roomId: true },
+      });
+      if (meeting === null) {
+        throw new AppError('MEETING_NOT_FOUND');
+      }
+      await assertRoomMember(meeting.roomId, user.id);
+
       await socket.join(meetingId);
       socket.to(meetingId).emit('meeting:user-joined', {
         userId: user.id,
