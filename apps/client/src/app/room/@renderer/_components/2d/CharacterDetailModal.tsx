@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Modal, Input, Button } from '@heroui/react';
 import Image from 'next/image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   useSpaceStore,
   type AnimalType,
@@ -83,7 +83,8 @@ function getUnifiedMember(
 export default function CharacterDetailModal() {
   const { isCharacterModalOpen, selectedMember, closeCharacterModal } =
     useSpaceStore();
-  const { room_id: roomID } = useParams<{ room_id: string }>();
+  const searchParams = useSearchParams();
+  const roomID = searchParams.get('room_id') as string;
   const { data: memberListData } = useQuery<RoomMembersResponse>({
     queryKey: ['room-members', roomID],
     queryFn: () => fetchRoomMembers(roomID),

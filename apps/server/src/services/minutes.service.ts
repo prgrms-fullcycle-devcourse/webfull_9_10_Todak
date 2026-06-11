@@ -402,7 +402,7 @@ export class MinutesService {
           roomId,
           type: 'minutes_confirmed',
           message: `회의록 확정: ${updated.title}`,
-          link: `/room/${roomId}`,
+          link: `/room?room_id=${roomId}`,
         },
       );
     }

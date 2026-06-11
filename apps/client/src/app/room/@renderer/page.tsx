@@ -9,11 +9,11 @@ import CharacterDetailModal from './_components/2d/CharacterDetailModal';
 import { useSpaceStore } from '@/store/useSpaceStore';
 
 export default function RendererPage({
-  params,
+  searchParams,
 }: {
-  params: Promise<{ room_id: string }>;
+  searchParams: Promise<{ room_id: string }>;
 }) {
-  const { room_id } = use(params);
+  const { room_id } = use(searchParams);
   const { isReady } = useInitRooms(room_id);
   const currentView = useSpaceStore(state => state.currentView);
   const isMeetingView = currentView === 'meeting';

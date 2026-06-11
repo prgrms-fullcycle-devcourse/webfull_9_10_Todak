@@ -64,7 +64,7 @@ export async function startMeetingHandler(
         roomId,
         type: 'meeting_started',
         message: '회의가 시작되었습니다.',
-        link: `/room/${roomId}`,
+        link: `/room?room_id=${roomId}`,
       },
     );
 

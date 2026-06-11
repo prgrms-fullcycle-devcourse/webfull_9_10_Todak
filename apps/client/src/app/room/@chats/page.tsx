@@ -12,11 +12,11 @@ import { MeetingStatus, TabType } from './_types';
 import { useSpaceStore } from '@/store/useSpaceStore';
 
 export default function Chats({
-  params,
+  searchParams,
 }: {
-  params: Promise<{ room_id: string }>;
+  searchParams: Promise<{ room_id: string }>;
 }) {
-  const { room_id } = use(params);
+  const { room_id } = use(searchParams);
   const [meetingStatus, setMeetingStatus] = useState<MeetingStatus>('ended');
   const currentPrivateRoomId = useSpaceStore(
     state => state.currentPrivateRoomId,

@@ -8,8 +8,7 @@ import UserProfileForm from './_components/UserProfileForm';
 
 interface CustomizationPageProps {
   searchParams?: Promise<{
-    roomID?: string | string[];
-    roomId?: string | string[];
+    room_id?: string | string[];
   }>;
 }
 
@@ -18,7 +17,7 @@ export default async function CustomizationPage({
 }: CustomizationPageProps) {
   const resolvedSearchParams = await searchParams;
   const rawRoomID =
-    resolvedSearchParams?.roomID ?? resolvedSearchParams?.roomId;
+    resolvedSearchParams?.room_id ?? resolvedSearchParams?.room_id;
   const roomID = Array.isArray(rawRoomID) ? rawRoomID[0] : rawRoomID;
   let shouldRefreshAuth = false;
 
@@ -50,7 +49,7 @@ async function redirectUserWhenSetupComplete(roomID: string) {
   const currentRoom = rooms.find(room => room.id === roomID);
 
   if (currentRoom?.is_setup_completed === true) {
-    redirect(`/room/${encodeURIComponent(roomID)}`);
+    redirect(`/room?room_id=${encodeURIComponent(roomID)}`);
   }
 
   return false;

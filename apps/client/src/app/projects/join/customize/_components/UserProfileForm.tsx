@@ -83,7 +83,7 @@ export default function UserProfileForm({ roomID }: UserProfileFormProps) {
     ? detailJob
     : availableDetailJobs[0];
 
-  const roomHref = `/room/${encodeURIComponent(roomID)}`;
+  const roomHref = `/room?room_id=${encodeURIComponent(roomID)}`;
 
   const handleProfileSubmit: FormSubmitHandler = async event => {
     event.preventDefault();

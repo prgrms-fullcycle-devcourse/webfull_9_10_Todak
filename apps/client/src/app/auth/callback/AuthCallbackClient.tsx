@@ -51,7 +51,7 @@ export default function AuthCallbackClient({ token }: AuthCallbackClientProps) {
     }
 
     saveAuthToken(token);
-    router.replace(`/${encodeURIComponent(authResult.user.id)}/join`);
+    router.replace(`/projects/join`);
   }, [authResult, router, token]);
 
   return (

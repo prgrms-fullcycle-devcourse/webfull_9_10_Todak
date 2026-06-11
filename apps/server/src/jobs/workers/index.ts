@@ -156,7 +156,7 @@ export const minutesGenerationWorker = new Worker(
         roomId,
         type: 'minutes_generated',
         message: `회의록 생성 완료: ${finalTitle}`,
-        link: `/room/${roomId}`,
+        link: `/room?room_id=${roomId}`,
       },
     );
 
@@ -236,7 +236,7 @@ minutesGenerationWorker.on('failed', async (job, err) => {
         roomId,
         type: 'minutes_generation_failed',
         message: '회의록 생성에 실패했습니다. 다시 시도해주세요.',
-        link: `/room/${roomId}`,
+        link: `/room?room_id=${roomId}`,
       });
     }
   }

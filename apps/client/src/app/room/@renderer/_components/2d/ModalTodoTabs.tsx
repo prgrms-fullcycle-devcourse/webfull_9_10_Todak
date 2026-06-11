@@ -5,7 +5,7 @@ import { fetchTodos, fetchMyTodos } from '@/services/todos/api';
 import type { Todo, TodosResponse } from '@/services/todos/model';
 import { Tabs } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 const MODAL_TAB_OPTIONS = [
   { id: 'team', label: '전체 팀원 할 일' },
@@ -18,7 +18,8 @@ interface ModalTodoTabsProps {
 }
 
 export default function ModalTodoTabs({ userId, isMe }: ModalTodoTabsProps) {
-  const { room_id: roomID } = useParams<{ room_id: string }>();
+  const searchParams = useSearchParams();
+  const roomID = searchParams.get('room_id') as string;
   const [activeTab, setActiveTab] = useState<'team' | 'individual'>('team');
 
   const isFetchingMyTodos = activeTab === 'individual' && isMe;

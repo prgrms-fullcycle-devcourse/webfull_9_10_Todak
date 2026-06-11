@@ -55,7 +55,7 @@ export function useInitRooms(roomId: string) {
               '프로필 설정이 완료되지 않은 유저입니다. 설정 페이지로 이동합니다.',
             );
             setIsReady(false);
-            router.replace(`/room/${roomId}/setup`);
+            router.replace(`/room/setup?room_id=${roomId}`);
             return false;
           }
         }

@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn';
 import { useRoomPullRequests } from '@/services/github/query';
 import type { RoomPullRequest } from '@/services/github/api';
 import { Card, Chip } from '@heroui/react';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { type ReactNode, useMemo, useState } from 'react';
 
 import PullRequestModal, {
@@ -18,7 +18,8 @@ interface PullRequestNotificationsProps {
 export default function PullRequestNotifications({
   className,
 }: PullRequestNotificationsProps) {
-  const { room_id: roomID } = useParams<{ room_id: string }>();
+  const searchParams = useSearchParams();
+  const roomID = searchParams.get('room_id') as string;
   const {
     data: pullRequestsResponse,
     isError,

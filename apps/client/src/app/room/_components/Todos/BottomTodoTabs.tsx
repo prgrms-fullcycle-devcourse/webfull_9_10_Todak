@@ -3,7 +3,7 @@
 import { fetchMyTodos, fetchTodos } from '@/services/todos/api';
 import { Tabs } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import TodoList, { TodoListProps } from './List';
 
 const TODO_TAB_OPTIONS = [
@@ -20,7 +20,8 @@ const TODO_TAB_OPTIONS = [
 type TodoTabId = (typeof TODO_TAB_OPTIONS)[number]['id'];
 
 export default function BottomTodoTabs() {
-  const { room_id: roomID } = useParams<{ room_id: string }>();
+  const searchParams = useSearchParams();
+  const roomID = searchParams.get('room_id') as string;
   const {
     data: teamTodos,
     isError: isTeamTodosError,
