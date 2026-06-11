@@ -123,17 +123,35 @@ model ChatMessage {
   roomId        String   @map("room_id") @db.Uuid
   privateRoomId String?  @map("private_room_id") @db.Uuid // null = 메인룸 채팅
   userId        String   @map("user_id") @db.Uuid
-  content       String
+  content       String? // 텍스트 없이 첨부만 있는 메시지는 null 가능
   type          String   @default("text") // text | meeting_start | meeting_end
   createdAt     DateTime @default(now()) @map("created_at")
 
-  room        Room           @relation(fields: [roomId], references: [id])
-  privateRoom PrivateRoom?   @relation(fields: [privateRoomId], references: [id])
-  user        User           @relation(fields: [userId], references: [id])
+  room        Room             @relation(fields: [roomId], references: [id])
+  privateRoom PrivateRoom?     @relation(fields: [privateRoomId], references: [id])
+  user        User             @relation(fields: [userId], references: [id])
   reactions   ChatReaction[]
+  attachments ChatAttachment[] // 한 메시지에 이미지/PDF 여러 개 첨부 가능
 
   @@index([roomId, privateRoomId, createdAt])
   @@map("chat_message")
+}
+
+// 채팅 첨부 파일(이미지/PDF) 메타. 실제 바이너리는 S3 에 있고 s3Key 로 참조.
+// (URL 은 조회 시점에 presigned 로 생성하므로 저장하지 않는다)
+model ChatAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  messageId    String   @map("message_id") @db.Uuid // 한 메시지에 여러 첨부 가능
+  s3Key        String   @map("s3_key")
+  mime         String // image/png, image/jpeg, application/pdf 등
+  size         Int // 바이트
+  originalName String   @map("original_name") // 다운로드/표시용 원본 파일명
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("chat_attachment")
 }
 
 model ChatReaction {
