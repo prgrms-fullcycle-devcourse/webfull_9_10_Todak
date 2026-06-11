@@ -63,7 +63,7 @@ export default function CreateTab() {
   const [maxMembers, setMaxMembers] = useState(4);
 
   const customizeHref = (roomID: string) =>
-    `/projects/join/customize?roomID=${encodeURIComponent(roomID)}`;
+    `/projects/join/customize?room_id=${encodeURIComponent(roomID)}`;
 
   function clearFieldError(fieldName: CreateProjectFieldName) {
     setFieldErrors(prev => {

@@ -59,7 +59,7 @@ export default function InviteTab() {
   const firstInviteCodeInputRef = useRef<HTMLInputElement>(null);
 
   const customizeHref = (roomID: string) =>
-    `/projects/join/customize?roomID=${encodeURIComponent(roomID)}`;
+    `/projects/join/customize?room_id=${encodeURIComponent(roomID)}`;
 
   function clearInviteErrors() {
     if (inviteCodeError !== null) {

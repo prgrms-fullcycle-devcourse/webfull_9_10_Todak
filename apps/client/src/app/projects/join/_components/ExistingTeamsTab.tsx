@@ -12,7 +12,7 @@ export default function ExistingTeamsTab() {
   });
 
   const customizeHref = (roomID: string) =>
-    `/projects/join/customize?roomID=${encodeURIComponent(roomID)}`;
+    `/projects/join/customize?room_id=${encodeURIComponent(roomID)}`;
 
   if (isLoading) {
     return (
