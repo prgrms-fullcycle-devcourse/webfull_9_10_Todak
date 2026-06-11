@@ -20,11 +20,11 @@ import {
 import { getSocket } from '@/lib/socket';
 
 const AVATAR_MAP = {
-  rabbit: { label: '🐰 토끼', src: '/assets/rabbit_front.png' },
-  cat: { label: '🐱 고양이', src: '/assets/cat_front.png' },
-  dog: { label: '🐶 강아지', src: '/assets/dog_front.png' },
-  bear: { label: '🐻 곰', src: '/assets/bear_front.png' },
-  hamster: { label: '🐹 햄스터', src: '/assets/hamster_front.png' },
+  rabbit: { label: '🐰 토끼', src: '/assets/rabbit_front.webp' },
+  cat: { label: '🐱 고양이', src: '/assets/cat_front.webp' },
+  dog: { label: '🐶 강아지', src: '/assets/dog_front.webp' },
+  bear: { label: '🐻 곰', src: '/assets/bear_front.webp' },
+  hamster: { label: '🐹 햄스터', src: '/assets/hamster_front.webp' },
 } as const;
 
 const STATUS_MAP: Record<string, string> = {
@@ -240,7 +240,7 @@ function ModalFormContent({
           <div className="flex gap-4 items-start">
             <div className="w-20 h-20 rounded-2xl bg-white border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm p-1">
               <Image
-                src={AVATAR_MAP[editAvatar]?.src || '/assets/rabbit_front.png'}
+                src={AVATAR_MAP[editAvatar]?.src || '/assets/rabbit_front.webp'}
                 alt={`${editNickname} 아바타`}
                 width={80}
                 height={80}

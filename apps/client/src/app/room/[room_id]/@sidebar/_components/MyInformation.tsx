@@ -1,11 +1,11 @@
 import Image from 'next/image';
 
 const CHARACTER_AVATARS: Record<string, { name: string; src: string }> = {
-  bear: { name: '곰', src: '/assets/bear_front.png' },
-  cat: { name: '고양이', src: '/assets/cat_front.png' },
-  dog: { name: '강아지', src: '/assets/dog_front.png' },
-  hamster: { name: '햄스터', src: '/assets/hamster_front.png' },
-  rabbit: { name: '토끼', src: '/assets/rabbit_front.png' },
+  bear: { name: '곰', src: '/assets/bear_front.webp' },
+  cat: { name: '고양이', src: '/assets/cat_front.webp' },
+  dog: { name: '강아지', src: '/assets/dog_front.webp' },
+  hamster: { name: '햄스터', src: '/assets/hamster_front.webp' },
+  rabbit: { name: '토끼', src: '/assets/rabbit_front.webp' },
 };
 
 const ROLE_LABELS: Record<string, string> = {
