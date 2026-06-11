@@ -31,10 +31,6 @@ const INVALID_INPUT_CLASS_NAME =
 
 type FormSubmitHandler = NonNullable<ComponentProps<'form'>['onSubmit']>;
 
-interface CreateTabProps {
-  userID: string;
-}
-
 function FieldLabel({
   children,
   htmlFor,
@@ -58,7 +54,7 @@ function FieldLabel({
   );
 }
 
-export default function CreateTab({ userID }: CreateTabProps) {
+export default function CreateTab() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [createError, setCreateError] = useState<string | null>(null);
@@ -67,7 +63,7 @@ export default function CreateTab({ userID }: CreateTabProps) {
   const [maxMembers, setMaxMembers] = useState(4);
 
   const customizeHref = (roomID: string) =>
-    `/${encodeURIComponent(userID)}/join/customize?roomID=${encodeURIComponent(roomID)}`;
+    `/projects/join/customize?roomID=${encodeURIComponent(roomID)}`;
 
   function clearFieldError(fieldName: CreateProjectFieldName) {
     setFieldErrors(prev => {

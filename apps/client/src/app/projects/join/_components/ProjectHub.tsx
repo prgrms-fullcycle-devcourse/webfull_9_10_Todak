@@ -29,11 +29,7 @@ const TabOptions = [
 
 type TabID = (typeof TabOptions)[number]['id'];
 
-interface ProjectHubProps {
-  userID: string;
-}
-
-export default function ProjectHub({ userID }: ProjectHubProps) {
+export default function ProjectHub() {
   const { data: myRooms } = useQuery({
     queryKey: ['myRooms'],
     queryFn: fetchMyRooms,
@@ -87,9 +83,9 @@ export default function ProjectHub({ userID }: ProjectHubProps) {
                 key={`team-selection-tabs-panel-${option.id}`}
                 id={option.id}
               >
-                {option.id === 'teams' && <ExistingTeamsTab userID={userID} />}
-                {option.id === 'create' && <CreateTab userID={userID} />}
-                {option.id === 'invite' && <InviteTab userID={userID} />}
+                {option.id === 'teams' && <ExistingTeamsTab />}
+                {option.id === 'create' && <CreateTab />}
+                {option.id === 'invite' && <InviteTab />}
               </Tabs.Panel>
             ))}
           </Tabs>

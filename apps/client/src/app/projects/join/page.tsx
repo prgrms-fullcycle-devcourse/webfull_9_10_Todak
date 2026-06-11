@@ -9,16 +9,7 @@ import {
 
 import ProjectHub from './_components/ProjectHub';
 
-interface TeamSelectionPageProps {
-  params: Promise<{
-    user_id: string;
-  }>;
-}
-
-export default async function TeamSelectionPage({
-  params,
-}: TeamSelectionPageProps) {
-  const { user_id: userID } = await params;
+export default async function TeamSelection() {
   const queryClient = new QueryClient();
   let shouldRefreshAuth = false;
 
@@ -39,7 +30,7 @@ export default async function TeamSelectionPage({
     <main className="min-h-dvh bg-background text-foreground">
       {shouldRefreshAuth && <AuthRefreshOnMount />}
       <HydrationBoundary state={dehydrate(queryClient)}>
-        <ProjectHub userID={userID} />
+        <ProjectHub />
       </HydrationBoundary>
     </main>
   );

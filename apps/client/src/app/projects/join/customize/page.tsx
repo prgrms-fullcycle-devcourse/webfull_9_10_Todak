@@ -7,9 +7,6 @@ import type { MyRooms } from '@/services/rooms/model';
 import UserProfileForm from './_components/UserProfileForm';
 
 interface CustomizationPageProps {
-  params: Promise<{
-    user_id: string;
-  }>;
   searchParams?: Promise<{
     roomID?: string | string[];
     roomId?: string | string[];
@@ -17,10 +14,8 @@ interface CustomizationPageProps {
 }
 
 export default async function CustomizationPage({
-  params,
   searchParams,
 }: CustomizationPageProps) {
-  const { user_id: userID } = await params;
   const resolvedSearchParams = await searchParams;
   const rawRoomID =
     resolvedSearchParams?.roomID ?? resolvedSearchParams?.roomId;
@@ -34,7 +29,7 @@ export default async function CustomizationPage({
   return (
     <main className="min-h-dvh bg-background text-foreground">
       {shouldRefreshAuth && <AuthRefreshOnMount />}
-      <UserProfileForm roomID={roomID ?? ''} userID={userID} />
+      <UserProfileForm roomID={roomID ?? ''} />
     </main>
   );
 }

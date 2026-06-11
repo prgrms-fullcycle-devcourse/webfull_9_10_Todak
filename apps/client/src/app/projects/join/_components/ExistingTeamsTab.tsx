@@ -5,18 +5,14 @@ import { Chip } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 
-interface ExistingTeamsTabProps {
-  userID: string;
-}
-
-export default function ExistingTeamsTab({ userID }: ExistingTeamsTabProps) {
+export default function ExistingTeamsTab() {
   const { data: myRooms, isLoading } = useQuery({
     queryKey: ['myRooms'],
     queryFn: fetchMyRooms,
   });
 
   const customizeHref = (roomID: string) =>
-    `/${encodeURIComponent(userID)}/join/customize?roomID=${encodeURIComponent(roomID)}`;
+    `/projects/join/customize?roomID=${encodeURIComponent(roomID)}`;
 
   if (isLoading) {
     return (

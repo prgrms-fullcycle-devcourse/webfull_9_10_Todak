@@ -58,15 +58,11 @@ export const detailJobs: Record<(typeof parts)[number], string[]> = {
 
 interface UserProfileFormProps {
   roomID: string;
-  userID: string;
 }
 
 type FormSubmitHandler = NonNullable<ComponentProps<'form'>['onSubmit']>;
 
-export default function UserProfileForm({
-  roomID,
-  userID,
-}: UserProfileFormProps) {
+export default function UserProfileForm({ roomID }: UserProfileFormProps) {
   const router = useRouter();
   const [selectedAvatar, setSelectedAvatar] = useState<
     (typeof avatars)[number]
@@ -319,9 +315,8 @@ export default function UserProfileForm({
         </div>
 
         <p className="sr-only">
-          {userID} 사용자가 {selectedAvatar.name} 캐릭터와{' '}
-          {selectedParts.join(', ')} 역할로 {selectedDetailJob} 세부 직군을
-          선택했습니다.
+          사용자가 {selectedAvatar.name} 캐릭터와 {selectedParts.join(', ')}{' '}
+          역할로 {selectedDetailJob} 세부 직군을 선택했습니다.
         </p>
       </form>
     </section>

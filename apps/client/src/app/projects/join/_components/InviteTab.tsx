@@ -24,10 +24,6 @@ const INVALID_INPUT_CLASS_NAME =
   'border-danger focus:border-danger data-[invalid=true]:border-danger';
 type FormSubmitHandler = NonNullable<ComponentProps<'form'>['onSubmit']>;
 
-interface InviteTabProps {
-  userID: string;
-}
-
 function FieldLabel({
   children,
   htmlFor,
@@ -51,7 +47,7 @@ function FieldLabel({
   );
 }
 
-export default function InviteTab({ userID }: InviteTabProps) {
+export default function InviteTab() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [inviteCodeError, setInviteCodeError] = useState<string | null>(null);
@@ -63,7 +59,7 @@ export default function InviteTab({ userID }: InviteTabProps) {
   const firstInviteCodeInputRef = useRef<HTMLInputElement>(null);
 
   const customizeHref = (roomID: string) =>
-    `/${encodeURIComponent(userID)}/join/customize?roomID=${encodeURIComponent(roomID)}`;
+    `/projects/join/customize?roomID=${encodeURIComponent(roomID)}`;
 
   function clearInviteErrors() {
     if (inviteCodeError !== null) {
