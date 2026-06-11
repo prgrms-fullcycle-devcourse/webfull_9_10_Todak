@@ -74,6 +74,24 @@ async function bootstrap() {
 
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   process.on('SIGINT', () => void shutdown('SIGINT'));
+
+  /*
+   * ────────────────────────────────────────────────────────────
+   * 마지막 안전망 — 어디선가 빠져나온 비동기 에러로 프로세스가 죽지 않게 한다.
+   *   - unhandledRejection: 핸들러 누락 등으로 새어나온 Promise reject.
+   *     1건의 잘못된 요청이 서버 전체를 내리는 것(DoS)을 막기 위해 로깅만 하고 유지한다.
+   *   - uncaughtException: 동기 흐름의 미처리 예외. 이 시점엔 상태가 깨졌을 수 있으므로
+   *     graceful shutdown 후 종료해 (Railway가) 깨끗한 인스턴스로 재기동하게 한다.
+   * ────────────────────────────────────────────────────────────
+   */
+  process.on('unhandledRejection', reason => {
+    console.error('⚠️ Unhandled Rejection:', reason);
+  });
+
+  process.on('uncaughtException', err => {
+    console.error('💥 Uncaught Exception:', err);
+    void shutdown('uncaughtException');
+  });
 }
 
 bootstrap().catch(err => {

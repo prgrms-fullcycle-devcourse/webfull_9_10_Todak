@@ -28,43 +28,61 @@ const REFRESH_COOKIE_OPTIONS = {
   path: '/',
 };
 
-export async function githubLogin(_req: Request, res: Response) {
-  const params = new URLSearchParams({
-    client_id: env.GITHUB_CLIENT_ID,
-    redirect_uri: env.GITHUB_CALLBACK_URL,
-    scope: 'user repo delete_repo',
-  });
-  res.redirect(`https://github.com/login/oauth/authorize?${params}`);
+export async function githubLogin(
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  // async rejection 을 Express 4 는 에러 미들웨어로 안 넘기므로(→ 프로세스 종료) 직접 next(err) 위임
+  try {
+    const params = new URLSearchParams({
+      client_id: env.GITHUB_CLIENT_ID,
+      redirect_uri: env.GITHUB_CALLBACK_URL,
+      scope: 'user repo delete_repo',
+    });
+    res.redirect(`https://github.com/login/oauth/authorize?${params}`);
+  } catch (err) {
+    next(err);
+  }
 }
 
-export async function githubCallback(req: Request, res: Response) {
-  const { code } = req.query as { code?: string };
+export async function githubCallback(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  // code 누락·외부 GitHub API 실패가 unhandledRejection 으로 새어 서버가 죽지 않도록 try/catch
+  try {
+    const { code } = req.query as { code?: string };
 
-  if (code === undefined || code === '') {
-    throw new AppError('BAD_REQUEST');
+    if (code === undefined || code === '') {
+      throw new AppError('BAD_REQUEST');
+    }
+
+    const githubToken = await exchangeCodeForToken(code);
+    const githubUser = await getGithubUser(githubToken);
+    const user = await upsertUser(githubUser, githubToken);
+
+    const payload: JwtPayload = {
+      id: user.id,
+      githubId: Number(user.githubId),
+      login: user.githubUsername,
+      avatarUrl: user.avatarUrl ?? '',
+      githubAccessToken: githubToken,
+    };
+
+    // Access Token (1시간) → URL 쿼리로 전달
+    const accessToken = signAccessToken(payload);
+
+    // Refresh Token (7일) → HttpOnly Cookie로 전달 + Redis 저장
+    const refreshToken = signRefreshToken(user.id);
+    await saveRefreshToken(user.id, refreshToken);
+
+    res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.redirect(`${env.CLIENT_URL}/auth/callback?token=${accessToken}`);
+  } catch (err) {
+    next(err);
   }
-
-  const githubToken = await exchangeCodeForToken(code);
-  const githubUser = await getGithubUser(githubToken);
-  const user = await upsertUser(githubUser, githubToken);
-
-  const payload: JwtPayload = {
-    id: user.id,
-    githubId: Number(user.githubId),
-    login: user.githubUsername,
-    avatarUrl: user.avatarUrl ?? '',
-    githubAccessToken: githubToken,
-  };
-
-  // Access Token (1시간) → URL 쿼리로 전달
-  const accessToken = signAccessToken(payload);
-
-  // Refresh Token (7일) → HttpOnly Cookie로 전달 + Redis 저장
-  const refreshToken = signRefreshToken(user.id);
-  await saveRefreshToken(user.id, refreshToken);
-
-  res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
-  res.redirect(`${env.CLIENT_URL}/auth/callback?token=${accessToken}`);
 }
 
 export async function refresh(req: Request, res: Response, next: NextFunction) {
