@@ -2,44 +2,28 @@
 
 import { useState } from 'react';
 import { Button } from '@heroui/react';
-
-interface Issue {
-  id: string;
-  title: string;
-  assignee: string;
-  label: 'FEAT' | 'BUG' | 'DOCS' | 'REFACTOR';
-  body?: string;
-}
+import type { ActionItem } from '@/services/minutes/model';
 
 const LABEL_OPTIONS = ['feat', 'bug', 'docs', 'refactor', 'enhancement'];
-const ASSIGNEE_OPTIONS = ['지윤', '민호', '수아', '현우', '수정'];
 
 interface Props {
-  issues: Issue[];
-  selected: Set<string>;
+  issues: ActionItem[];
   onClose: () => void;
   onUpload: () => void;
 }
 
-export default function ReviewModal({
-  issues,
-  selected,
-  onClose,
-  onUpload,
-}: Props) {
-  const selectedIssues = issues.filter(i => selected.has(i.id));
-  const [editedIssues, setEditedIssues] = useState(selectedIssues);
+export default function ReviewModal({ issues, onClose, onUpload }: Props) {
+  const [editedIssues, setEditedIssues] = useState<ActionItem[]>(issues);
 
-  const updateIssue = (id: string, field: keyof Issue, value: string) => {
+  const updateIssue = (idx: number, field: keyof ActionItem, value: string) => {
     setEditedIssues(prev =>
-      prev.map(i => (i.id === id ? { ...i, [field]: value } : i)),
+      prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)),
     );
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="flex max-h-[80vh] w-[580px] flex-col rounded-2xl bg-white shadow-2xl">
-        {/* 헤더 */}
         <div className="flex shrink-0 items-start justify-between border-b border-border px-6 py-4">
           <div>
             <p className="text-sm font-black text-slate-800">
@@ -58,22 +42,19 @@ export default function ReviewModal({
           </button>
         </div>
 
-        {/* 안내 배너 */}
         <div className="mx-4 mt-3 shrink-0 flex items-center justify-between rounded-xl border border-todak-coral-200 bg-todak-coral-50 px-4 py-2.5">
           <p className="text-xs font-bold text-todak-coral-500">
-            🚀 총 {selectedIssues.length}개의 선택된 이슈를 최종 수정 및
-            발행합니다.
+            🚀 총 {issues.length}개의 선택된 이슈를 최종 수정 및 발행합니다.
           </p>
           <span className="rounded-full bg-todak-coral-500 px-2 py-0.5 text-[10px] font-bold text-white">
             REVIEWING
           </span>
         </div>
 
-        {/* 이슈 카드 목록 */}
         <div className="min-h-0 flex-1 overflow-y-auto space-y-4 p-4">
           {editedIssues.map((issue, idx) => (
             <div
-              key={issue.id}
+              key={idx}
               className="space-y-3 rounded-xl border border-border p-4"
             >
               <div className="flex items-center justify-between">
@@ -90,7 +71,7 @@ export default function ReviewModal({
                 </label>
                 <input
                   value={issue.title}
-                  onChange={e => updateIssue(issue.id, 'title', e.target.value)}
+                  onChange={e => updateIssue(idx, 'title', e.target.value)}
                   className="w-full rounded-lg border border-border px-3 py-2 text-xs text-slate-700 focus:border-todak-coral-500 focus:outline-none"
                 />
               </div>
@@ -99,33 +80,19 @@ export default function ReviewModal({
                   <label className="mb-1 block text-[10px] font-bold text-slate-500">
                     👤 담당 배정 (Assignee)
                   </label>
-                  <select
-                    value={issue.assignee.replace('@', '')}
-                    onChange={e =>
-                      updateIssue(issue.id, 'assignee', `@${e.target.value}`)
-                    }
-                    className="w-full rounded-lg border border-border px-3 py-2 text-xs text-slate-700 focus:border-todak-coral-500 focus:outline-none"
-                  >
-                    {ASSIGNEE_OPTIONS.map(a => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    value={issue.assignee?.github_username ?? '미배정'}
+                    readOnly
+                    className="w-full rounded-lg border border-border bg-slate-50 px-3 py-2 text-xs text-slate-500"
+                  />
                 </div>
                 <div>
                   <label className="mb-1 block text-[10px] font-bold text-slate-500">
                     🏷️ 기능 라벨 (Label)
                   </label>
                   <select
-                    value={issue.label.toLowerCase()}
-                    onChange={e =>
-                      updateIssue(
-                        issue.id,
-                        'label',
-                        e.target.value.toUpperCase() as Issue['label'],
-                      )
-                    }
+                    value={issue.labels[0] ?? ''}
+                    onChange={e => updateIssue(idx, 'labels', e.target.value)}
                     className="w-full rounded-lg border border-border px-3 py-2 text-xs text-slate-700 focus:border-todak-coral-500 focus:outline-none"
                   >
                     {LABEL_OPTIONS.map(l => (
@@ -142,7 +109,7 @@ export default function ReviewModal({
                 </label>
                 <textarea
                   value={issue.body ?? ''}
-                  onChange={e => updateIssue(issue.id, 'body', e.target.value)}
+                  onChange={e => updateIssue(idx, 'body', e.target.value)}
                   rows={4}
                   className="w-full resize-none rounded-lg border border-border px-3 py-2 text-xs text-slate-700 focus:border-todak-coral-500 focus:outline-none"
                 />
@@ -151,7 +118,6 @@ export default function ReviewModal({
           ))}
         </div>
 
-        {/* 하단 버튼 */}
         <div className="flex shrink-0 items-center justify-between border-t border-border px-6 py-4">
           <p className="text-[10px] text-slate-400">
             선택 확인 후 깃허브 원저 백로그에 실시간 전송을 수행합니다.

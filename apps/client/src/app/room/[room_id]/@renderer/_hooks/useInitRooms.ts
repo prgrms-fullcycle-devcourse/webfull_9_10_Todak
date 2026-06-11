@@ -206,6 +206,21 @@ export function useInitRooms(roomId: string) {
       useSpaceStore.getState().setCurrentMeetingId(null);
     });
 
+    socket.on(
+      'minutes:generation-started',
+      ({ minutes_id }: { minutes_id: string }) => {
+        useSpaceStore.getState().setCurrentMinutesId(minutes_id);
+      },
+    );
+
+    socket.on('minutes:generated', ({ minutes_id }: { minutes_id: string }) => {
+      useSpaceStore.getState().setCurrentMinutesId(minutes_id);
+    });
+
+    socket.on('minutes:generation-failed', () => {
+      console.error('AI 회의록 생성 실패');
+    });
+
     // 컴포넌트 언마운트 시 리스너 해제
     return () => {
       socket.off('meeting:started');

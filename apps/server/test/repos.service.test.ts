@@ -13,9 +13,16 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { Prisma } from '@/generated/prisma/client/index.js';
 import { prisma } from '@/lib/prisma.js';
-import { createRepo, deleteRepo } from '@/services/github.service.js';
 import {
+  createRepo,
+  deleteRepo,
+  registerWebhook,
+  unregisterWebhook,
+} from '@/services/github.service.js';
+import {
+  connectRepo,
   createGithubRepo,
   deleteGithubRepo,
 } from '@/services/repos.service.js';
@@ -23,16 +30,25 @@ import {
 // prisma 를 가짜로 대체 — 서비스가 쓰는 메서드만 vi.fn() 으로 채운다
 vi.mock('@/lib/prisma.js', () => ({
   prisma: {
-    repo: { findUnique: vi.fn(), delete: vi.fn() },
+    repo: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
     roomMember: { findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
-// GitHub API 호출(createRepo/deleteRepo)을 가짜로 대체
+// GitHub API 호출을 가짜로 대체
 vi.mock('@/services/github.service.js', () => ({
   createRepo: vi.fn(),
   deleteRepo: vi.fn(),
+  registerWebhook: vi.fn(),
+  unregisterWebhook: vi.fn(),
 }));
 
 // 타입 에러 없이 .mockResolvedValue 등을 쓰기 위해 any 로 느슨하게 캐스팅
@@ -50,6 +66,10 @@ async function expectAppError(promise: Promise<unknown>, code: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // $transaction(cb) → cb(db) 로 실행: 콜백 안의 tx 를 가짜 prisma(db)로 대체
+  db.$transaction.mockImplementation(async (cb: (tx: typeof db) => unknown) =>
+    cb(db),
+  );
 });
 
 describe('createGithubRepo', () => {
@@ -139,5 +159,82 @@ describe('deleteGithubRepo', () => {
     // DB 레코드도 삭제했는가
     expect(db.repo.delete).toHaveBeenCalledWith({ where: { id: REPO_ID } });
     expect(result).toEqual({ roomId: ROOM_ID });
+  });
+});
+
+describe('connectRepo', () => {
+  const ACCESS_TOKEN = 'gho_token';
+  const FULL_NAME = 'jiyun/todak';
+
+  it('다른 룸이 이미 같은 레포를 쓰면 REPO_ALREADY_IN_USE (webhook 등록 전 차단)', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ isHost: true }); // assertRoomHost
+    db.repo.findFirst.mockResolvedValueOnce({ id: 'other-repo' }); // usedByOther
+
+    await expectAppError(
+      connectRepo(USER_ID, ROOM_ID, ACCESS_TOKEN, FULL_NAME),
+      'REPO_ALREADY_IN_USE',
+    );
+    // 사전 차단이므로 webhook 등록까지 가면 안 됨
+    expect(registerWebhook).not.toHaveBeenCalled();
+  });
+
+  it('신규 연결 시 webhook 등록 + repo.create 후 결과 반환', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ isHost: true });
+    db.repo.findFirst
+      .mockResolvedValueOnce(null) // usedByOther 없음
+      .mockResolvedValueOnce(null); // 룸에 기존 repo 없음(신규)
+    vi.mocked(registerWebhook).mockResolvedValue('webhook-1');
+    db.repo.create.mockResolvedValue({ id: REPO_ID, fullName: FULL_NAME });
+
+    const result = await connectRepo(USER_ID, ROOM_ID, ACCESS_TOKEN, FULL_NAME);
+
+    expect(registerWebhook).toHaveBeenCalledWith(
+      ACCESS_TOKEN,
+      'jiyun',
+      'todak',
+    );
+    expect(db.repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          roomId: ROOM_ID,
+          fullName: FULL_NAME,
+          webhookId: 'webhook-1',
+        }),
+      }),
+    );
+    expect(result).toMatchObject({
+      repo_id: REPO_ID,
+      room_id: ROOM_ID,
+      repo_full_name: FULL_NAME,
+      webhook_registered: true,
+    });
+  });
+
+  it('usedByOther 통과 후 동시 연결 race(P2002)는 REPO_ALREADY_IN_USE 로 변환하고 고아 webhook 정리', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ isHost: true });
+    db.repo.findFirst
+      .mockResolvedValueOnce(null) // usedByOther: 체크 시점엔 비어 있음
+      .mockResolvedValueOnce(null); // 신규 연결
+    vi.mocked(registerWebhook).mockResolvedValue('webhook-1');
+    // create 직전 다른 룸이 먼저 같은 레포를 연결 → full_name unique 위반
+    db.repo.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+      }),
+    );
+    vi.mocked(unregisterWebhook).mockResolvedValue(undefined);
+
+    await expectAppError(
+      connectRepo(USER_ID, ROOM_ID, ACCESS_TOKEN, FULL_NAME),
+      'REPO_ALREADY_IN_USE',
+    );
+    // 방금 등록한 중복 webhook 은 정리돼야 함
+    expect(unregisterWebhook).toHaveBeenCalledWith(
+      ACCESS_TOKEN,
+      'jiyun',
+      'todak',
+      'webhook-1',
+    );
   });
 });

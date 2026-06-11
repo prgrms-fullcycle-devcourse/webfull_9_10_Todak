@@ -1,5 +1,6 @@
 import { CreateRepoInput } from '../api/repos/repos.schema.js';
 import { AppError } from '../errors/AppError.js';
+import { isUniqueConstraintError } from '../errors/prisma.js';
 import { prisma } from '../lib/prisma.js';
 
 import {
@@ -100,15 +101,33 @@ export async function connectRepo(
    * 신규 연결 또는 다른 레포로 교체 — Repo 레코드를 새로 만들어 repoId 회전
    * (교체 시 기존 레코드 삭제로 옛 Todo 의 repoId 가 SetNull 처리되어 보존된다)
    */
-  const saved = await prisma.$transaction(async tx => {
-    if (existing !== null) {
-      await tx.repo.delete({ where: { id: existing.id } });
-    }
+  let saved;
+  try {
+    saved = await prisma.$transaction(async tx => {
+      if (existing !== null) {
+        await tx.repo.delete({ where: { id: existing.id } });
+      }
 
-    return tx.repo.create({
-      data: { roomId, fullName: repoFullName, webhookId },
+      return tx.repo.create({
+        data: { roomId, fullName: repoFullName, webhookId },
+      });
     });
-  });
+  } catch (error) {
+    /*
+     * usedByOther 체크 통과 후 다른 룸이 먼저 같은 레포를 연결한 race.
+     * repo.full_name UNIQUE 위반(P2002)을 409 로 변환한다.
+     * 방금 등록한 webhook 은 주인 없는 중복이 되므로 정리한다(best-effort).
+     */
+    if (isUniqueConstraintError(error)) {
+      try {
+        await unregisterWebhook(accessToken, owner, repo, webhookId);
+      } catch {
+        console.error(`[connectRepo] 중복 webhook 해제 실패: ${repoFullName}`);
+      }
+      throw new AppError('REPO_ALREADY_IN_USE');
+    }
+    throw error;
+  }
 
   // 교체된 경우 이전 웹훅 해제 (best-effort, 트랜잭션 밖)
   if (existing !== null && existing.webhookId !== null) {

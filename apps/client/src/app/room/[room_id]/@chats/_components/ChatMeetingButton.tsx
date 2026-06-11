@@ -1,6 +1,10 @@
 'use client';
 
-import { endMeeting, startMeeting } from '@/services/minutes/api';
+import {
+  endMeeting,
+  generateMinutes,
+  startMeeting,
+} from '@/services/minutes/api';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import { useState } from 'react';
 
@@ -36,7 +40,15 @@ export default function ChatMeetingButton({
       } else {
         // 회의 종료
         if (!currentMeetingId) return;
-        await endMeeting(roomId, currentMeetingId);
+        const endedMeeting = await endMeeting(roomId, currentMeetingId);
+
+        // AI 회의록 자동 생성 요청
+        // ended_at으로 제목 생성
+        const endedAt = new Date(endedMeeting.ended_at);
+        const title = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
+
+        await generateMinutes(roomId, currentMeetingId, title);
+
         setCurrentMeetingId(null);
         onToggle();
         setCurrentView('meeting'); // 회의 보드로 전환

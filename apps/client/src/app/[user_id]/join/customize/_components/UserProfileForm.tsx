@@ -16,27 +16,27 @@ const avatars = [
   {
     id: 'bear',
     name: '곰',
-    src: '/assets/bear_front.png',
+    src: '/assets/bear_front.webp',
   },
   {
     id: 'cat',
     name: '고양이',
-    src: '/assets/cat_front.png',
+    src: '/assets/cat_front.webp',
   },
   {
     id: 'rabbit',
     name: '토끼',
-    src: '/assets/rabbit_front.png',
+    src: '/assets/rabbit_front.webp',
   },
   {
     id: 'dog',
     name: '강아지',
-    src: '/assets/dog_front.png',
+    src: '/assets/dog_front.webp',
   },
   {
     id: 'hamster',
     name: '햄스터',
-    src: '/assets/hamster_front.png',
+    src: '/assets/hamster_front.webp',
   },
 ] as const;
 

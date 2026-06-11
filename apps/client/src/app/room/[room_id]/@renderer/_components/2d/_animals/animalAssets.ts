@@ -10,29 +10,29 @@ const ANIMAL_ASSET_PATHS: Record<
   }
 > = {
   rabbit: {
-    front: '/assets/rabbit_front.png',
-    back: '/assets/rabbit_back.png',
-    walk: ['/assets/rabbit_side_left.png', '/assets/rabbit_side_right.png'],
+    front: '/assets/rabbit_front.webp',
+    back: '/assets/rabbit_back.webp',
+    walk: ['/assets/rabbit_side_left.webp', '/assets/rabbit_side_right.webp'],
   },
   dog: {
-    front: '/assets/dog_front.png',
-    back: '/assets/dog_back.png',
-    walk: ['/assets/dog_side_left.png', '/assets/dog_side_right.png'],
+    front: '/assets/dog_front.webp',
+    back: '/assets/dog_back.webp',
+    walk: ['/assets/dog_side_left.webp', '/assets/dog_side_right.webp'],
   },
   cat: {
-    front: '/assets/cat_front.png',
-    back: '/assets/cat_back.png',
-    walk: ['/assets/cat_side_left.png', '/assets/cat_side_right.png'],
+    front: '/assets/cat_front.webp',
+    back: '/assets/cat_back.webp',
+    walk: ['/assets/cat_side_left.webp', '/assets/cat_side_right.webp'],
   },
   bear: {
-    front: '/assets/bear_front.png',
-    back: '/assets/bear_back.png',
-    walk: ['/assets/bear_side_left.png', '/assets/bear_side_right.png'],
+    front: '/assets/bear_front.webp',
+    back: '/assets/bear_back.webp',
+    walk: ['/assets/bear_side_left.webp', '/assets/bear_side_right.webp'],
   },
   hamster: {
-    front: '/assets/hamster_front.png',
-    back: '/assets/hamster_back.png',
-    walk: ['/assets/hamster_side_left.png', '/assets/hamster_side_right.png'],
+    front: '/assets/hamster_front.webp',
+    back: '/assets/hamster_back.webp',
+    walk: ['/assets/hamster_side_left.webp', '/assets/hamster_side_right.webp'],
   },
 };
 
