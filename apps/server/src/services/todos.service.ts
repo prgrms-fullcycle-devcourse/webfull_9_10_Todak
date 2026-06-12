@@ -1,12 +1,78 @@
 import type {
   CreateTodosInput,
   GetTodosQuery,
+  UpdateTodoInput,
 } from '../api/rooms/todos/todos.schema.js';
 import { AppError } from '../errors/AppError.js';
 import { isUniqueConstraintError } from '../errors/prisma.js';
 import { prisma } from '../lib/prisma.js';
+import type { TodoEventPayload } from '../socket/socket.types.js';
 
-import { closeIssue, createIssue } from './github.service.js';
+import {
+  closeIssue,
+  createIssue,
+  listLabelsForRepo,
+  updateIssue,
+} from './github.service.js';
+
+type TodoWithAssignee = {
+  id: string;
+  roomId: string;
+  repoId: string | null;
+  title: string;
+  body: string | null;
+  labels: string[];
+  githubIssueNumber: number | null;
+  isDone: boolean;
+  minutesId: string | null;
+  assigneeId: string | null;
+  createdAt: Date;
+  assignee: {
+    id: string;
+    githubUsername: string;
+    avatarUrl: string | null;
+  } | null;
+};
+
+function mapTodoToResponse(todo: TodoWithAssignee) {
+  return {
+    id: todo.id,
+    room_id: todo.roomId,
+    repo_id: todo.repoId,
+    title: todo.title,
+    body: todo.body,
+    labels: todo.labels,
+    github_issue_number: todo.githubIssueNumber,
+    is_done: todo.isDone,
+    minutes_id: todo.minutesId,
+    assignee: todo.assignee
+      ? {
+          id: todo.assignee.id,
+          github_username: todo.assignee.githubUsername,
+          avatar_url: todo.assignee.avatarUrl,
+        }
+      : null,
+    created_at: todo.createdAt,
+  };
+}
+
+export type TodoDetailResponse = ReturnType<typeof mapTodoToResponse>;
+
+export function toTodoEventPayload(todo: TodoDetailResponse): TodoEventPayload {
+  return {
+    id: todo.id,
+    room_id: todo.room_id,
+    repo_id: todo.repo_id,
+    title: todo.title,
+    body: todo.body,
+    labels: todo.labels,
+    assignee_id: todo.assignee?.id ?? null,
+    minutes_id: todo.minutes_id,
+    github_issue_number: todo.github_issue_number,
+    is_done: todo.is_done,
+    created_at: todo.created_at,
+  };
+}
 
 // 깃 이슈 생성
 export async function createTodos(
@@ -240,25 +306,7 @@ export async function getTodos(
     orderBy: { createdAt: 'desc' },
   });
 
-  return todos.map(todo => ({
-    id: todo.id,
-    room_id: todo.roomId,
-    repo_id: todo.repoId,
-    title: todo.title,
-    body: todo.body,
-    labels: todo.labels,
-    github_issue_number: todo.githubIssueNumber,
-    is_done: todo.isDone,
-    minutes_id: todo.minutesId,
-    assignee: todo.assignee
-      ? {
-          id: todo.assignee.id,
-          github_username: todo.assignee.githubUsername,
-          avatar_url: todo.assignee.avatarUrl,
-        }
-      : null,
-    created_at: todo.createdAt,
-  }));
+  return todos.map(mapTodoToResponse);
 }
 
 // DB에서 이슈 삭제 + GitHub 이슈 Close
@@ -320,4 +368,149 @@ export async function deleteTodo(
 
   // 4. GitHub 이슈를 정상적으로 닫은 뒤에만 DB에서 삭제
   await prisma.todo.delete({ where: { id: todoId } });
+}
+
+export async function updateTodo(
+  userId: string,
+  roomId: string,
+  todoId: string,
+  input: UpdateTodoInput,
+) {
+  const membership = await prisma.roomMember.findFirst({
+    where: { roomId, userId },
+    select: { id: true },
+  });
+  if (membership === null) {
+    throw new AppError('ROOM_MEMBER_NOT_FOUND');
+  }
+
+  const todo = await prisma.todo.findFirst({
+    where: { id: todoId, roomId },
+  });
+  if (todo === null) {
+    throw new AppError('TODO_NOT_FOUND');
+  }
+
+  const hasLinkedGithubIssue =
+    todo.githubIssueNumber !== null && todo.repoId !== null;
+
+  if (hasLinkedGithubIssue) {
+    const repo = await prisma.repo.findUnique({
+      where: { id: todo.repoId! },
+      select: { fullName: true },
+    });
+    if (repo === null) {
+      throw new AppError('ROOM_REPO_NOT_FOUND');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { accessToken: true },
+    });
+    if (user?.accessToken === null || user?.accessToken === undefined) {
+      throw new AppError('GITHUB_SCOPE_REQUIRED');
+    }
+
+    const githubParams: Parameters<typeof updateIssue>[4] = {};
+    if (input.title !== undefined) {
+      githubParams.title = input.title;
+    }
+
+    if (input.body !== undefined) {
+      githubParams.body = input.body;
+    }
+
+    if (input.labels !== undefined) {
+      githubParams.labels = input.labels;
+    }
+
+    if (input.is_done !== undefined) {
+      githubParams.state = input.is_done ? 'closed' : 'open';
+    }
+
+    if (input.assignee_id !== undefined) {
+      if (input.assignee_id === null) {
+        githubParams.assignees = [];
+      } else {
+        const assignee = await prisma.user.findUnique({
+          where: { id: input.assignee_id },
+          select: { githubUsername: true },
+        });
+        githubParams.assignees =
+          assignee !== null ? [assignee.githubUsername] : [];
+      }
+    }
+
+    if (Object.keys(githubParams).length > 0) {
+      const [owner, repoName] = repo.fullName.split('/');
+      await updateIssue(
+        user.accessToken,
+        owner,
+        repoName,
+        todo.githubIssueNumber!,
+        githubParams,
+      );
+    }
+  }
+
+  const updated = await prisma.todo.update({
+    where: { id: todoId },
+    data: {
+      ...(input.title !== undefined && { title: input.title }),
+      ...(input.body !== undefined && { body: input.body }),
+      ...(input.labels !== undefined && { labels: input.labels }),
+      ...(input.assignee_id !== undefined && {
+        assigneeId: input.assignee_id,
+      }),
+      ...(input.is_done !== undefined && { isDone: input.is_done }),
+    },
+    include: {
+      assignee: {
+        select: {
+          id: true,
+          githubUsername: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  });
+
+  return mapTodoToResponse(updated);
+}
+
+export async function getTodoLabels(userId: string, roomId: string) {
+  const membership = await prisma.roomMember.findFirst({
+    where: { roomId, userId },
+    select: { id: true },
+  });
+  if (membership === null) {
+    throw new AppError('ROOM_MEMBER_NOT_FOUND');
+  }
+
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    include: {
+      repos: { select: { fullName: true }, orderBy: { createdAt: 'asc' } },
+    },
+  });
+  if (room === null) {
+    throw new AppError('ROOM_NOT_FOUND');
+  }
+
+  const repo = room.repos[0] ?? null;
+  if (repo === null) {
+    throw new AppError('ROOM_REPO_NOT_FOUND');
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { accessToken: true },
+  });
+  if (user?.accessToken === null || user?.accessToken === undefined) {
+    throw new AppError('GITHUB_SCOPE_REQUIRED');
+  }
+
+  const [owner, repoName] = repo.fullName.split('/');
+
+  return listLabelsForRepo(user.accessToken, owner, repoName);
 }

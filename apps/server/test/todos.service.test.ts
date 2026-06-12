@@ -20,8 +20,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Prisma } from '@/generated/prisma/client/index.js';
 import { prisma } from '@/lib/prisma.js';
-import { closeIssue, createIssue } from '@/services/github.service.js';
-import { createTodos, deleteTodo, getTodos } from '@/services/todos.service.js';
+import {
+  closeIssue,
+  createIssue,
+  listLabelsForRepo,
+  updateIssue,
+} from '@/services/github.service.js';
+import {
+  createTodos,
+  deleteTodo,
+  getTodoLabels,
+  getTodos,
+  updateTodo,
+} from '@/services/todos.service.js';
 
 // prisma 를 가짜로 대체 — 서비스가 쓰는 메서드만 vi.fn() 으로 채운다
 vi.mock('@/lib/prisma.js', () => ({
@@ -50,6 +61,8 @@ vi.mock('@/lib/prisma.js', () => ({
 vi.mock('@/services/github.service.js', () => ({
   createIssue: vi.fn(),
   closeIssue: vi.fn(),
+  updateIssue: vi.fn(),
+  listLabelsForRepo: vi.fn(),
 }));
 
 // 타입 에러 없이 .mockResolvedValue 등을 쓰기 위해 any 로 느슨하게 캐스팅
@@ -422,5 +435,209 @@ describe('deleteTodo', () => {
     // owner/repo + 이슈 번호로 close 를 호출했는가
     expect(closeIssue).toHaveBeenCalledWith('gho_token', 'jiyun', 'todak', 42);
     expect(db.todo.delete).toHaveBeenCalledWith({ where: { id: TODO_ID } });
+  });
+});
+
+describe('updateTodo', () => {
+  const existingTodo = {
+    id: TODO_ID,
+    roomId: ROOM_ID,
+    repoId: REPO_ID,
+    title: '인증 리팩토링',
+    body: '본문',
+    labels: ['backend'],
+    githubIssueNumber: 42,
+    isDone: false,
+    minutesId: null,
+    assigneeId: null,
+    createdAt: new Date('2026-05-18T14:02:00.000Z'),
+  };
+
+  it('룸 멤버가 아니면 ROOM_MEMBER_NOT_FOUND', async () => {
+    db.roomMember.findFirst.mockResolvedValue(null);
+
+    await expectAppError(
+      updateTodo(USER_ID, ROOM_ID, TODO_ID, { title: '수정' }),
+      'ROOM_MEMBER_NOT_FOUND',
+    );
+  });
+
+  it('Todo 가 없으면 TODO_NOT_FOUND', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.todo.findFirst.mockResolvedValue(null);
+
+    await expectAppError(
+      updateTodo(USER_ID, ROOM_ID, TODO_ID, { title: '수정' }),
+      'TODO_NOT_FOUND',
+    );
+  });
+
+  it('GitHub 이슈가 없으면 updateIssue 없이 DB 만 수정', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.todo.findFirst.mockResolvedValue({
+      ...existingTodo,
+      githubIssueNumber: null,
+      repoId: null,
+    });
+    db.todo.update.mockResolvedValue({
+      ...existingTodo,
+      title: '수정됨',
+      githubIssueNumber: null,
+      repoId: null,
+      assignee: null,
+    });
+
+    const result = await updateTodo(USER_ID, ROOM_ID, TODO_ID, {
+      title: '수정됨',
+    });
+
+    expect(updateIssue).not.toHaveBeenCalled();
+    expect(result.title).toBe('수정됨');
+  });
+
+  it('GitHub 이슈가 있으면 updateIssue 후 DB 수정', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.todo.findFirst.mockResolvedValue(existingTodo);
+    db.repo.findUnique.mockResolvedValue({
+      id: REPO_ID,
+      fullName: 'jiyun/todak',
+    });
+    db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
+    vi.mocked(updateIssue).mockResolvedValue(undefined);
+    db.todo.update.mockResolvedValue({
+      ...existingTodo,
+      isDone: true,
+      assignee: null,
+    });
+
+    const result = await updateTodo(USER_ID, ROOM_ID, TODO_ID, {
+      is_done: true,
+    });
+
+    expect(updateIssue).toHaveBeenCalledWith(
+      'gho_token',
+      'jiyun',
+      'todak',
+      42,
+      { state: 'closed' },
+    );
+    expect(result.is_done).toBe(true);
+  });
+
+  it('repoId=null Todo 는 GitHub 호출 없이 DB 만 수정', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.todo.findFirst.mockResolvedValue({
+      ...existingTodo,
+      repoId: null,
+    });
+    db.todo.update.mockResolvedValue({
+      ...existingTodo,
+      repoId: null,
+      title: '로컬 수정',
+      assignee: null,
+    });
+
+    await updateTodo(USER_ID, ROOM_ID, TODO_ID, { title: '로컬 수정' });
+
+    expect(updateIssue).not.toHaveBeenCalled();
+    expect(db.repo.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('GitHub 연결 Todo 에서 accessToken 없으면 GITHUB_SCOPE_REQUIRED', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.todo.findFirst.mockResolvedValue(existingTodo);
+    db.repo.findUnique.mockResolvedValue({
+      id: REPO_ID,
+      fullName: 'jiyun/todak',
+    });
+    db.user.findUnique.mockResolvedValue({ accessToken: null });
+
+    await expectAppError(
+      updateTodo(USER_ID, ROOM_ID, TODO_ID, { is_done: true }),
+      'GITHUB_SCOPE_REQUIRED',
+    );
+
+    expect(updateIssue).not.toHaveBeenCalled();
+  });
+
+  it('assignee_id 를 유저 ID 로 지정하면 GitHub assignees 에 username 전달', async () => {
+    const ASSIGNEE_ID = 'user-assignee-1';
+
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.todo.findFirst.mockResolvedValue(existingTodo);
+    db.repo.findUnique.mockResolvedValue({
+      id: REPO_ID,
+      fullName: 'jiyun/todak',
+    });
+    db.user.findUnique
+      .mockResolvedValueOnce({ accessToken: 'gho_token' })
+      .mockResolvedValueOnce({ githubUsername: 'assignee-github' });
+    vi.mocked(updateIssue).mockResolvedValue(undefined);
+    db.todo.update.mockResolvedValue({
+      ...existingTodo,
+      assigneeId: ASSIGNEE_ID,
+      assignee: {
+        id: ASSIGNEE_ID,
+        githubUsername: 'assignee-github',
+        avatarUrl: null,
+      },
+    });
+
+    const result = await updateTodo(USER_ID, ROOM_ID, TODO_ID, {
+      assignee_id: ASSIGNEE_ID,
+    });
+
+    expect(updateIssue).toHaveBeenCalledWith(
+      'gho_token',
+      'jiyun',
+      'todak',
+      42,
+      { assignees: ['assignee-github'] },
+    );
+    expect(result.assignee?.github_username).toBe('assignee-github');
+  });
+});
+
+describe('getTodoLabels', () => {
+  it('룸 멤버가 아니면 ROOM_MEMBER_NOT_FOUND', async () => {
+    db.roomMember.findFirst.mockResolvedValue(null);
+
+    await expectAppError(
+      getTodoLabels(USER_ID, ROOM_ID),
+      'ROOM_MEMBER_NOT_FOUND',
+    );
+  });
+
+  it('연결 레포가 없으면 ROOM_REPO_NOT_FOUND', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.room.findUnique.mockResolvedValue({ id: ROOM_ID, repos: [] });
+
+    await expectAppError(
+      getTodoLabels(USER_ID, ROOM_ID),
+      'ROOM_REPO_NOT_FOUND',
+    );
+  });
+
+  it('레포 라벨 목록을 반환', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.room.findUnique.mockResolvedValue({
+      id: ROOM_ID,
+      repos: [{ fullName: 'jiyun/todak' }],
+    });
+    db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
+    vi.mocked(listLabelsForRepo).mockResolvedValue([
+      { name: 'bug', color: 'd73a4a', description: "Something isn't working" },
+    ]);
+
+    const result = await getTodoLabels(USER_ID, ROOM_ID);
+
+    expect(listLabelsForRepo).toHaveBeenCalledWith(
+      'gho_token',
+      'jiyun',
+      'todak',
+    );
+    expect(result).toEqual([
+      { name: 'bug', color: 'd73a4a', description: "Something isn't working" },
+    ]);
   });
 });

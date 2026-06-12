@@ -222,6 +222,38 @@ export async function deleteRepo(
   }
 }
 
+export type UpdateIssueParams = {
+  title?: string;
+  body?: string | null;
+  labels?: string[];
+  assignees?: string[];
+  state?: 'open' | 'closed';
+};
+
+export async function updateIssue(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  params: UpdateIssueParams,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.issues.update({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      ...params,
+    });
+  } catch (err) {
+    mapGithubError(err, {
+      403: 'REPO_ADMIN_REQUIRED',
+      404: 'REPO_NOT_FOUND',
+    });
+  }
+}
+
 export async function closeIssue(
   accessToken: string,
   owner: string,
@@ -245,8 +277,7 @@ export async function closeIssue(
 
       /*
        * 404 = 이슈/레포가 이미 없음. "닫기"의 목표 상태(이슈가 열려 있지 않음)는
-       * 이미 달성된 셈이므로 멱등하게 성공 처리한다. (unregisterWebhook 과 동일한 방침)
-       * 이렇게 하면 GitHub에서 이미 사라진 이슈를 가진 Todo도 삭제가 막히지 않는다.
+       * 이미 달성된 셈이므로 멱등하게 성공 처리한다.
        */
       if (err.status === 404) {
         return;
@@ -254,6 +285,33 @@ export async function closeIssue(
       throw new AppError('GITHUB_API_ERROR');
     }
     throw err;
+  }
+}
+
+export async function listLabelsForRepo(
+  accessToken: string,
+  owner: string,
+  repo: string,
+): Promise<Array<{ name: string; color: string; description: string | null }>> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.issues.listLabelsForRepo({
+      owner,
+      repo,
+      per_page: 100,
+    });
+
+    return data.map(label => ({
+      name: label.name,
+      color: label.color ?? '',
+      description: label.description ?? null,
+    }));
+  } catch (err) {
+    return mapGithubError(err, {
+      403: 'REPO_ADMIN_REQUIRED',
+      404: 'REPO_NOT_FOUND',
+    });
   }
 }
 
