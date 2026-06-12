@@ -206,6 +206,20 @@ export const ERROR_CODES = {
     message: '해당 회의에 대한 회의록이 이미 존재합니다.',
   },
 
+  // 413
+  FILE_TOO_LARGE: {
+    statusCode: StatusCodes.REQUEST_TOO_LONG,
+    code: 'FILE_TOO_LARGE',
+    message: '첨부 파일 용량이 허용 범위를 초과했습니다.',
+  },
+
+  // 415
+  UNSUPPORTED_FILE_TYPE: {
+    statusCode: StatusCodes.UNSUPPORTED_MEDIA_TYPE,
+    code: 'UNSUPPORTED_FILE_TYPE',
+    message: '지원하지 않는 파일 형식입니다. (이미지 또는 PDF만 가능)',
+  },
+
   // 422
   PR_REVIEW_NOT_ALLOWED: {
     statusCode: StatusCodes.UNPROCESSABLE_ENTITY,

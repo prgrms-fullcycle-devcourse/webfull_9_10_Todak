@@ -16,7 +16,13 @@ export interface ChatEventPayload {
     avatar_url: string | null;
   };
   content: string | null;
-  type: string;
+  type: string; // text | meeting_start | meeting_end
+  attachments: {
+    url: string; // 조회용 presigned URL (만료 있음)
+    mime: string;
+    size: number;
+    name: string;
+  }[]; // 첨부 없으면 빈 배열
   created_at: string;
   reactions: { emoji: string; count: number; me: boolean }[];
 }
