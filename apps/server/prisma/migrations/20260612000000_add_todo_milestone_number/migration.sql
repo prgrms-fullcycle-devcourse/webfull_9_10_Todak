@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "todos" ADD COLUMN "milestone_number" INTEGER;
+ALTER TABLE "todo" ADD COLUMN "milestone_number" INTEGER;
