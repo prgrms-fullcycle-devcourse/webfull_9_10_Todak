@@ -5,11 +5,16 @@ import RoomSettingsDropdown from './_components/RoomSettingsDropdown';
 import ViewSelection from './_components/ViewSelection';
 
 import AuthRefreshOnMount from '@/app/_components/AuthRefreshOnMount';
-import { apiServer, isApiServerAuthError } from '@/lib/api.server';
+import {
+  apiServer,
+  isApiServerAuthError,
+  isApiServerNotFoundError,
+} from '@/lib/api.server';
 import type { AuthUser } from '@/lib/auth';
 import type { MinutesList } from '@/services/minutes/model';
 import type { RoomInfo, RoomMembers } from '@/services/rooms/model';
 import { Accordion, Separator } from '@heroui/react';
+import { notFound } from 'next/navigation';
 import PullRequestNotifications from './_components/PullRequestNotifications';
 
 interface SidebarProps {
@@ -42,6 +47,10 @@ export default async function Sidebar({ params }: SidebarProps) {
   } catch (error) {
     if (isApiServerAuthError(error)) {
       return <SidebarFallback />;
+    }
+
+    if (isApiServerNotFoundError(error)) {
+      notFound();
     }
 
     throw error;

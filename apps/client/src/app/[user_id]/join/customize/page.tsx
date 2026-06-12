@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import AuthRefreshOnMount from '@/app/_components/AuthRefreshOnMount';
 import { apiServer, isApiServerAuthError } from '@/lib/api.server';
@@ -52,7 +52,11 @@ async function redirectUserWhenSetupComplete(roomID: string) {
 
   const currentRoom = rooms.find(room => room.id === roomID);
 
-  if (currentRoom?.is_setup_completed === true) {
+  if (currentRoom === undefined) {
+    notFound();
+  }
+
+  if (currentRoom.is_setup_completed) {
     redirect(`/room/${encodeURIComponent(roomID)}`);
   }
 

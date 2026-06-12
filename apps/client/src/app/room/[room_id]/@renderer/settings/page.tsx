@@ -1,7 +1,12 @@
 import AuthRefreshOnMount from '@/app/_components/AuthRefreshOnMount';
-import { apiServer, isApiServerAuthError } from '@/lib/api.server';
+import {
+  apiServer,
+  isApiServerAuthError,
+  isApiServerNotFoundError,
+} from '@/lib/api.server';
 import type { AuthUser } from '@/lib/auth';
 import type { RoomInfo, RoomMembers } from '@/services/rooms/model';
+import { notFound } from 'next/navigation';
 
 import ProfileSettingsForm from './_components/ProfileSettingsForm';
 import ProjectSettingsForm from './_components/ProjectSettingsForm';
@@ -36,6 +41,10 @@ export default async function RoomSettingsPage({
           </p>
         </main>
       );
+    }
+
+    if (isApiServerNotFoundError(error)) {
+      notFound();
     }
 
     throw error;
