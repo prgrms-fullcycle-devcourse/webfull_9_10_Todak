@@ -1,11 +1,17 @@
 'use client';
 
 import { cn } from '@/lib/cn';
-import { useRoomPullRequests } from '@/services/github/query';
+import { getAuthToken } from '@/lib/auth';
+import { getSocket } from '@/lib/socket';
+import {
+  pullRequestQueryKeys,
+  useRoomPullRequests,
+} from '@/services/github/query';
 import type { RoomPullRequest } from '@/services/github/api';
-import { Accordion, Chip } from '@heroui/react';
+import { Accordion } from '@heroui/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 
 import PullRequestModal, {
   type PullRequestModalData,
@@ -19,6 +25,7 @@ export default function PullRequestNotifications({
   className,
 }: PullRequestNotificationsProps) {
   const { room_id: roomID } = useParams<{ room_id: string }>();
+  const queryClient = useQueryClient();
   const {
     data: pullRequestsResponse,
     isError,
@@ -26,6 +33,9 @@ export default function PullRequestNotifications({
   } = useRoomPullRequests(roomID);
   const [selectedPullRequest, setSelectedPullRequest] =
     useState<PullRequestModalData | null>(null);
+  const [hasPullRequestUpdate, setHasPullRequestUpdate] = useState(false);
+  const [isPullRequestExpanded, setIsPullRequestExpanded] = useState(false);
+  const isPullRequestExpandedRef = useRef(isPullRequestExpanded);
   const isModalOpen = selectedPullRequest !== null;
   const pullRequests = useMemo(
     () =>
@@ -35,25 +45,89 @@ export default function PullRequestNotifications({
     [pullRequestsResponse?.pull_requests],
   );
 
+  useEffect(() => {
+    isPullRequestExpandedRef.current = isPullRequestExpanded;
+  }, [isPullRequestExpanded]);
+
+  useEffect(() => {
+    const socket = getSocket(getAuthToken() ?? undefined);
+    const handlePullRequestEvent = (data: { roomId: string }) => {
+      if (data.roomId !== roomID) {
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: pullRequestQueryKeys.all });
+
+      if (!isPullRequestExpandedRef.current) {
+        setHasPullRequestUpdate(true);
+      }
+    };
+    const joinRoom = () => {
+      socket.emit('room:join', roomID);
+    };
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    if (socket.connected) {
+      joinRoom();
+    } else {
+      socket.on('connect', joinRoom);
+    }
+
+    socket.on('pr:opened', handlePullRequestEvent);
+    socket.on('pr:merged', handlePullRequestEvent);
+    socket.on('pr:closed', handlePullRequestEvent);
+    socket.on('pr:reviewed', handlePullRequestEvent);
+
+    return () => {
+      socket.off('connect', joinRoom);
+      socket.off('pr:opened', handlePullRequestEvent);
+      socket.off('pr:merged', handlePullRequestEvent);
+      socket.off('pr:closed', handlePullRequestEvent);
+      socket.off('pr:reviewed', handlePullRequestEvent);
+    };
+  }, [queryClient, roomID]);
+
+  const handlePullRequestTriggerPress = () => {
+    setIsPullRequestExpanded(current => {
+      const next = !current;
+
+      if (next) {
+        setHasPullRequestUpdate(false);
+      }
+
+      return next;
+    });
+  };
+
   return (
     <>
       <Accordion.Item className={className} id="pull-requests">
         <Accordion.Heading>
-          <Accordion.Trigger className="flex w-full items-center justify-between gap-2 px-1 py-2.5 text-left">
+          <Accordion.Trigger
+            className="flex w-full items-center justify-between gap-2 px-1 py-2.5 text-left"
+            onPress={handlePullRequestTriggerPress}
+          >
             <div className="flex min-w-0 items-center gap-2">
-              <span className="truncate text-[11px] font-black tracking-tight text-muted">
+              <span
+                className={cn(
+                  'truncate text-[11px] tracking-tight transition-colors',
+                  hasPullRequestUpdate
+                    ? 'font-black text-foreground'
+                    : 'font-bold text-muted',
+                )}
+              >
                 PR 리뷰
               </span>
+              {hasPullRequestUpdate && (
+                <span className="sr-only" role="status">
+                  새 PR 업데이트가 있습니다.
+                </span>
+              )}
             </div>
 
-            <Chip
-              className="h-5 shrink-0 rounded-md bg-accent/10 px-1.5 font-todak-mono text-[8px] font-black tracking-wide text-accent"
-              color="danger"
-              size="sm"
-              variant="soft"
-            >
-              PR {pullRequests.length}
-            </Chip>
             <Accordion.Indicator className="size-3.5 text-muted" />
           </Accordion.Trigger>
         </Accordion.Heading>

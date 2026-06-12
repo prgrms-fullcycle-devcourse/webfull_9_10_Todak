@@ -9,10 +9,16 @@ import {
   useRoomPullRequestDetail,
 } from '@/services/github/query';
 import { Button, Modal } from '@heroui/react';
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { PullRequestModalData } from './types';
+
+const MarkdownPreview = dynamic(
+  () => import('@uiw/react-md-editor').then(mod => mod.default.Markdown),
+  { ssr: false },
+);
 
 interface PullRequestModalProps {
   isOpen: boolean;
@@ -87,6 +93,7 @@ export default function PullRequestModal({
     ? formatDateTime(detail.updated_at)
     : pullRequest.updatedAt;
   const body = detail?.body?.trim();
+  const pullRequestUrl = detail?.html_url ?? pullRequest.url;
   const diffLabel = detail?.changes
     ? `+${detail.changes.additions}/-${detail.changes.deletions}`
     : '확인 중';
@@ -148,9 +155,14 @@ export default function PullRequestModal({
                   {title}
                 </Modal.Heading>
 
-                <span className="font-todak-mono text-[18px] font-black text-muted">
+                <a
+                  className="font-todak-mono text-[18px] font-black text-todak-coral-500 underline decoration-todak-coral-300 underline-offset-4 transition-colors hover:text-todak-coral-600 focus:outline-none focus:ring-2 focus:ring-todak-coral-300"
+                  href={pullRequestUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
                   #{pullRequest.id}
-                </span>
+                </a>
               </div>
               <p className="text-[11px] font-bold text-muted">
                 생성 {createdAt || '확인 중'} · 수정 {updatedAt || '확인 중'}
@@ -202,13 +214,19 @@ export default function PullRequestModal({
                       {author} commented
                     </p>
                   </header>
-                  <div
-                    className={cn(
-                      'max-h-[360px] overflow-y-auto whitespace-pre-wrap px-4 py-4 text-[13px] font-semibold leading-7 text-slate-600',
-                      !body && 'text-muted',
+                  <div className="max-h-[360px] overflow-y-auto px-4 py-4">
+                    {body ? (
+                      <div data-color-mode="light">
+                        <MarkdownPreview
+                          className="bg-transparent text-[13px] font-semibold leading-7 text-slate-600"
+                          source={body}
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-[13px] font-semibold leading-7 text-muted">
+                        등록된 PR 본문이 없습니다.
+                      </p>
                     )}
-                  >
-                    {body || '등록된 PR 본문이 없습니다.'}
                   </div>
                 </section>
 
@@ -426,7 +444,7 @@ function getReviewStatus({
     return 'Draft';
   }
 
-  if (hasApproved) {
+  if (isMyPullRequest || hasApproved) {
     return '승인됨';
   }
 
@@ -443,46 +461,6 @@ function getActionErrorMessage(error: unknown) {
   }
 
   return 'PR 작업 처리 중 오류가 발생했습니다.';
-}
-
-function getReviewMessage({
-  isDraft,
-  isError,
-  isMerged,
-  isMyPullRequest,
-  mergeable,
-}: {
-  isDraft: boolean;
-  isError?: boolean;
-  isMerged: boolean;
-  isMyPullRequest: boolean;
-  mergeable?: boolean | null;
-}) {
-  if (isError) {
-    return '상세 정보를 불러오지 못했습니다. 잠시 후 다시 열거나 GitHub 원본에서 PR 상태를 확인해주세요.';
-  }
-
-  if (isMerged) {
-    return '이미 머지된 PR입니다. 추가 승인이나 머지 작업은 필요하지 않습니다.';
-  }
-
-  if (isDraft) {
-    return 'Draft PR입니다. 리뷰 준비 상태로 전환한 뒤 승인 또는 머지를 진행해주세요.';
-  }
-
-  if (isMyPullRequest) {
-    return '내 PR입니다. 리뷰 상태는 승인됨으로 표시되며 머지만 진행할 수 있습니다.';
-  }
-
-  if (mergeable === true) {
-    return '다른 사람의 PR입니다. 코드가 정상 작동하면 리뷰 승인을 진행할 수 있습니다.';
-  }
-
-  if (mergeable === false) {
-    return '충돌 확인 필요: 머지 전 브랜치 충돌이나 변경 사항을 먼저 확인해주세요.';
-  }
-
-  return '다른 사람의 PR입니다. PR 상세 정보를 확인한 뒤 리뷰 승인을 진행할 수 있습니다.';
 }
 
 function getStatusMeta(state: string, isDraft: boolean, isMerged: boolean) {

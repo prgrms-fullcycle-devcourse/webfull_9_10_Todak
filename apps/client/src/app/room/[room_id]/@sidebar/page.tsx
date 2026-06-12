@@ -57,7 +57,7 @@ export default async function Sidebar({ params }: SidebarProps) {
       <Accordion
         allowsMultipleExpanded
         className="min-h-0 flex-1 overflow-y-auto pr-1"
-        defaultExpandedKeys={['pull-requests']}
+        defaultExpandedKeys={[]}
       >
         <RecentMeetingLogs meetingLogs={meetingLogs.minutes} />
         <PullRequestNotifications />
