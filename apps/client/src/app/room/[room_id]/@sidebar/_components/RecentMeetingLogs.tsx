@@ -3,7 +3,7 @@
 import type { Minute } from '@/services/minutes/model';
 import { useSpaceStore } from '@/store/useSpaceStore';
 
-import { Button } from '@heroui/react';
+import { Accordion, Button } from '@heroui/react';
 
 interface Props {
   meetingLogs: Minute[];
@@ -21,37 +21,44 @@ export default function RecentMeetingLogs({ meetingLogs }: Props) {
   const hasMeetingLogs = meetingLogs.length > 0;
 
   return (
-    <div className="mt-6 flex min-h-0 flex-1 flex-col gap-2">
-      <p className="px-1 text-[11px] font-black tracking-tight text-muted">
-        📁 최근 회의록 아카이브 (최근 5개)
-      </p>
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-        {!hasMeetingLogs ? (
-          <div className="flex min-h-[92px] items-center justify-center rounded-2xl border border-dashed border-border bg-surface/70 px-4 text-center shadow-surface">
-            <p className="text-[11px] font-black text-muted">
-              최근 회의록이 없습니다.
-            </p>
-          </div>
-        ) : (
-          meetingLogs.map(log => (
-            <Button
-              className="h-auto min-w-0 w-full rounded-2xl border border-border bg-surface p-4 text-left shadow-surface transition-colors hover:bg-surface-secondary"
-              key={`${log.id}-${log.title}`}
-              variant="ghost"
-              onClick={() => handleClick(log.id)}
-            >
-              <span className="block min-w-0">
-                <span className="block truncate text-sm font-black text-foreground">
-                  {log.title}
+    <Accordion.Item id="recent-meetings">
+      <Accordion.Heading>
+        <Accordion.Trigger className="flex w-full items-center justify-between gap-2 px-1 py-2.5 text-left">
+          <span className="text-[11px] font-black tracking-tight text-muted">
+            최근 회의록
+          </span>
+          <Accordion.Indicator className="size-3.5 text-muted" />
+        </Accordion.Trigger>
+      </Accordion.Heading>
+      <Accordion.Panel className="pb-3">
+        <div className="max-h-44 min-h-0 space-y-1.5 overflow-y-auto pr-1">
+          {!hasMeetingLogs ? (
+            <div className="flex min-h-14 items-center justify-center rounded-lg bg-surface-secondary px-3 text-center">
+              <p className="text-[10px] font-black text-muted">
+                최근 회의록이 없습니다.
+              </p>
+            </div>
+          ) : (
+            meetingLogs.map(log => (
+              <Button
+                className="h-auto min-w-0 w-full rounded-lg bg-surface-secondary px-2.5 py-2 text-left shadow-none transition-colors hover:bg-surface-tertiary"
+                key={log.id}
+                variant="ghost"
+                onClick={() => handleClick(log.id)}
+              >
+                <span className="block min-w-0">
+                  <span className="block truncate text-xs font-black text-foreground">
+                    {log.title}
+                  </span>
+                  <span className="mt-0.5 block font-todak-mono text-[8px] text-muted">
+                    {log.created_at} · {log.type}
+                  </span>
                 </span>
-                <span className="mt-1 block font-todak-mono text-[9px] text-muted">
-                  {log.created_at} · {log.type}
-                </span>
-              </span>
-            </Button>
-          ))
-        )}
-      </div>
-    </div>
+              </Button>
+            ))
+          )}
+        </div>
+      </Accordion.Panel>
+    </Accordion.Item>
   );
 }

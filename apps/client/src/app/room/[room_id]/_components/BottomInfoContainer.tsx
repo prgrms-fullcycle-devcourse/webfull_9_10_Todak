@@ -1,4 +1,4 @@
-import BottomTodoTabs from './Todos/BottomTodoTabs';
+import BottomTodoTabs from '../@sidebar/_components/Todos/BottomTodoTabs';
 import RollingNotificationBanner from './RollingNotificationBanner';
 
 export default function BottomInfoContainer() {
