@@ -1,16 +1,8 @@
 import Link from 'next/link';
 
-interface SettingsSidebarProps {
-  params: Promise<{
-    room_id: string;
-  }>;
-}
+import SettingsSidebarBackButton from './_components/SettingsSidebarBackButton';
 
-export default async function SettingsSidebar({
-  params,
-}: SettingsSidebarProps) {
-  const { room_id: roomID } = await params;
-
+export default function SettingsSidebar() {
   return (
     <nav aria-label="설정 메뉴" className="flex h-full min-h-0 flex-col">
       <div className="shrink-0">
@@ -37,12 +29,7 @@ export default async function SettingsSidebar({
       </div>
 
       <div className="mt-auto pt-5">
-        <Link
-          className="inline-flex h-9 w-full items-center justify-center rounded-xl bg-foreground px-4 text-xs font-black text-background shadow-todak-soft"
-          href={`/room/${encodeURIComponent(roomID)}`}
-        >
-          룸으로 돌아가기
-        </Link>
+        <SettingsSidebarBackButton />
       </div>
     </nav>
   );

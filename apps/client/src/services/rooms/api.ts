@@ -117,6 +117,6 @@ export function updateRoomProfile(
     roles?: string[];
     detailed_role?: string | null;
   },
-): Promise<{ success: boolean; data: RoomProfile }> {
+): Promise<RoomProfile> {
   return apiClient.patch(`/rooms/${roomId}/members/me`, body);
 }

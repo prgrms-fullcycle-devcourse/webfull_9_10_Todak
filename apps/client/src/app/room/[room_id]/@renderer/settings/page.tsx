@@ -2,17 +2,8 @@ import AuthRefreshOnMount from '@/app/_components/AuthRefreshOnMount';
 import { apiServer, isApiServerAuthError } from '@/lib/api.server';
 import type { AuthUser } from '@/lib/auth';
 import type { RoomInfo, RoomMembers } from '@/services/rooms/model';
-import Image from 'next/image';
-import Link from 'next/link';
 
-import SettingsBackControls from './_components/SettingsBackControls';
-
-const ROLE_LABELS: Record<string, string> = {
-  frontend: 'Frontend',
-  backend: 'Backend',
-  design: 'Designer',
-  pm: 'PM',
-};
+import ProfileSettingsForm from './_components/ProfileSettingsForm';
 
 interface RoomSettingsPageProps {
   params: Promise<{
@@ -52,17 +43,11 @@ export default async function RoomSettingsPage({
   const myRoomInfo = roomMembers.members.find(
     member => member.github_username === myInfo.login,
   );
-  const displayName = myRoomInfo?.nickname?.trim() || myInfo.login;
-  const roleLabel =
-    myRoomInfo?.roles.map(role => ROLE_LABELS[role] ?? role).join(', ') ||
-    'Role';
   const repoLabel = roomInfo.repo?.full_name ?? '연동된 깃허브 없음';
 
   return (
     <main className="h-full min-h-0 overflow-y-auto scroll-smooth bg-background px-5 py-6 text-foreground">
       <div className="mx-auto w-full max-w-[760px] space-y-5 pb-10">
-        <SettingsBackControls />
-
         <header className="rounded-[26px] border border-border/80 bg-surface px-6 py-6 shadow-todak-panel">
           <p className="todak-section-label text-todak-coral-500">
             ROOM SETTINGS
@@ -73,51 +58,7 @@ export default async function RoomSettingsPage({
           </p>
         </header>
 
-        <section
-          className="scroll-mt-6 rounded-[26px] border border-border/80 bg-surface px-6 py-6 shadow-todak-panel"
-          id="profile"
-        >
-          <p className="todak-section-label text-todak-coral-500">PROFILE</p>
-          <h2 className="mt-2 text-lg font-black text-foreground">프로필</h2>
-          <div className="mt-5 flex items-center gap-3">
-            {myInfo.avatarUrl.trim() !== '' ? (
-              <div className="relative size-14 shrink-0 overflow-hidden rounded-full bg-surface-secondary">
-                <Image
-                  alt={`${displayName} 프로필 이미지`}
-                  className="object-cover"
-                  fill
-                  sizes="56px"
-                  src={myInfo.avatarUrl}
-                />
-              </div>
-            ) : (
-              <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-base font-black text-muted">
-                {displayName.trim().slice(0, 1) || '?'}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="truncate text-sm font-black text-foreground">
-                {displayName}
-              </p>
-              <p className="mt-0.5 truncate font-todak-mono text-[10px] text-muted">
-                @{myInfo.login}
-              </p>
-            </div>
-          </div>
-
-          <dl className="mt-5 grid gap-3 sm:grid-cols-2">
-            <SettingField label="역할" value={roleLabel} />
-            <SettingField
-              label="세부 직군"
-              value={myRoomInfo?.detailed_role ?? '미설정'}
-            />
-            <SettingField
-              label="캐릭터"
-              value={myRoomInfo?.character_type ?? '미설정'}
-            />
-            <SettingField label="상태" value={myRoomInfo?.status ?? '미설정'} />
-          </dl>
-        </section>
+        <ProfileSettingsForm myRoomInfo={myRoomInfo} roomID={roomID} />
 
         <section
           className="scroll-mt-6 rounded-[26px] border border-border/80 bg-surface px-6 py-6 shadow-todak-panel"
@@ -138,13 +79,6 @@ export default async function RoomSettingsPage({
             />
           </dl>
         </section>
-
-        <Link
-          className="inline-flex h-10 items-center justify-center rounded-xl bg-foreground px-5 text-xs font-black text-background shadow-todak-soft"
-          href={`/room/${encodeURIComponent(roomID)}`}
-        >
-          룸으로 돌아가기
-        </Link>
       </div>
     </main>
   );

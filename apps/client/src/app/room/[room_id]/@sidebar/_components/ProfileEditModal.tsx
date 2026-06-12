@@ -96,9 +96,7 @@ export default function ProfileEditModal({
         roles: selectedParts.map(part => roleValueByPart[part]),
         detailed_role: selectedDetailJob.trim() || null,
       }),
-    onSuccess: response => {
-      const profile = response.data;
-
+    onSuccess: profile => {
       queryClient.invalidateQueries({ queryKey: ['room-members', roomID] });
       router.refresh();
 
