@@ -16,6 +16,10 @@ import type {
   MemberStatus,
   StatusResponse,
   RoomMembers,
+  UpdatedRoomSettings,
+  UpdateRoomSettingsParams,
+  ConnectedRoomRepository,
+  ConnectRoomRepositoryParams,
 } from './model';
 import { AuthTokenPayload } from '@/lib/auth';
 
@@ -30,6 +34,10 @@ export type {
   RoomMembers,
   RoomProfile,
   PrivateRoom,
+  UpdatedRoomSettings,
+  UpdateRoomSettingsParams,
+  ConnectedRoomRepository,
+  ConnectRoomRepositoryParams,
 } from './model';
 
 export async function fetchMyRooms(): Promise<MyRooms> {
@@ -50,7 +58,29 @@ export async function joinRooms(params: JoinRoomParams): Promise<JoinedRoom> {
   return response.data;
 }
 
-export function updateRoomSettings() {}
+export function updateRoomSettings(
+  roomId: string,
+  params: UpdateRoomSettingsParams,
+): Promise<UpdatedRoomSettings> {
+  return apiClient.patch<UpdatedRoomSettings, UpdateRoomSettingsParams>(
+    `/rooms/${roomId}`,
+    params,
+  );
+}
+
+export function connectRoomRepository(
+  roomId: string,
+  params: ConnectRoomRepositoryParams,
+): Promise<ConnectedRoomRepository> {
+  return apiClient.put<ConnectedRoomRepository, ConnectRoomRepositoryParams>(
+    `/rooms/${roomId}/repo`,
+    params,
+  );
+}
+
+export function disconnectRoomRepository(roomId: string): Promise<void> {
+  return apiClient.delete<void>(`/rooms/${roomId}/repo`);
+}
 
 export function deleteRooms() {}
 
@@ -117,6 +147,6 @@ export function updateRoomProfile(
     roles?: string[];
     detailed_role?: string | null;
   },
-): Promise<{ success: boolean; data: RoomProfile }> {
+): Promise<RoomProfile> {
   return apiClient.patch(`/rooms/${roomId}/members/me`, body);
 }

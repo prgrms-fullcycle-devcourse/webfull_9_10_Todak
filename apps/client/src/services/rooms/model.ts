@@ -21,6 +21,28 @@ export type CreateRoomsParams = {
   max_members?: number;
 };
 
+export type UpdateRoomSettingsParams = {
+  name?: string;
+  max_members?: number;
+};
+
+export type UpdatedRoomSettings = {
+  id: string;
+  name: string;
+  max_members: number;
+};
+
+export type ConnectRoomRepositoryParams = {
+  repo_full_name: string;
+};
+
+export type ConnectedRoomRepository = {
+  repo_id: string;
+  room_id: string;
+  repo_full_name: string;
+  webhook_registered: boolean;
+};
+
 export type CreatedRoom = {
   id: string;
   name: string;

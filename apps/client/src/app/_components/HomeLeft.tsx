@@ -11,7 +11,11 @@ function GithubIcon() {
     </svg>
   );
 }
-export default function HomeLeft() {
+interface HomeLeftProps {
+  isAuthenticated?: boolean;
+}
+
+export default function HomeLeft({ isAuthenticated = false }: HomeLeftProps) {
   return (
     <div className="max-w-[460px]">
       <div className="mb-8 flex items-center gap-3">
@@ -42,14 +46,16 @@ export default function HomeLeft() {
         해 주는 AI 서포트 허브입니다.
       </p>
 
-      <Link
-        aria-label="GitHub 계정으로 로그인"
-        className="mt-10 inline-flex h-auto min-w-0 items-center gap-2 rounded-xl bg-foreground px-8 py-4 text-sm font-black text-background shadow-todak-soft"
-        href={getGithubLoginUrl()}
-      >
-        <GithubIcon />
-        GitHub 계정으로 시작하기
-      </Link>
+      {!isAuthenticated && (
+        <Link
+          aria-label="GitHub 계정으로 로그인"
+          className="mt-10 inline-flex h-auto min-w-0 items-center gap-2 rounded-xl bg-foreground px-8 py-4 text-sm font-black text-background shadow-todak-soft"
+          href={getGithubLoginUrl()}
+        >
+          <GithubIcon />
+          GitHub 계정으로 시작하기
+        </Link>
+      )}
     </div>
   );
 }

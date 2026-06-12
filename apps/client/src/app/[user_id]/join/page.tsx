@@ -13,12 +13,21 @@ interface TeamSelectionPageProps {
   params: Promise<{
     user_id: string;
   }>;
+  searchParams?: Promise<{
+    inviteCode?: string | string[];
+  }>;
 }
 
 export default async function TeamSelectionPage({
   params,
+  searchParams,
 }: TeamSelectionPageProps) {
   const { user_id: userID } = await params;
+  const resolvedSearchParams = await searchParams;
+  const rawInviteCode = resolvedSearchParams?.inviteCode;
+  const inviteCode = Array.isArray(rawInviteCode)
+    ? rawInviteCode[0]
+    : rawInviteCode;
   const queryClient = new QueryClient();
   let shouldRefreshAuth = false;
 
@@ -39,7 +48,7 @@ export default async function TeamSelectionPage({
     <main className="min-h-dvh bg-background text-foreground">
       {shouldRefreshAuth && <AuthRefreshOnMount />}
       <HydrationBoundary state={dehydrate(queryClient)}>
-        <ProjectHub userID={userID} />
+        <ProjectHub initialInviteCode={inviteCode ?? ''} userID={userID} />
       </HydrationBoundary>
     </main>
   );
