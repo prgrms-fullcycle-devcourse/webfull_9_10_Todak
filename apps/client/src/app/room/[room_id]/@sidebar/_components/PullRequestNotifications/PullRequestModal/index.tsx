@@ -20,7 +20,6 @@ export default function PullRequestModal({
   }
 
   const closeModal = () => onOpenChange(false);
-  const statusText = pullRequest.isDraft ? 'Draft' : pullRequest.state;
   const assigneeText =
     pullRequest.assignees.length > 0
       ? pullRequest.assignees.join(', ')

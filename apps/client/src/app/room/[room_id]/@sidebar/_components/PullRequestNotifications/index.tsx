@@ -3,7 +3,7 @@
 import { cn } from '@/lib/cn';
 import { useRoomPullRequests } from '@/services/github/query';
 import type { RoomPullRequest } from '@/services/github/api';
-import { Card, Chip } from '@heroui/react';
+import { Accordion, Chip } from '@heroui/react';
 import { useParams } from 'next/navigation';
 import { type ReactNode, useMemo, useState } from 'react';
 
@@ -37,36 +37,28 @@ export default function PullRequestNotifications({
 
   return (
     <>
-      <Card
-        className={cn(
-          'review-station-card w-[280px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border-slate-700/80 bg-slate-900/95 p-0 text-slate-100 shadow-todak-panel backdrop-blur-md',
-          className,
-        )}
-      >
-        <Card.Header className="flex-row items-center justify-between gap-2 px-3.5 pb-2 pt-3.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <span
-              aria-hidden="true"
-              className="flex size-5 shrink-0 items-center justify-center rounded bg-slate-100 text-xs shadow-sm"
+      <Accordion.Item className={className} id="pull-requests">
+        <Accordion.Heading>
+          <Accordion.Trigger className="flex w-full items-center justify-between gap-2 px-1 py-2.5 text-left">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-[11px] font-black tracking-tight text-muted">
+                PR 리뷰
+              </span>
+            </div>
+
+            <Chip
+              className="h-5 shrink-0 rounded-md bg-accent/10 px-1.5 font-todak-mono text-[8px] font-black tracking-wide text-accent"
+              color="danger"
+              size="sm"
+              variant="soft"
             >
-              📋
-            </span>
-            <Card.Title className="truncate text-[12px] font-black tracking-normal text-slate-100">
-              Review Station (PR)
-            </Card.Title>
-          </div>
+              PR {pullRequests.length}
+            </Chip>
+            <Accordion.Indicator className="size-3.5 text-muted" />
+          </Accordion.Trigger>
+        </Accordion.Heading>
 
-          <Chip
-            className="h-6 shrink-0 rounded-md bg-todak-coral-500/15 px-2 font-todak-mono text-[8px] font-black tracking-wide text-todak-coral-300"
-            color="danger"
-            size="sm"
-            variant="soft"
-          >
-            Webhook Sync
-          </Chip>
-        </Card.Header>
-
-        <Card.Content className="max-h-[116px] gap-1.5 overflow-y-auto px-3.5 pb-3.5 pt-0 pr-2">
+        <Accordion.Panel className="max-h-44 space-y-1.5 overflow-y-auto pb-3 pr-1">
           {isPending ? (
             <PullRequestMessage>PR을 불러오는 중입니다...</PullRequestMessage>
           ) : isError ? (
@@ -84,8 +76,8 @@ export default function PullRequestNotifications({
           ) : (
             <PullRequestMessage>표시할 PR이 없습니다.</PullRequestMessage>
           )}
-        </Card.Content>
-      </Card>
+        </Accordion.Panel>
+      </Accordion.Item>
 
       <PullRequestModal
         isOpen={isModalOpen}
@@ -156,10 +148,10 @@ function PullRequestMessage({
   return (
     <p
       className={cn(
-        'rounded-md border px-2.5 py-2 text-[10px] font-bold',
+        'rounded-lg px-2.5 py-1.5 text-[10px] font-bold',
         variant === 'error'
-          ? 'border-todak-coral-500/30 bg-todak-coral-500/10 text-todak-coral-200'
-          : 'border-slate-700/80 bg-slate-800/60 text-slate-400',
+          ? 'bg-accent/10 text-accent'
+          : 'bg-surface-secondary text-muted',
       )}
     >
       {children}
@@ -176,17 +168,17 @@ function PullRequestItem({
 }) {
   return (
     <button
-      className="group grid min-h-9 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-slate-700/90 bg-slate-800/70 px-2.5 py-2 text-left shadow-sm transition-colors hover:border-todak-coral-300/50 hover:bg-slate-800"
+      className="group grid min-h-8 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-surface-secondary px-2.5 py-1.5 text-left transition-colors hover:bg-surface-tertiary"
       onClick={() => onSelect(pullRequest)}
       type="button"
     >
-      <span className="font-todak-mono text-[11px] font-black text-todak-coral-500">
+      <span className="font-todak-mono text-[10px] font-black text-accent">
         #{pullRequest.id}
       </span>
-      <h3 className="truncate text-[10px] font-black text-slate-100">
+      <h3 className="truncate text-[10px] font-black text-foreground">
         {pullRequest.title}
       </h3>
-      <time className="font-todak-mono text-[9px] font-black text-slate-400">
+      <time className="font-todak-mono text-[8px] font-black text-muted">
         {pullRequest.updatedAt}
       </time>
     </button>

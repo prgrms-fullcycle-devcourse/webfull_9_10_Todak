@@ -12,7 +12,7 @@ import {
   isRoomProfileAlreadySetUpError,
 } from '@/services/rooms/api';
 
-const avatars = [
+export const avatars = [
   {
     id: 'bear',
     name: '곰',
@@ -40,7 +40,7 @@ const avatars = [
   },
 ] as const;
 
-const parts = ['Frontend', 'Backend', 'Designer', 'PM'] as const;
+export const parts = ['Frontend', 'Backend', 'Designer', 'PM'] as const;
 
 export const roleValueByPart: Record<(typeof parts)[number], string> = {
   Frontend: 'frontend',

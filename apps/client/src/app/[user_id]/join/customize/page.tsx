@@ -12,7 +12,6 @@ interface CustomizationPageProps {
   }>;
   searchParams?: Promise<{
     roomID?: string | string[];
-    roomId?: string | string[];
   }>;
 }
 
@@ -22,8 +21,7 @@ export default async function CustomizationPage({
 }: CustomizationPageProps) {
   const { user_id: userID } = await params;
   const resolvedSearchParams = await searchParams;
-  const rawRoomID =
-    resolvedSearchParams?.roomID ?? resolvedSearchParams?.roomId;
+  const rawRoomID = resolvedSearchParams?.roomID;
   const roomID = Array.isArray(rawRoomID) ? rawRoomID[0] : rawRoomID;
   let shouldRefreshAuth = false;
 
