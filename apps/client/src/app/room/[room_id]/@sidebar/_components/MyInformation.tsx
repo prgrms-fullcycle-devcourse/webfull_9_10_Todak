@@ -2,7 +2,7 @@
 
 import type { AuthUser } from '@/lib/auth';
 import type { RoomProfile } from '@/services/rooms/model';
-import { Chip, Dropdown } from '@heroui/react';
+import { Chip } from '@heroui/react';
 import Image from 'next/image';
 
 const ROLE_LABELS: Record<string, string> = {

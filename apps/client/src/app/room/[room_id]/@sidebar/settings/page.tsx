@@ -2,7 +2,17 @@ import Link from 'next/link';
 
 import SettingsSidebarBackButton from './_components/SettingsSidebarBackButton';
 
-export default function SettingsSidebar() {
+interface SettingsSidebarProps {
+  params: Promise<{
+    room_id: string;
+  }>;
+}
+
+export default async function SettingsSidebar({
+  params,
+}: SettingsSidebarProps) {
+  const { room_id: roomID } = await params;
+
   return (
     <nav aria-label="설정 메뉴" className="flex h-full min-h-0 flex-col">
       <div className="shrink-0">
@@ -29,7 +39,7 @@ export default function SettingsSidebar() {
       </div>
 
       <div className="mt-auto pt-5">
-        <SettingsSidebarBackButton />
+        <SettingsSidebarBackButton roomID={roomID} />
       </div>
     </nav>
   );
