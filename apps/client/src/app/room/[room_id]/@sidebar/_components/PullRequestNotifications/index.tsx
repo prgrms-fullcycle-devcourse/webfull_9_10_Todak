@@ -8,7 +8,7 @@ import {
   useRoomPullRequests,
 } from '@/services/github/query';
 import type { RoomPullRequest } from '@/services/github/api';
-import { Accordion } from '@heroui/react';
+import { Accordion, Button, Chip } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,6 +16,19 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import PullRequestModal, {
   type PullRequestModalData,
 } from './PullRequestModal';
+
+interface PullRequestSocketPayload {
+  roomId?: string;
+  room_id?: string;
+  pull_request?: {
+    roomId?: string;
+    room_id?: string;
+  };
+  review?: {
+    roomId?: string;
+    room_id?: string;
+  };
+}
 
 interface PullRequestNotificationsProps {
   className?: string;
@@ -36,6 +49,7 @@ export default function PullRequestNotifications({
   const [hasPullRequestUpdate, setHasPullRequestUpdate] = useState(false);
   const [isPullRequestExpanded, setIsPullRequestExpanded] = useState(false);
   const isPullRequestExpandedRef = useRef(isPullRequestExpanded);
+  const pullRequestListSignatureRef = useRef<string | null>(null);
   const isModalOpen = selectedPullRequest !== null;
   const pullRequests = useMemo(
     () =>
@@ -44,15 +58,50 @@ export default function PullRequestNotifications({
       ),
     [pullRequestsResponse?.pull_requests],
   );
+  const pullRequestListSignature = useMemo(() => {
+    if (!pullRequestsResponse) {
+      return null;
+    }
+
+    return pullRequestsResponse.pull_requests
+      .map(
+        pullRequest =>
+          `${pullRequest.number}:${pullRequest.state}:${pullRequest.is_merged}:${pullRequest.updated_at}`,
+      )
+      .join('|');
+  }, [pullRequestsResponse]);
 
   useEffect(() => {
     isPullRequestExpandedRef.current = isPullRequestExpanded;
   }, [isPullRequestExpanded]);
 
   useEffect(() => {
+    if (pullRequestListSignature === null) {
+      return;
+    }
+
+    if (pullRequestListSignatureRef.current === null) {
+      pullRequestListSignatureRef.current = pullRequestListSignature;
+      return;
+    }
+
+    if (pullRequestListSignatureRef.current === pullRequestListSignature) {
+      return;
+    }
+
+    pullRequestListSignatureRef.current = pullRequestListSignature;
+
+    if (!isPullRequestExpandedRef.current) {
+      setHasPullRequestUpdate(true);
+    }
+  }, [pullRequestListSignature]);
+
+  useEffect(() => {
     const socket = getSocket(getAuthToken() ?? undefined);
-    const handlePullRequestEvent = (data: { roomId: string }) => {
-      if (data.roomId !== roomID) {
+    const handlePullRequestEvent = (data: PullRequestSocketPayload) => {
+      const payloadRoomId = getPullRequestEventRoomId(data);
+
+      if (payloadRoomId && payloadRoomId !== roomID) {
         return;
       }
 
@@ -66,14 +115,12 @@ export default function PullRequestNotifications({
       socket.emit('room:join', roomID);
     };
 
+    socket.on('connect', joinRoom);
+
     if (!socket.connected) {
       socket.connect();
-    }
-
-    if (socket.connected) {
-      joinRoom();
     } else {
-      socket.on('connect', joinRoom);
+      joinRoom();
     }
 
     socket.on('pr:opened', handlePullRequestEvent);
@@ -111,20 +158,18 @@ export default function PullRequestNotifications({
             onPress={handlePullRequestTriggerPress}
           >
             <div className="flex min-w-0 items-center gap-2">
-              <span
-                className={cn(
-                  'truncate text-[11px] tracking-tight transition-colors',
-                  hasPullRequestUpdate
-                    ? 'font-black text-foreground'
-                    : 'font-bold text-muted',
-                )}
-              >
+              <span className="truncate text-[11px] font-black tracking-tight text-muted">
                 PR 리뷰
               </span>
               {hasPullRequestUpdate && (
-                <span className="sr-only" role="status">
-                  새 PR 업데이트가 있습니다.
-                </span>
+                <Chip
+                  className="h-4 rounded-md bg-accent/10 px-1.5 text-[8px] font-bold text-accent"
+                  role="status"
+                  size="sm"
+                  variant="soft"
+                >
+                  NEW
+                </Chip>
               )}
             </div>
 
@@ -166,6 +211,17 @@ export default function PullRequestNotifications({
         />
       )}
     </>
+  );
+}
+
+function getPullRequestEventRoomId(data: PullRequestSocketPayload) {
+  return (
+    data.roomId ??
+    data.room_id ??
+    data.pull_request?.roomId ??
+    data.pull_request?.room_id ??
+    data.review?.roomId ??
+    data.review?.room_id
   );
 }
 
@@ -245,10 +301,11 @@ function PullRequestItem({
   pullRequest: PullRequestModalData;
 }) {
   return (
-    <button
-      className="group grid min-h-8 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-surface-secondary px-2.5 py-1.5 text-left transition-colors hover:bg-surface-tertiary"
+    <Button
+      className="group grid h-auto min-h-8 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-surface-secondary px-2.5 py-1.5 text-left shadow-none transition-colors hover:bg-surface-tertiary"
       onClick={() => onSelect(pullRequest)}
       type="button"
+      variant="ghost"
     >
       <span className="font-todak-mono text-[10px] font-black text-accent">
         #{pullRequest.id}
@@ -259,6 +316,6 @@ function PullRequestItem({
       <time className="font-todak-mono text-[8px] font-black text-muted">
         {pullRequest.updatedAt}
       </time>
-    </button>
+    </Button>
   );
 }
