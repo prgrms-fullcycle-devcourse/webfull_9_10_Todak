@@ -1,14 +1,9 @@
 'use client';
 
 import type { AuthUser } from '@/lib/auth';
-import { logoutAuth } from '@/lib/auth';
 import type { RoomProfile } from '@/services/rooms/model';
-import { Chip, Dropdown } from '@heroui/react';
+import { Chip } from '@heroui/react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-
-import ProfileEditModal from './ProfileEditModal';
 
 const ROLE_LABELS: Record<string, string> = {
   frontend: 'Frontend',
@@ -20,22 +15,13 @@ const ROLE_LABELS: Record<string, string> = {
 interface Props {
   myInfo: AuthUser;
   myRoomInfo?: RoomProfile;
-  roomID: string;
 }
 
-export default function MyInformation({ myInfo, myRoomInfo, roomID }: Props) {
-  const router = useRouter();
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+export default function MyInformation({ myInfo, myRoomInfo }: Props) {
   const displayName = myRoomInfo?.nickname?.trim() || myInfo.login;
   const roles = myRoomInfo?.roles ?? [];
   const hasAvatar = myInfo.avatarUrl.trim() !== '';
   const avatarInitial = displayName.trim().slice(0, 1) || '?';
-
-  const handleLogout = async () => {
-    await logoutAuth();
-    router.replace('/');
-    router.refresh();
-  };
 
   return (
     <section className="shrink-0">
@@ -65,36 +51,6 @@ export default function MyInformation({ myInfo, myRoomInfo, roomID }: Props) {
             @{myInfo.login}
           </p>
         </div>
-        <Dropdown>
-          <Dropdown.Trigger className="shrink-0 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[10px] font-black text-muted shadow-sm transition-colors hover:bg-surface-secondary">
-            수정하기
-          </Dropdown.Trigger>
-          <Dropdown.Popover
-            className="min-w-36 rounded-xl border border-border bg-surface p-1 shadow-todak-panel"
-            placement="right"
-          >
-            <Dropdown.Menu
-              aria-label="내 프로필 메뉴"
-              onAction={key => {
-                if (key === 'edit-profile' && myRoomInfo) {
-                  setIsProfileModalOpen(true);
-                  return;
-                }
-
-                if (key === 'logout') {
-                  void handleLogout();
-                }
-              }}
-            >
-              <Dropdown.Item id="edit-profile" isDisabled={!myRoomInfo}>
-                프로필 수정하기
-              </Dropdown.Item>
-              <Dropdown.Item id="logout" variant="danger">
-                로그아웃
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown>
       </div>
       <div className="mt-2 flex flex-wrap gap-1">
         {(roles.length > 0 ? roles : ['Role']).map(role => (
@@ -108,14 +64,6 @@ export default function MyInformation({ myInfo, myRoomInfo, roomID }: Props) {
           </Chip>
         ))}
       </div>
-      {myRoomInfo && isProfileModalOpen && (
-        <ProfileEditModal
-          isOpen={isProfileModalOpen}
-          myRoomInfo={myRoomInfo}
-          onOpenChange={setIsProfileModalOpen}
-          roomID={roomID}
-        />
-      )}
     </section>
   );
 }

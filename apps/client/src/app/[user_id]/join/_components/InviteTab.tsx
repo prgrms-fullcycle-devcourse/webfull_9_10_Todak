@@ -25,6 +25,7 @@ const INVALID_INPUT_CLASS_NAME =
 type FormSubmitHandler = NonNullable<ComponentProps<'form'>['onSubmit']>;
 
 interface InviteTabProps {
+  initialInviteCode?: string;
   userID: string;
 }
 
@@ -51,12 +52,20 @@ function FieldLabel({
   );
 }
 
-export default function InviteTab({ userID }: InviteTabProps) {
+export default function InviteTab({
+  initialInviteCode = '',
+  userID,
+}: InviteTabProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const initialCodeParts = splitInviteCode(initialInviteCode);
   const [inviteCodeError, setInviteCodeError] = useState<string | null>(null);
-  const [inviteCodeFirstPart, setInviteCodeFirstPart] = useState('');
-  const [inviteCodeSecondPart, setInviteCodeSecondPart] = useState('');
+  const [inviteCodeFirstPart, setInviteCodeFirstPart] = useState(
+    initialCodeParts.first,
+  );
+  const [inviteCodeSecondPart, setInviteCodeSecondPart] = useState(
+    initialCodeParts.second,
+  );
   const [joinError, setJoinError] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const secondInviteCodeInputRef = useRef<HTMLInputElement>(null);

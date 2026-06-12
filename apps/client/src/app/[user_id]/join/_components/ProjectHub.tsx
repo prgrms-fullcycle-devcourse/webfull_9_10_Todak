@@ -30,15 +30,21 @@ const TabOptions = [
 type TabID = (typeof TabOptions)[number]['id'];
 
 interface ProjectHubProps {
+  initialInviteCode?: string;
   userID: string;
 }
 
-export default function ProjectHub({ userID }: ProjectHubProps) {
+export default function ProjectHub({
+  initialInviteCode = '',
+  userID,
+}: ProjectHubProps) {
   const { data: myRooms } = useQuery({
     queryKey: ['myRooms'],
     queryFn: fetchMyRooms,
   });
-  const [selectedTab, setSelectedTab] = useState<TabID | null>(null);
+  const [selectedTab, setSelectedTab] = useState<TabID | null>(
+    initialInviteCode === '' ? null : 'invite',
+  );
   const defaultTab = myRooms && myRooms.length > 0 ? 'teams' : 'create';
 
   return (
@@ -89,7 +95,12 @@ export default function ProjectHub({ userID }: ProjectHubProps) {
               >
                 {option.id === 'teams' && <ExistingTeamsTab userID={userID} />}
                 {option.id === 'create' && <CreateTab userID={userID} />}
-                {option.id === 'invite' && <InviteTab userID={userID} />}
+                {option.id === 'invite' && (
+                  <InviteTab
+                    initialInviteCode={initialInviteCode}
+                    userID={userID}
+                  />
+                )}
               </Tabs.Panel>
             ))}
           </Tabs>
