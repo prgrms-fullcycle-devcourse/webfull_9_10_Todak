@@ -16,6 +16,8 @@ import type {
   MemberStatus,
   StatusResponse,
   RoomMembers,
+  UpdatedRoomSettings,
+  UpdateRoomSettingsParams,
 } from './model';
 import { AuthTokenPayload } from '@/lib/auth';
 
@@ -30,6 +32,8 @@ export type {
   RoomMembers,
   RoomProfile,
   PrivateRoom,
+  UpdatedRoomSettings,
+  UpdateRoomSettingsParams,
 } from './model';
 
 export async function fetchMyRooms(): Promise<MyRooms> {
@@ -50,7 +54,15 @@ export async function joinRooms(params: JoinRoomParams): Promise<JoinedRoom> {
   return response.data;
 }
 
-export function updateRoomSettings() {}
+export function updateRoomSettings(
+  roomId: string,
+  params: UpdateRoomSettingsParams,
+): Promise<UpdatedRoomSettings> {
+  return apiClient.patch<UpdatedRoomSettings, UpdateRoomSettingsParams>(
+    `/rooms/${roomId}`,
+    params,
+  );
+}
 
 export function deleteRooms() {}
 

@@ -4,6 +4,7 @@ import type { AuthUser } from '@/lib/auth';
 import type { RoomInfo, RoomMembers } from '@/services/rooms/model';
 
 import ProfileSettingsForm from './_components/ProfileSettingsForm';
+import ProjectSettingsForm from './_components/ProjectSettingsForm';
 
 interface RoomSettingsPageProps {
   params: Promise<{
@@ -43,7 +44,6 @@ export default async function RoomSettingsPage({
   const myRoomInfo = roomMembers.members.find(
     member => member.github_username === myInfo.login,
   );
-  const repoLabel = roomInfo.repo?.full_name ?? '연동된 깃허브 없음';
 
   return (
     <main className="h-full min-h-0 overflow-y-auto scroll-smooth bg-background px-5 py-6 text-foreground">
@@ -59,38 +59,12 @@ export default async function RoomSettingsPage({
         </header>
 
         <ProfileSettingsForm myRoomInfo={myRoomInfo} roomID={roomID} />
-
-        <section
-          className="scroll-mt-6 rounded-[26px] border border-border/80 bg-surface px-6 py-6 shadow-todak-panel"
-          id="project"
-        >
-          <p className="todak-section-label text-todak-coral-500">PROJECT</p>
-          <h2 className="mt-2 text-lg font-black text-foreground">
-            프로젝트 설정
-          </h2>
-
-          <dl className="mt-5 grid gap-3 sm:grid-cols-2">
-            <SettingField label="룸 이름" value={roomInfo.name} />
-            <SettingField label="연동된 깃허브" value={repoLabel} />
-            <SettingField label="초대 코드" value={roomInfo.invite_code} />
-            <SettingField
-              label="참여 인원"
-              value={`${roomInfo.member_count}/${roomInfo.max_members}`}
-            />
-          </dl>
-        </section>
+        <ProjectSettingsForm
+          myRoomInfo={myRoomInfo}
+          room={roomInfo}
+          roomID={roomID}
+        />
       </div>
     </main>
-  );
-}
-
-function SettingField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-background px-3.5 py-3">
-      <dt className="text-[10px] font-black text-muted">{label}</dt>
-      <dd className="mt-1 truncate text-xs font-black text-foreground">
-        {value}
-      </dd>
-    </div>
   );
 }

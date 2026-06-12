@@ -21,6 +21,17 @@ export type CreateRoomsParams = {
   max_members?: number;
 };
 
+export type UpdateRoomSettingsParams = {
+  name?: string;
+  max_members?: number;
+};
+
+export type UpdatedRoomSettings = {
+  id: string;
+  name: string;
+  max_members: number;
+};
+
 export type CreatedRoom = {
   id: string;
   name: string;
