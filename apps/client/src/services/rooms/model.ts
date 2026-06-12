@@ -61,6 +61,11 @@ export type JoinedRoom = {
   name: string;
 };
 
+export type LeaveRoomResponse = {
+  room_deleted: boolean;
+  new_host_user_id: string | null;
+};
+
 export type CreateRoomProfileParams = {
   roomID: string;
   character_type: string;
