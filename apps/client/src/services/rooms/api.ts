@@ -18,6 +18,8 @@ import type {
   RoomMembers,
   UpdatedRoomSettings,
   UpdateRoomSettingsParams,
+  ConnectedRoomRepository,
+  ConnectRoomRepositoryParams,
 } from './model';
 import { AuthTokenPayload } from '@/lib/auth';
 
@@ -34,6 +36,8 @@ export type {
   PrivateRoom,
   UpdatedRoomSettings,
   UpdateRoomSettingsParams,
+  ConnectedRoomRepository,
+  ConnectRoomRepositoryParams,
 } from './model';
 
 export async function fetchMyRooms(): Promise<MyRooms> {
@@ -62,6 +66,20 @@ export function updateRoomSettings(
     `/rooms/${roomId}`,
     params,
   );
+}
+
+export function connectRoomRepository(
+  roomId: string,
+  params: ConnectRoomRepositoryParams,
+): Promise<ConnectedRoomRepository> {
+  return apiClient.put<ConnectedRoomRepository, ConnectRoomRepositoryParams>(
+    `/rooms/${roomId}/repo`,
+    params,
+  );
+}
+
+export function disconnectRoomRepository(roomId: string): Promise<void> {
+  return apiClient.delete<void>(`/rooms/${roomId}/repo`);
 }
 
 export function deleteRooms() {}

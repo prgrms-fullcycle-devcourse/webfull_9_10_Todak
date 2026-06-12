@@ -1,9 +1,14 @@
 'use client';
 
 import { isSystemError, isTodakApiError } from '@/services/error';
-import { updateRoomSettings } from '@/services/rooms/api';
+import { fetchGitHubRepositories } from '@/services/github/api';
+import {
+  connectRoomRepository,
+  disconnectRoomRepository,
+  updateRoomSettings,
+} from '@/services/rooms/api';
 import type { RoomInfo, RoomProfile } from '@/services/rooms/model';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 
@@ -22,10 +27,26 @@ export default function ProjectSettingsForm({
   const queryClient = useQueryClient();
   const [name, setName] = useState(room.name);
   const [maxMembers, setMaxMembers] = useState(String(room.max_members));
+  const [currentRepoFullName, setCurrentRepoFullName] = useState(
+    room.repo?.full_name ?? null,
+  );
+  const [selectedRepoFullName, setSelectedRepoFullName] = useState(
+    room.repo?.full_name ?? '',
+  );
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [repoError, setRepoError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const repoLabel = room.repo?.full_name ?? '연동된 깃허브 없음';
+  const [repoSuccessMessage, setRepoSuccessMessage] = useState<string | null>(
+    null,
+  );
+  const repoLabel = currentRepoFullName ?? '연동된 깃허브 없음';
   const canEdit = myRoomInfo?.is_host === true;
+
+  const githubRepositoriesQuery = useQuery({
+    queryKey: ['github-repositories'],
+    queryFn: fetchGitHubRepositories,
+    enabled: canEdit,
+  });
 
   const updateSettingsMutation = useMutation({
     mutationFn: () =>
@@ -55,6 +76,65 @@ export default function ProjectSettingsForm({
       }
 
       setSettingsError('프로젝트 설정 저장에 실패했습니다.');
+    },
+  });
+
+  const connectRepositoryMutation = useMutation({
+    mutationFn: () =>
+      connectRoomRepository(roomID, {
+        repo_full_name: selectedRepoFullName,
+      }),
+    onSuccess: connected => {
+      setCurrentRepoFullName(connected.repo_full_name);
+      setSelectedRepoFullName(connected.repo_full_name);
+      queryClient.invalidateQueries({ queryKey: ['myRooms'] });
+      queryClient.invalidateQueries({ queryKey: ['pullRequests'] });
+      router.refresh();
+      setRepoError(null);
+      setRepoSuccessMessage('GitHub 연동이 저장되었습니다.');
+    },
+    onError: error => {
+      setRepoSuccessMessage(null);
+
+      if (isTodakApiError(error)) {
+        setRepoError(error.response.data.error);
+        return;
+      }
+
+      if (isSystemError(error)) {
+        setRepoError(error.message);
+        return;
+      }
+
+      setRepoError('GitHub 연동 저장에 실패했습니다.');
+    },
+  });
+
+  const disconnectRepositoryMutation = useMutation({
+    mutationFn: () => disconnectRoomRepository(roomID),
+    onSuccess: () => {
+      setCurrentRepoFullName(null);
+      setSelectedRepoFullName('');
+      queryClient.invalidateQueries({ queryKey: ['myRooms'] });
+      queryClient.invalidateQueries({ queryKey: ['pullRequests'] });
+      router.refresh();
+      setRepoError(null);
+      setRepoSuccessMessage('GitHub 연동이 해제되었습니다.');
+    },
+    onError: error => {
+      setRepoSuccessMessage(null);
+
+      if (isTodakApiError(error)) {
+        setRepoError(error.response.data.error);
+        return;
+      }
+
+      if (isSystemError(error)) {
+        setRepoError(error.message);
+        return;
+      }
+
+      setRepoError('GitHub 연동 해제에 실패했습니다.');
     },
   });
 
@@ -95,6 +175,36 @@ export default function ProjectSettingsForm({
     setSettingsError(null);
     setSuccessMessage(null);
     updateSettingsMutation.mutate();
+  };
+
+  const handleRepositoryConnect = () => {
+    if (!canEdit || connectRepositoryMutation.isPending) {
+      return;
+    }
+
+    if (selectedRepoFullName === '') {
+      setRepoError('연동할 GitHub 레포지토리를 선택해주세요.');
+      setRepoSuccessMessage(null);
+      return;
+    }
+
+    setRepoError(null);
+    setRepoSuccessMessage(null);
+    connectRepositoryMutation.mutate();
+  };
+
+  const handleRepositoryDisconnect = () => {
+    if (
+      !canEdit ||
+      disconnectRepositoryMutation.isPending ||
+      currentRepoFullName === null
+    ) {
+      return;
+    }
+
+    setRepoError(null);
+    setRepoSuccessMessage(null);
+    disconnectRepositoryMutation.mutate();
   };
 
   return (
@@ -186,6 +296,96 @@ export default function ProjectSettingsForm({
           </button>
         </div>
       </form>
+
+      <section className="mt-6 border-t border-border pt-5">
+        <p className="text-xs font-black text-slate-700">GitHub 연동</p>
+        <p className="mt-1 text-[11px] font-bold leading-5 text-muted">
+          이 프로젝트 룸과 연결할 GitHub 레포지토리를 선택하거나 현재 연동을
+          해제할 수 있습니다.
+        </p>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+          <select
+            className="todak-select h-9 appearance-none rounded-xl px-3.5 py-0 text-xs font-semibold"
+            disabled={
+              !canEdit ||
+              githubRepositoriesQuery.isPending ||
+              connectRepositoryMutation.isPending ||
+              disconnectRepositoryMutation.isPending
+            }
+            onChange={event => {
+              setSelectedRepoFullName(event.target.value);
+              setRepoError(null);
+              setRepoSuccessMessage(null);
+            }}
+            value={selectedRepoFullName}
+          >
+            <option value="">
+              {githubRepositoriesQuery.isPending
+                ? '레포지토리 불러오는 중...'
+                : 'GitHub 레포지토리 선택'}
+            </option>
+            {(githubRepositoriesQuery.data ?? []).map(repository => (
+              <option key={repository.id} value={repository.full_name}>
+                {repository.full_name}
+              </option>
+            ))}
+          </select>
+
+          <button
+            className="h-9 rounded-xl bg-foreground px-4 text-xs font-black text-background shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={
+              !canEdit ||
+              selectedRepoFullName === '' ||
+              connectRepositoryMutation.isPending ||
+              disconnectRepositoryMutation.isPending
+            }
+            onClick={handleRepositoryConnect}
+            type="button"
+          >
+            {connectRepositoryMutation.isPending
+              ? '저장 중...'
+              : currentRepoFullName === null
+                ? '연결하기'
+                : '재연결하기'}
+          </button>
+
+          <button
+            className="h-9 rounded-xl border border-border bg-surface px-4 text-xs font-black text-danger shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={
+              !canEdit ||
+              currentRepoFullName === null ||
+              connectRepositoryMutation.isPending ||
+              disconnectRepositoryMutation.isPending
+            }
+            onClick={handleRepositoryDisconnect}
+            type="button"
+          >
+            {disconnectRepositoryMutation.isPending ? '해제 중...' : '해제'}
+          </button>
+        </div>
+
+        {githubRepositoriesQuery.isError && (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600">
+            GitHub 레포지토리 목록을 불러오지 못했습니다.
+          </p>
+        )}
+
+        {repoError !== null && (
+          <p
+            className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600"
+            role="alert"
+          >
+            {repoError}
+          </p>
+        )}
+
+        {repoSuccessMessage !== null && (
+          <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-700">
+            {repoSuccessMessage}
+          </p>
+        )}
+      </section>
     </section>
   );
 }
