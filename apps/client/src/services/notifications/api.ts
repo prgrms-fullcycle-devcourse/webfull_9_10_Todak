@@ -19,7 +19,7 @@ const notificationDataFetchers = {
   sample: fetchSampleNotifications,
 };
 
-const notificationDataSource: keyof typeof notificationDataFetchers = 'sample';
+const notificationDataSource: keyof typeof notificationDataFetchers = 'api';
 
 export async function fetchNotifications(roomID: string) {
   return notificationDataFetchers[notificationDataSource](roomID);
