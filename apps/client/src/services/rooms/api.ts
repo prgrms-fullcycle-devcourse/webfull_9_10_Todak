@@ -6,6 +6,7 @@ import type {
   CreateRoomsParams,
   JoinedRoom,
   JoinRoomParams,
+  LeaveRoomResponse,
   MyRooms,
   CreateRoomProfileParams,
   RoomInfo,
@@ -28,6 +29,7 @@ export type {
   CreateRoomsParams,
   JoinedRoom,
   JoinRoomParams,
+  LeaveRoomResponse,
   MyRoom,
   MyRooms,
   RoomInfo,
@@ -56,6 +58,10 @@ export async function joinRooms(params: JoinRoomParams): Promise<JoinedRoom> {
   const response = await api.post<JoinedRoom>('/rooms/join', params);
 
   return response.data;
+}
+
+export function leaveRoom(roomId: string): Promise<LeaveRoomResponse> {
+  return apiClient.post<LeaveRoomResponse>(`/rooms/${roomId}/leave`);
 }
 
 export function updateRoomSettings(
