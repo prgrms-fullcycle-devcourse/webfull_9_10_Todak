@@ -1,108 +1,523 @@
 'use client';
 
-import { Modal } from '@heroui/react';
+import { cn } from '@/lib/cn';
+import { getStoredAuthUser } from '@/lib/auth';
+import { isSystemError, isTodakApiError } from '@/services/error';
+import {
+  useApprovePullRequest,
+  useMergePullRequest,
+  useRoomPullRequestDetail,
+} from '@/services/github/query';
+import { Button, Modal } from '@heroui/react';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import type { PullRequestModalData } from './types';
 
 interface PullRequestModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  pullRequest: PullRequestModalData | null;
+  pullRequest: PullRequestModalData;
+  roomID: string;
 }
 
 export default function PullRequestModal({
   isOpen,
   onOpenChange,
   pullRequest,
+  roomID,
 }: PullRequestModalProps) {
-  if (pullRequest === null) {
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [hasApproved, setHasApproved] = useState(false);
+  const [hasMerged, setHasMerged] = useState(false);
+  const {
+    data: detail,
+    isError,
+    isPending,
+  } = useRoomPullRequestDetail(roomID, pullRequest.id, {
+    enabled: isOpen,
+  });
+  const approvePullRequest = useApprovePullRequest();
+  const mergePullRequest = useMergePullRequest();
+  const currentGithubUsername = getStoredAuthUser()?.login ?? '';
+
+  if (typeof document === 'undefined') {
     return null;
   }
 
-  const closeModal = () => onOpenChange(false);
-  const assigneeText =
-    pullRequest.assignees.length > 0
-      ? pullRequest.assignees.join(', ')
-      : '\uBBF8\uC9C0\uC815';
-  const labelText =
-    pullRequest.labels.length > 0
-      ? pullRequest.labels.join(', ')
-      : '\uB77C\uBCA8 \uC5C6\uC74C';
+  const isActionPending =
+    approvePullRequest.isPending || mergePullRequest.isPending;
+  const isDraft = detail?.is_draft ?? pullRequest.isDraft;
+  const isMerged = hasMerged || (detail?.is_merged ?? pullRequest.isMerged);
+  const status = getStatusMeta(
+    detail?.state ?? pullRequest.state,
+    isDraft,
+    isMerged,
+  );
+  const title = detail?.title ?? pullRequest.title;
+  const author = detail?.author?.github_username ?? pullRequest.author;
+  const assignees =
+    detail?.assignees.map(assignee => assignee.github_username) ??
+    pullRequest.assignees;
+  const isMyPullRequest = isUserPullRequestOwner({
+    assignees,
+    author,
+    currentGithubUsername,
+  });
+  const canReview =
+    !isMyPullRequest &&
+    !isActionPending &&
+    !isPending &&
+    !isError &&
+    !hasApproved &&
+    !isDraft &&
+    !isMerged;
+  const canMerge =
+    isMyPullRequest &&
+    !isActionPending &&
+    !isPending &&
+    !isError &&
+    !isDraft &&
+    !isMerged &&
+    detail?.mergeable !== false;
+  const labels = detail?.labels ?? pullRequest.labels;
+  const branch = detail?.branch ?? pullRequest.branch;
+  const createdAt = detail?.created_at ? formatDateTime(detail.created_at) : '';
+  const updatedAt = detail?.updated_at
+    ? formatDateTime(detail.updated_at)
+    : pullRequest.updatedAt;
+  const body = detail?.body?.trim();
+  const diffLabel = detail?.changes
+    ? `+${detail.changes.additions}/-${detail.changes.deletions}`
+    : '확인 중';
 
-  return (
-    <Modal isOpen={isOpen} onOpenChange={closeModal}>
-      <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-md">
-        <div className="absolute inset-0" onClick={closeModal} />
+  const handleApprove = () => {
+    if (!canReview) {
+      return;
+    }
 
-        <div className="pointer-events-auto relative z-10 mx-auto my-auto max-h-[95vh] w-full max-w-md overflow-y-auto rounded-[26px] border border-slate-100 bg-white px-5 py-5 shadow-xl focus:outline-none">
-          <button
-            aria-label="모달 닫기"
-            className="absolute right-6 top-5 z-50 text-sm font-bold text-slate-400 transition-colors hover:text-slate-600"
-            onClick={closeModal}
-            type="button"
-          >
-            &times;
-          </button>
+    setActionMessage(null);
+    approvePullRequest.mutate(
+      {
+        pullNumber: pullRequest.id,
+        roomId: roomID,
+      },
+      {
+        onError: error => setActionMessage(getActionErrorMessage(error)),
+        onSuccess: () => {
+          setHasApproved(true);
+          setActionMessage('PR 리뷰 승인이 완료되었습니다.');
+        },
+      },
+    );
+  };
 
-          <Modal.Header className="px-0 pb-3 pt-3">
-            <h3 className="flex items-center gap-1.5 text-[16px] font-black text-slate-800">
-              GitHub Pull Request
-            </h3>
-          </Modal.Header>
+  const handleMerge = () => {
+    if (!canMerge) {
+      return;
+    }
 
-          <Modal.Body className="flex max-w-110 flex-col gap-4 px-0">
-            <section className="space-y-3">
-              <h2 className="flex min-w-0 items-center gap-2 text-sm font-black text-slate-800">
-                <span className="text-todak-coral-500">#{pullRequest.id}</span>
-                <span className="truncate">{pullRequest.title}</span>
-              </h2>
+    setActionMessage(null);
+    mergePullRequest.mutate(
+      {
+        merge_method: 'squash',
+        pullNumber: pullRequest.id,
+        roomId: roomID,
+      },
+      {
+        onError: error => setActionMessage(getActionErrorMessage(error)),
+        onSuccess: () => {
+          setHasMerged(true);
+          setActionMessage('PR 머지가 완료되었습니다.');
+        },
+      },
+    );
+  };
 
-              <div className="flex justify-between gap-3 rounded-lg bg-slate-50 p-3 font-todak-mono text-xs text-slate-500">
-                <span>
-                  Author:{' '}
-                  <strong className="font-todak-sans text-slate-600">
-                    {pullRequest.author}
-                  </strong>
-                </span>
-                <span className="min-w-0 truncate">
-                  Branch:{' '}
-                  <strong className="text-emerald-600">
-                    {pullRequest.branch.head} -&gt; {pullRequest.branch.base}
-                  </strong>
+  const modal = (
+    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal.Container>
+        <Modal.Dialog className="flex max-h-[92vh] w-[calc(100vw-32px)] max-w-[1040px] flex-col overflow-hidden rounded-[24px] border border-border/80 bg-surface shadow-todak-panel">
+          <Modal.Header className="flex items-start justify-between gap-5 border-b border-border px-5 py-5 sm:px-7">
+            <div className="min-w-0 space-y-3">
+              <p className="font-todak-mono text-[12px] font-black text-muted">
+                GitHub Pull Request
+              </p>
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <Modal.Heading className="min-w-0 text-[22px] font-black leading-tight text-foreground">
+                  {title}
+                </Modal.Heading>
+
+                <span className="font-todak-mono text-[18px] font-black text-muted">
+                  #{pullRequest.id}
                 </span>
               </div>
+              <p className="text-[11px] font-bold text-muted">
+                생성 {createdAt || '확인 중'} · 수정 {updatedAt || '확인 중'}
+              </p>
+              <div className="flex flex-wrap items-center gap-2 text-[12px] font-bold text-muted">
+                <span
+                  className={cn(
+                    'rounded-full px-2.5 py-1 font-todak-mono text-[11px] font-black',
+                    status.className,
+                  )}
+                >
+                  {status.label}
+                </span>
+                <span>
+                  <strong className="text-foreground">{author}</strong> wants to
+                  merge into <BranchName>{branch.base}</BranchName> from{' '}
+                  <BranchName>{branch.head}</BranchName>
+                </span>
+              </div>
+            </div>
 
-              <section className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
-                <div className="grid gap-2 text-[11px] font-bold text-slate-500 sm:grid-cols-2">
-                  <div className="rounded-md bg-slate-50 px-2.5 py-2">
-                    <span className="block text-slate-400">
-                      {'\uB2F4\uB2F9\uC790'}
-                    </span>
-                    <span className="text-slate-700">{assigneeText}</span>
-                  </div>
-                  <div className="rounded-md bg-slate-50 px-2.5 py-2">
-                    <span className="block text-slate-400">
-                      {'\uB77C\uBCA8'}
-                    </span>
-                    <span className="text-slate-700">{labelText}</span>
-                  </div>
+            <Modal.CloseTrigger />
+          </Modal.Header>
+
+          <Modal.Body className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_230px]">
+              <main className="min-w-0 space-y-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border pb-3 text-[12px] font-bold text-muted">
+                  <span className="font-todak-mono">
+                    Commits{' '}
+                    <strong className="text-foreground">
+                      {detail?.changes.commits ?? '-'}
+                    </strong>
+                  </span>
+                  <span className="font-todak-mono">
+                    Files changed{' '}
+                    <strong className="text-foreground">
+                      {detail?.changes.changed_files ?? '-'}
+                    </strong>
+                  </span>
+                  <span className="font-todak-mono text-emerald-600">
+                    {diffLabel}
+                  </span>
                 </div>
-              </section>
 
-              <a
-                className="flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-todak-coral-500 focus:outline-none focus:ring-2 focus:ring-todak-coral-300"
-                href={pullRequest.url}
-                rel="noreferrer"
-                target="_blank"
-              >
-                {'GitHub\uC5D0\uC11C \uD655\uC778\uD558\uAE30'}
-              </a>
-            </section>
+                <section className="overflow-hidden rounded-xl border border-border bg-white">
+                  <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface-secondary px-4 py-3">
+                    <p className="text-[12px] font-black text-foreground">
+                      {author} commented
+                    </p>
+                  </header>
+                  <div
+                    className={cn(
+                      'max-h-[360px] overflow-y-auto whitespace-pre-wrap px-4 py-4 text-[13px] font-semibold leading-7 text-slate-600',
+                      !body && 'text-muted',
+                    )}
+                  >
+                    {body || '등록된 PR 본문이 없습니다.'}
+                  </div>
+                </section>
+
+                {isPending && (
+                  <section className="rounded-xl border border-border bg-surface-secondary px-4 py-3">
+                    <p className="mt-1 text-[11px] font-bold text-muted">
+                      상세 정보를 불러오는 중입니다...
+                    </p>
+                  </section>
+                )}
+                {actionMessage !== null && (
+                  <section className="rounded-xl border border-border bg-surface-secondary px-4 py-3">
+                    <p className="mt-2 rounded-lg bg-white px-3 py-2 text-[12px] font-black text-todak-coral-500 shadow-sm">
+                      {actionMessage}
+                    </p>
+                  </section>
+                )}
+              </main>
+
+              <aside className="space-y-4 text-[12px] font-bold text-muted">
+                <SidebarMeta title="Review">
+                  <p className="font-todak-mono text-foreground">
+                    {getReviewStatus({
+                      hasApproved,
+                      isDraft,
+                      isMerged,
+                      isMyPullRequest,
+                    })}
+                  </p>
+                </SidebarMeta>
+                <SidebarMeta title="Assignees">
+                  <InlineList
+                    emptyText="No assignees"
+                    items={assignees.map(assignee => `@${assignee}`)}
+                  />
+                </SidebarMeta>
+                <SidebarMeta title="Labels">
+                  <InlineList emptyText="None yet" items={labels} />
+                </SidebarMeta>
+                <SidebarMeta title="Branches">
+                  <p className="break-words font-todak-mono leading-relaxed text-foreground">
+                    {branch.head}
+                  </p>
+                  <p className="mt-1 break-words font-todak-mono leading-relaxed text-muted">
+                    into {branch.base}
+                  </p>
+                </SidebarMeta>
+                <SidebarActions
+                  canApprove={canReview}
+                  canMerge={canMerge}
+                  hasApproved={hasApproved}
+                  isMerged={isMerged}
+                  isApproving={approvePullRequest.isPending}
+                  isMyPullRequest={isMyPullRequest}
+                  isMerging={mergePullRequest.isPending}
+                  onApprove={handleApprove}
+                  onMerge={handleMerge}
+                />
+              </aside>
+            </div>
           </Modal.Body>
-        </div>
-      </div>
-    </Modal>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
   );
+
+  return createPortal(modal, document.body);
+}
+
+function BranchName({ children }: { children: string }) {
+  return (
+    <span className="rounded-md bg-surface-secondary px-1.5 py-0.5 font-todak-mono text-[11px] font-black text-foreground">
+      {children}
+    </span>
+  );
+}
+
+function SidebarMeta({
+  children,
+  title,
+}: {
+  children: React.ReactNode;
+  title: string;
+}) {
+  return (
+    <section className="border-b border-border pb-4 last:border-b-0">
+      <h3 className="mb-2 text-[11px] font-black text-slate-400">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function InlineList({
+  emptyText,
+  items,
+}: {
+  emptyText: string;
+  items: string[];
+}) {
+  return (
+    <p className="break-words font-todak-mono leading-relaxed text-foreground">
+      {items.length > 0 ? items.join(', ') : emptyText}
+    </p>
+  );
+}
+
+function SidebarActions({
+  canApprove,
+  canMerge,
+  hasApproved,
+  isMerged,
+  isApproving,
+  isMyPullRequest,
+  isMerging,
+  onApprove,
+  onMerge,
+}: {
+  canApprove: boolean;
+  canMerge: boolean;
+  hasApproved: boolean;
+  isMerged: boolean;
+  isApproving: boolean;
+  isMyPullRequest: boolean;
+  isMerging: boolean;
+  onApprove: () => void;
+  onMerge: () => void;
+}) {
+  if (isMyPullRequest) {
+    return (
+      <section className="space-y-2 pt-1">
+        <Button
+          className="h-10 w-full rounded-lg bg-todak-coral-500 text-[12px] font-black text-white shadow-sm hover:bg-todak-coral-600 disabled:opacity-50"
+          isDisabled={!canMerge}
+          onPress={onMerge}
+          type="button"
+        >
+          {isMerging ? '머지 중...' : isMerged ? '머지 완료' : 'PR 머지하기'}
+        </Button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-2 pt-1">
+      <Button
+        className="h-10 w-full rounded-lg border border-border bg-white text-[12px] font-black text-foreground shadow-sm hover:bg-surface-secondary disabled:opacity-50"
+        isDisabled={!canApprove}
+        onPress={onApprove}
+        type="button"
+        variant="ghost"
+      >
+        {isApproving
+          ? '승인 중...'
+          : hasApproved
+            ? '승인 완료'
+            : '리뷰 승인하기'}
+      </Button>
+    </section>
+  );
+}
+
+function isUserPullRequestOwner({
+  assignees,
+  author,
+  currentGithubUsername,
+}: {
+  assignees: string[];
+  author: string;
+  currentGithubUsername: string;
+}) {
+  const normalizedCurrentUser = currentGithubUsername.trim().toLowerCase();
+
+  if (normalizedCurrentUser === '') {
+    return false;
+  }
+
+  if (author.trim().toLowerCase() === normalizedCurrentUser) {
+    return true;
+  }
+
+  return assignees.some(
+    assignee => assignee.trim().toLowerCase() === normalizedCurrentUser,
+  );
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('ko-KR', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function getReviewStatus({
+  hasApproved,
+  isDraft,
+  isMerged,
+  isMyPullRequest,
+}: {
+  hasApproved: boolean;
+  isDraft: boolean;
+  isMerged: boolean;
+  isMyPullRequest: boolean;
+}) {
+  if (isMerged) {
+    return '머지됨';
+  }
+
+  if (isDraft) {
+    return 'Draft';
+  }
+
+  if (hasApproved) {
+    return '승인됨';
+  }
+
+  return '승인 필요';
+}
+
+function getActionErrorMessage(error: unknown) {
+  if (isTodakApiError(error)) {
+    return error.response.data.error;
+  }
+
+  if (isSystemError(error)) {
+    return error.message;
+  }
+
+  return 'PR 작업 처리 중 오류가 발생했습니다.';
+}
+
+function getReviewMessage({
+  isDraft,
+  isError,
+  isMerged,
+  isMyPullRequest,
+  mergeable,
+}: {
+  isDraft: boolean;
+  isError?: boolean;
+  isMerged: boolean;
+  isMyPullRequest: boolean;
+  mergeable?: boolean | null;
+}) {
+  if (isError) {
+    return '상세 정보를 불러오지 못했습니다. 잠시 후 다시 열거나 GitHub 원본에서 PR 상태를 확인해주세요.';
+  }
+
+  if (isMerged) {
+    return '이미 머지된 PR입니다. 추가 승인이나 머지 작업은 필요하지 않습니다.';
+  }
+
+  if (isDraft) {
+    return 'Draft PR입니다. 리뷰 준비 상태로 전환한 뒤 승인 또는 머지를 진행해주세요.';
+  }
+
+  if (isMyPullRequest) {
+    return '내 PR입니다. 리뷰 상태는 승인됨으로 표시되며 머지만 진행할 수 있습니다.';
+  }
+
+  if (mergeable === true) {
+    return '다른 사람의 PR입니다. 코드가 정상 작동하면 리뷰 승인을 진행할 수 있습니다.';
+  }
+
+  if (mergeable === false) {
+    return '충돌 확인 필요: 머지 전 브랜치 충돌이나 변경 사항을 먼저 확인해주세요.';
+  }
+
+  return '다른 사람의 PR입니다. PR 상세 정보를 확인한 뒤 리뷰 승인을 진행할 수 있습니다.';
+}
+
+function getStatusMeta(state: string, isDraft: boolean, isMerged: boolean) {
+  if (isDraft) {
+    return {
+      className: 'bg-slate-100 text-slate-500',
+      label: 'DRAFT',
+    };
+  }
+
+  if (isMerged) {
+    return {
+      className: 'bg-purple-50 text-purple-600',
+      label: 'MERGED',
+    };
+  }
+
+  if (state === 'open') {
+    return {
+      className: 'bg-emerald-50 text-emerald-600',
+      label: 'OPEN',
+    };
+  }
+
+  if (state === 'closed') {
+    return {
+      className: 'bg-rose-50 text-rose-600',
+      label: 'CLOSED',
+    };
+  }
+
+  return {
+    className: 'bg-slate-100 text-slate-500',
+    label: state.toUpperCase(),
+  };
 }
 
 export type { PullRequestModalData };

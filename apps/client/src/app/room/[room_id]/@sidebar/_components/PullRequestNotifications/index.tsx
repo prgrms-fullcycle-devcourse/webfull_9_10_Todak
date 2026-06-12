@@ -79,15 +79,18 @@ export default function PullRequestNotifications({
         </Accordion.Panel>
       </Accordion.Item>
 
-      <PullRequestModal
-        isOpen={isModalOpen}
-        onOpenChange={isOpen => {
-          if (!isOpen) {
-            setSelectedPullRequest(null);
-          }
-        }}
-        pullRequest={selectedPullRequest}
-      />
+      {selectedPullRequest !== null && (
+        <PullRequestModal
+          isOpen={isModalOpen}
+          onOpenChange={isOpen => {
+            if (!isOpen) {
+              setSelectedPullRequest(null);
+            }
+          }}
+          pullRequest={selectedPullRequest}
+          roomID={roomID}
+        />
+      )}
     </>
   );
 }
@@ -104,6 +107,7 @@ function mapPullRequestToModalData(
     author,
     state: pullRequest.state,
     isDraft: pullRequest.is_draft,
+    isMerged: pullRequest.is_merged,
     branch: pullRequest.branch,
     assignees: pullRequest.assignees.map(assignee => assignee.github_username),
     labels: pullRequest.labels,
