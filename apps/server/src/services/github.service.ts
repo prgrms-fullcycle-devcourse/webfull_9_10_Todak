@@ -228,6 +228,54 @@ export type UpdateIssueParams = {
   labels?: string[];
   assignees?: string[];
   state?: 'open' | 'closed';
+  milestone?: number | null;
+};
+
+export type IssueComment = {
+  id: number;
+  body: string;
+  authorLogin: string;
+  authorAvatarUrl: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RepoMilestone = {
+  number: number;
+  title: string;
+  description: string | null;
+  state: 'open' | 'closed';
+  dueOn: string | null;
+  openIssues: number;
+  closedIssues: number;
+};
+
+export type IssueEvent = {
+  id: number;
+  event: string;
+  actorLogin: string;
+  actorAvatarUrl: string;
+  createdAt: string;
+  label?: string;
+  assignee?: string;
+  milestone?: string;
+};
+
+export type ReactionContent =
+  | '+1'
+  | '-1'
+  | 'laugh'
+  | 'confused'
+  | 'heart'
+  | 'hooray'
+  | 'rocket'
+  | 'eyes';
+
+export type IssueReaction = {
+  id: number;
+  content: ReactionContent;
+  userLogin: string;
+  createdAt: string;
 };
 
 export async function updateIssue(
@@ -428,5 +476,337 @@ export async function createPullRequestReview(
       // 422 = 본인 PR 승인 불가 등 리뷰 등록 불가
       422: 'PR_REVIEW_NOT_ALLOWED',
     });
+  }
+}
+
+// ─── Issue Comments ──────────────────────────────────────────────────────────
+
+export async function listIssueComments(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<IssueComment[]> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.issues.listComments({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      per_page: 100,
+    });
+
+    return data.map(c => ({
+      id: c.id,
+      body: c.body ?? '',
+      authorLogin: c.user?.login ?? '',
+      authorAvatarUrl: c.user?.avatar_url ?? '',
+      createdAt: c.created_at,
+      updatedAt: c.updated_at,
+    }));
+  } catch (err) {
+    return mapGithubError(err, { 404: 'REPO_NOT_FOUND' });
+  }
+}
+
+export async function createIssueComment(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  body: string,
+): Promise<IssueComment> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.issues.createComment({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      body,
+    });
+
+    return {
+      id: data.id,
+      body: data.body ?? '',
+      authorLogin: data.user?.login ?? '',
+      authorAvatarUrl: data.user?.avatar_url ?? '',
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  } catch (err) {
+    return mapGithubError(err, { 404: 'REPO_NOT_FOUND' });
+  }
+}
+
+export async function updateIssueComment(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  commentId: number,
+  body: string,
+): Promise<IssueComment> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.issues.updateComment({
+      owner,
+      repo,
+      comment_id: commentId,
+      body,
+    });
+
+    return {
+      id: data.id,
+      body: data.body ?? '',
+      authorLogin: data.user?.login ?? '',
+      authorAvatarUrl: data.user?.avatar_url ?? '',
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  } catch (err) {
+    return mapGithubError(err, { 404: 'NOT_FOUND' });
+  }
+}
+
+export async function deleteIssueComment(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  commentId: number,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.issues.deleteComment({ owner, repo, comment_id: commentId });
+  } catch (err) {
+    mapGithubError(err, { 404: 'NOT_FOUND' });
+  }
+}
+
+// ─── Milestones ───────────────────────────────────────────────────────────────
+
+export async function listMilestonesForRepo(
+  accessToken: string,
+  owner: string,
+  repo: string,
+): Promise<RepoMilestone[]> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.issues.listMilestones({
+      owner,
+      repo,
+      state: 'open',
+      per_page: 100,
+    });
+
+    return data.map(m => ({
+      number: m.number,
+      title: m.title,
+      description: m.description ?? null,
+      state: m.state as 'open' | 'closed',
+      dueOn: m.due_on ?? null,
+      openIssues: m.open_issues,
+      closedIssues: m.closed_issues,
+    }));
+  } catch (err) {
+    return mapGithubError(err, { 404: 'REPO_NOT_FOUND' });
+  }
+}
+
+// ─── Labels CRUD ─────────────────────────────────────────────────────────────
+
+export async function createLabelForRepo(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  name: string,
+  color: string,
+  description?: string,
+): Promise<{ name: string; color: string; description: string | null }> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.issues.createLabel({
+      owner,
+      repo,
+      name,
+      color,
+      description,
+    });
+
+    return {
+      name: data.name,
+      color: data.color ?? '',
+      description: data.description ?? null,
+    };
+  } catch (err) {
+    return mapGithubError(err, {
+      403: 'REPO_ADMIN_REQUIRED',
+      404: 'REPO_NOT_FOUND',
+      422: 'CONFLICT',
+    });
+  }
+}
+
+export async function updateLabelForRepo(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  name: string,
+  updates: { new_name?: string; color?: string; description?: string },
+): Promise<{ name: string; color: string; description: string | null }> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.issues.updateLabel({
+      owner,
+      repo,
+      name,
+      new_name: updates.new_name,
+      color: updates.color,
+      description: updates.description,
+    });
+
+    return {
+      name: data.name,
+      color: data.color ?? '',
+      description: data.description ?? null,
+    };
+  } catch (err) {
+    return mapGithubError(err, {
+      403: 'REPO_ADMIN_REQUIRED',
+      404: 'NOT_FOUND',
+    });
+  }
+}
+
+export async function deleteLabelForRepo(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  name: string,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.issues.deleteLabel({ owner, repo, name });
+  } catch (err) {
+    mapGithubError(err, {
+      403: 'REPO_ADMIN_REQUIRED',
+      404: 'NOT_FOUND',
+    });
+  }
+}
+
+// ─── Issue Events ─────────────────────────────────────────────────────────────
+
+export async function listIssueEvents(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<IssueEvent[]> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.issues.listEvents({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      per_page: 100,
+    });
+
+    return data.map(e => {
+      const base: IssueEvent = {
+        id: e.id,
+        event: e.event,
+        actorLogin: e.actor?.login ?? '',
+        actorAvatarUrl: e.actor?.avatar_url ?? '',
+        createdAt: e.created_at ?? new Date().toISOString(),
+      };
+
+      const raw = e as Record<string, unknown>;
+      if (
+        raw['label'] !== null &&
+        raw['label'] !== undefined &&
+        typeof raw['label'] === 'object'
+      ) {
+        base.label = (raw['label'] as { name: string }).name;
+      }
+
+      if (
+        raw['assignee'] !== null &&
+        raw['assignee'] !== undefined &&
+        typeof raw['assignee'] === 'object'
+      ) {
+        base.assignee = (raw['assignee'] as { login: string }).login;
+      }
+
+      if (
+        raw['milestone'] !== null &&
+        raw['milestone'] !== undefined &&
+        typeof raw['milestone'] === 'object'
+      ) {
+        base.milestone = (raw['milestone'] as { title: string }).title;
+      }
+
+      return base;
+    });
+  } catch (err) {
+    return mapGithubError(err, { 404: 'REPO_NOT_FOUND' });
+  }
+}
+
+// ─── Reactions ───────────────────────────────────────────────────────────────
+
+export async function createIssueReaction(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  content: ReactionContent,
+): Promise<IssueReaction> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.reactions.createForIssue({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      content,
+    });
+
+    return {
+      id: data.id,
+      content: data.content as ReactionContent,
+      userLogin: data.user?.login ?? '',
+      createdAt: data.created_at,
+    };
+  } catch (err) {
+    return mapGithubError(err, { 404: 'REPO_NOT_FOUND' });
+  }
+}
+
+export async function deleteIssueReaction(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  reactionId: number,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.reactions.deleteForIssue({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      reaction_id: reactionId,
+    });
+  } catch (err) {
+    mapGithubError(err, { 404: 'NOT_FOUND' });
   }
 }

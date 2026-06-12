@@ -3,13 +3,25 @@ import { z } from 'zod';
 import { registry } from '../../../schema/openapi.js';
 
 import {
+  CommentIdParamsSchema,
+  CreateCommentSchema,
+  CreateLabelSchema,
+  CreateReactionSchema,
   CreateTodosSchema,
   GetTodosQueryOpenApiSchema,
+  LabelNameParamsSchema,
+  ReactionIdParamsSchema,
   RoomIdParamsSchema,
+  TodoCommentSchema,
   TodoDetailResponseSchema,
+  TodoEventSchema,
   TodoIdParamsSchema,
   TodoLabelSchema,
+  TodoMilestoneSchema,
+  TodoReactionSchema,
   TodoResponseSchema,
+  UpdateCommentSchema,
+  UpdateLabelSchema,
   UpdateTodoSchema,
 } from './todos.schema.js';
 
@@ -267,9 +279,11 @@ registry.registerPath({
   tags: ['Todos'],
   summary: 'Todo 수정',
   description:
-    'Todo의 title, body, labels, assignee_id, is_done 을 수정합니다. ' +
+    'Todo의 title, body, labels, assignee_ids, milestone_number, is_done 을 수정합니다. ' +
     'GitHub 이슈가 연결된 Todo는 GitHub issues.update 후 DB를 갱신합니다. ' +
-    'is_done=true 는 close, false 는 reopen 입니다. 완료만 하려면 DELETE 대신 PATCH is_done 을 사용하세요. ' +
+    'assignee_ids 는 복수 담당자를 지원하며, 빈 배열이면 전체 해제입니다. ' +
+    'milestone_number 는 GET /milestones 로 조회한 번호를 사용하세요. null 이면 마일스톤 해제. ' +
+    'is_done=true 는 close, false 는 reopen 입니다. ' +
     'labels 는 GitHub 기준 전체 교체입니다. 성공 시 todo:updated 소켓 이벤트를 emit합니다.',
   security: [{ bearerAuth: [] }],
   request: {
@@ -281,7 +295,8 @@ registry.registerPath({
           example: {
             title: '미들웨어 인증 로직 리팩토링',
             labels: ['enhancement', 'backend'],
-            assignee_id: 'uuid-user-1',
+            assignee_ids: ['uuid-user-1', 'uuid-user-2'],
+            milestone_number: 1,
             is_done: true,
           },
         },
@@ -323,6 +338,412 @@ registry.registerPath({
       'Todo 없음',
       'TODO_NOT_FOUND',
       'Todo를 찾을 수 없습니다.',
+    ),
+  },
+});
+
+// ─── GET /rooms/:roomId/todos/:todoId ────────────────────────────────────────
+registry.registerPath({
+  method: 'get',
+  path: '/rooms/{roomId}/todos/{todoId}',
+  tags: ['Todos'],
+  summary: 'Todo 단건 조회',
+  security: [{ bearerAuth: [] }],
+  request: { params: TodoIdParamsSchema },
+  responses: {
+    200: {
+      description: 'Todo 단건 조회 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({ todo: TodoDetailResponseSchema }),
+          }),
+          example: { success: true, data: { todo: todoDetailExample } },
+        },
+      },
+    },
+    401: errorResponse('인증 실패', 'UNAUTHORIZED', '인증이 필요합니다.'),
+    404: errorResponse(
+      'Todo 없음',
+      'TODO_NOT_FOUND',
+      'Todo를 찾을 수 없습니다.',
+    ),
+  },
+});
+
+// ─── GET /rooms/:roomId/todos/:todoId/comments ────────────────────────────────
+registry.registerPath({
+  method: 'get',
+  path: '/rooms/{roomId}/todos/{todoId}/comments',
+  tags: ['Todos'],
+  summary: 'Todo 댓글 목록',
+  description:
+    'GitHub 이슈의 댓글 목록을 반환합니다. GitHub 이슈와 연결된 Todo에만 사용 가능합니다.',
+  security: [{ bearerAuth: [] }],
+  request: { params: TodoIdParamsSchema },
+  responses: {
+    200: {
+      description: '댓글 목록 조회 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({ comments: z.array(TodoCommentSchema) }),
+          }),
+        },
+      },
+    },
+    400: errorResponse(
+      'GitHub 이슈 미연결',
+      'TODO_GITHUB_NOT_LINKED',
+      'GitHub 이슈와 연결되지 않은 Todo입니다.',
+    ),
+    401: githubReauth401,
+  },
+});
+
+// ─── POST /rooms/:roomId/todos/:todoId/comments ───────────────────────────────
+registry.registerPath({
+  method: 'post',
+  path: '/rooms/{roomId}/todos/{todoId}/comments',
+  tags: ['Todos'],
+  summary: 'Todo 댓글 작성',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: TodoIdParamsSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: CreateCommentSchema,
+          example: { body: 'PR 리뷰 완료했습니다.' },
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: '댓글 작성 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({ comment: TodoCommentSchema }),
+          }),
+        },
+      },
+    },
+    400: errorResponse(
+      'GitHub 이슈 미연결',
+      'TODO_GITHUB_NOT_LINKED',
+      'GitHub 이슈와 연결되지 않은 Todo입니다.',
+    ),
+    401: githubReauth401,
+  },
+});
+
+// ─── PATCH /rooms/:roomId/todos/:todoId/comments/:commentId ───────────────────
+registry.registerPath({
+  method: 'patch',
+  path: '/rooms/{roomId}/todos/{todoId}/comments/{commentId}',
+  tags: ['Todos'],
+  summary: 'Todo 댓글 수정',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: CommentIdParamsSchema,
+    body: { content: { 'application/json': { schema: UpdateCommentSchema } } },
+  },
+  responses: {
+    200: {
+      description: '댓글 수정 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({ comment: TodoCommentSchema }),
+          }),
+        },
+      },
+    },
+    401: githubReauth401,
+    404: errorResponse('댓글 없음', 'NOT_FOUND', '댓글을 찾을 수 없습니다.'),
+  },
+});
+
+// ─── DELETE /rooms/:roomId/todos/:todoId/comments/:commentId ──────────────────
+registry.registerPath({
+  method: 'delete',
+  path: '/rooms/{roomId}/todos/{todoId}/comments/{commentId}',
+  tags: ['Todos'],
+  summary: 'Todo 댓글 삭제',
+  security: [{ bearerAuth: [] }],
+  request: { params: CommentIdParamsSchema },
+  responses: {
+    200: {
+      description: '댓글 삭제 성공',
+      content: {
+        'application/json': {
+          schema: z.object({ success: z.literal(true), data: z.null() }),
+          example: { success: true, data: null },
+        },
+      },
+    },
+    401: githubReauth401,
+    404: errorResponse('댓글 없음', 'NOT_FOUND', '댓글을 찾을 수 없습니다.'),
+  },
+});
+
+// ─── GET /rooms/:roomId/todos/milestones ──────────────────────────────────────
+registry.registerPath({
+  method: 'get',
+  path: '/rooms/{roomId}/todos/milestones',
+  tags: ['Todos'],
+  summary: '레포 마일스톤 목록',
+  description:
+    '룸에 연결된 레포의 열린(open) 마일스톤 목록을 반환합니다. PATCH milestone_number 에 사용할 번호를 확인하는 용도입니다.',
+  security: [{ bearerAuth: [] }],
+  request: { params: RoomIdParamsSchema },
+  responses: {
+    200: {
+      description: '마일스톤 목록 조회 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({ milestones: z.array(TodoMilestoneSchema) }),
+          }),
+        },
+      },
+    },
+    401: githubReauth401,
+    404: errorResponse(
+      '레포 없음',
+      'ROOM_REPO_NOT_FOUND',
+      '룸에 연결된 레포지토리가 없습니다.',
+    ),
+  },
+});
+
+// ─── POST /rooms/:roomId/todos/labels ─────────────────────────────────────────
+registry.registerPath({
+  method: 'post',
+  path: '/rooms/{roomId}/todos/labels',
+  tags: ['Todos'],
+  summary: '레포 라벨 생성',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: RoomIdParamsSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: CreateLabelSchema,
+          example: {
+            name: 'hotfix',
+            color: 'e11d48',
+            description: '긴급 수정 사항',
+          },
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: '라벨 생성 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({ label: TodoLabelSchema }),
+          }),
+        },
+      },
+    },
+    401: githubReauth401,
+    403: errorResponse(
+      'GitHub 권한 부족',
+      'REPO_ADMIN_REQUIRED',
+      '레포지토리 Admin 권한이 필요합니다.',
+    ),
+    409: errorResponse('라벨 중복', 'CONFLICT', '이미 존재하는 리소스입니다.'),
+  },
+});
+
+// ─── PATCH /rooms/:roomId/todos/labels/:labelName ─────────────────────────────
+registry.registerPath({
+  method: 'patch',
+  path: '/rooms/{roomId}/todos/labels/{labelName}',
+  tags: ['Todos'],
+  summary: '레포 라벨 수정',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: LabelNameParamsSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: UpdateLabelSchema,
+          example: { new_name: 'urgent', color: 'dc2626' },
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: '라벨 수정 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({ label: TodoLabelSchema }),
+          }),
+        },
+      },
+    },
+    401: githubReauth401,
+    403: errorResponse(
+      'GitHub 권한 부족',
+      'REPO_ADMIN_REQUIRED',
+      '레포지토리 Admin 권한이 필요합니다.',
+    ),
+    404: errorResponse(
+      '라벨 없음',
+      'NOT_FOUND',
+      '요청한 리소스를 찾을 수 없습니다.',
+    ),
+  },
+});
+
+// ─── DELETE /rooms/:roomId/todos/labels/:labelName ────────────────────────────
+registry.registerPath({
+  method: 'delete',
+  path: '/rooms/{roomId}/todos/labels/{labelName}',
+  tags: ['Todos'],
+  summary: '레포 라벨 삭제',
+  security: [{ bearerAuth: [] }],
+  request: { params: LabelNameParamsSchema },
+  responses: {
+    200: {
+      description: '라벨 삭제 성공',
+      content: {
+        'application/json': {
+          schema: z.object({ success: z.literal(true), data: z.null() }),
+          example: { success: true, data: null },
+        },
+      },
+    },
+    401: githubReauth401,
+    403: errorResponse(
+      'GitHub 권한 부족',
+      'REPO_ADMIN_REQUIRED',
+      '레포지토리 Admin 권한이 필요합니다.',
+    ),
+    404: errorResponse(
+      '라벨 없음',
+      'NOT_FOUND',
+      '요청한 리소스를 찾을 수 없습니다.',
+    ),
+  },
+});
+
+// ─── GET /rooms/:roomId/todos/:todoId/events ──────────────────────────────────
+registry.registerPath({
+  method: 'get',
+  path: '/rooms/{roomId}/todos/{todoId}/events',
+  tags: ['Todos'],
+  summary: 'Todo 이슈 이벤트 타임라인',
+  description:
+    'GitHub 이슈의 이벤트 타임라인을 반환합니다. labeled, assigned, milestoned, closed, reopened 등 변경 히스토리를 포함합니다.',
+  security: [{ bearerAuth: [] }],
+  request: { params: TodoIdParamsSchema },
+  responses: {
+    200: {
+      description: '이벤트 목록 조회 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({ events: z.array(TodoEventSchema) }),
+          }),
+        },
+      },
+    },
+    400: errorResponse(
+      'GitHub 이슈 미연결',
+      'TODO_GITHUB_NOT_LINKED',
+      'GitHub 이슈와 연결되지 않은 Todo입니다.',
+    ),
+    401: githubReauth401,
+  },
+});
+
+// ─── POST /rooms/:roomId/todos/:todoId/reactions ──────────────────────────────
+registry.registerPath({
+  method: 'post',
+  path: '/rooms/{roomId}/todos/{todoId}/reactions',
+  tags: ['Todos'],
+  summary: 'Todo 리액션 추가',
+  description:
+    'GitHub 이슈에 리액션을 추가합니다. 같은 리액션이 이미 있으면 기존 리액션을 반환합니다.',
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: TodoIdParamsSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: CreateReactionSchema,
+          example: { content: '+1' },
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: '리액션 추가 성공',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: z.object({ reaction: TodoReactionSchema }),
+          }),
+        },
+      },
+    },
+    400: errorResponse(
+      'GitHub 이슈 미연결',
+      'TODO_GITHUB_NOT_LINKED',
+      'GitHub 이슈와 연결되지 않은 Todo입니다.',
+    ),
+    401: githubReauth401,
+  },
+});
+
+// ─── DELETE /rooms/:roomId/todos/:todoId/reactions/:reactionId ────────────────
+registry.registerPath({
+  method: 'delete',
+  path: '/rooms/{roomId}/todos/{todoId}/reactions/{reactionId}',
+  tags: ['Todos'],
+  summary: 'Todo 리액션 삭제',
+  security: [{ bearerAuth: [] }],
+  request: { params: ReactionIdParamsSchema },
+  responses: {
+    200: {
+      description: '리액션 삭제 성공',
+      content: {
+        'application/json': {
+          schema: z.object({ success: z.literal(true), data: z.null() }),
+          example: { success: true, data: null },
+        },
+      },
+    },
+    400: errorResponse(
+      'GitHub 이슈 미연결',
+      'TODO_GITHUB_NOT_LINKED',
+      'GitHub 이슈와 연결되지 않은 Todo입니다.',
+    ),
+    401: githubReauth401,
+    404: errorResponse(
+      '리액션 없음',
+      'NOT_FOUND',
+      '요청한 리소스를 찾을 수 없습니다.',
     ),
   },
 });

@@ -135,6 +135,11 @@ export const ERROR_CODES = {
     code: 'TODO_NOT_FOUND',
     message: 'Todo를 찾을 수 없습니다.',
   },
+  TODO_GITHUB_NOT_LINKED: {
+    statusCode: StatusCodes.BAD_REQUEST,
+    code: 'TODO_GITHUB_NOT_LINKED',
+    message: 'GitHub 이슈와 연결되지 않은 Todo입니다.',
+  },
   CHAT_MESSAGE_NOT_FOUND: {
     statusCode: StatusCodes.NOT_FOUND,
     code: 'CHAT_MESSAGE_NOT_FOUND',

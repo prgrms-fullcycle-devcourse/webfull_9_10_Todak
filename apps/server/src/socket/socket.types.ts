@@ -64,6 +64,7 @@ export interface TodoEventPayload {
   assignee_id: string | null;
   minutes_id: string | null;
   github_issue_number: number | null;
+  milestone_number: number | null;
   is_done: boolean;
   created_at: Date;
 }
