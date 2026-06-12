@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
 import { AnimalType, useSpaceStore } from '@/store/useSpaceStore';
 import { loadAllAnimalAssets } from './_animals/animalAssets';
@@ -28,7 +28,8 @@ import {
 } from '@/services/rooms/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { loadMascotNpcAssets } from '../2d/_npcs/npcAssets';
-import { createMascotNpc } from '../2d/_npcs/createNpc';
+import { createMascotNpc, MascotNpcContainer } from '../2d/_npcs/createNpc';
+import { useNotifications } from '@/services/notifications/query';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -50,6 +51,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   // 캔버스를 마운트할 DOM 컨테이너 참조
   const canvasRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const npcRef = useRef<MascotNpcContainer | null>(null);
+  const [isNpcReady, setIsNpcReady] = useState(false);
+  const { data: notificationData } = useNotifications(roomId);
 
   useEffect(() => {
     let isMounted = true;
@@ -119,7 +123,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       }
 
       const world = createWorld();
-      world.sortableChildren = true; // zIndex 기반 정렬 활성화
+      world.sortableChildren = true;
       app.stage.addChild(world);
       (window as CustomWindow).__PIXI_APP__ = app;
 
@@ -147,6 +151,8 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       const helperNpc = createMascotNpc(mascotTextures, 1500, 500, '토닥이');
       helperNpc.zIndex = 8;
       world.addChild(helperNpc);
+      npcRef.current = helperNpc;
+      setIsNpcReady(true);
 
       // 회의실 입장 시 화면을 어둡게 하는 오버레이
       const darkOverlay = new PIXI.Graphics();
@@ -456,6 +462,8 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       unsubscribeAnimal?.();
       unsubscribePlayer?.();
       unsubscribeModal?.();
+      npcRef.current = null;
+      setIsNpcReady(false);
 
       // 맴버 소켓 이벤트 리스너 제거
       getSocket().off('room:user-joined');
@@ -472,6 +480,34 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       }
     };
   }, [roomId, queryClient]);
+
+  // 실시간 알림 연동
+  useEffect(() => {
+    if (!isNpcReady || !npcRef.current) return;
+
+    const notifications = notificationData?.notifications ?? [];
+    if (notifications.length === 0) {
+      npcRef.current?.say('오늘도 토닥윗미에서\n즐거운 협업 마라톤 화이팅! 🚀');
+      return;
+    }
+
+    let activeIndex = 0;
+
+    // 첫 진입 시 최초 알림 문구 즉시 출력
+    npcRef.current?.say(notifications[0].message);
+
+    // 하단 롤링 배너와 싱크 맞추는 타이머
+    const intervalId = window.setInterval(() => {
+      activeIndex = (activeIndex + 1) % notifications.length;
+      const currentNotice = notifications[activeIndex];
+
+      if (npcRef.current) {
+        npcRef.current.say(currentNotice.message);
+      }
+    }, 4000);
+
+    return () => window.clearInterval(intervalId);
+  }, [notificationData, isNpcReady, roomId]);
 
   return (
     <div className="flex flex-col items-center justify-start gap-2 pt-0 h-full w-full">
