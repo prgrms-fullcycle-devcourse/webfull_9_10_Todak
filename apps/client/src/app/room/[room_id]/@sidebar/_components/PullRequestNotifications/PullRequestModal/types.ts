@@ -5,6 +5,7 @@ export interface PullRequestModalData {
   author: string;
   state: string;
   isDraft: boolean;
+  isMerged: boolean;
   branch: {
     head: string;
     base: string;

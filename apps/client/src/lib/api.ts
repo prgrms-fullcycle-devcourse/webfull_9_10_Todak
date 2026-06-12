@@ -175,6 +175,14 @@ export const apiClient = {
     return request<TData, TBody>({ ...config, data, method: 'PATCH', url });
   },
 
+  put<TData, TBody = unknown>(
+    url: string,
+    data?: TBody,
+    config?: ApiMethodConfig<TBody>,
+  ) {
+    return request<TData, TBody>({ ...config, data, method: 'PUT', url });
+  },
+
   delete<TData>(url: string, config?: ApiMethodConfig) {
     return request<TData>({ ...config, method: 'DELETE', url });
   },
