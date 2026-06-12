@@ -32,11 +32,13 @@ type TabID = (typeof TabOptions)[number]['id'];
 interface ProjectHubProps {
   initialInviteCode?: string;
   userID: string;
+  variant?: 'page' | 'embedded';
 }
 
 export default function ProjectHub({
   initialInviteCode = '',
   userID,
+  variant = 'page',
 }: ProjectHubProps) {
   const { data: myRooms } = useQuery({
     queryKey: ['myRooms'],
@@ -46,18 +48,27 @@ export default function ProjectHub({
     initialInviteCode === '' ? null : 'invite',
   );
   const defaultTab = myRooms && myRooms.length > 0 ? 'teams' : 'create';
+  const activeTab = selectedTab ?? defaultTab;
+  const wrapperClassName =
+    variant === 'page'
+      ? 'flex min-h-dvh w-full items-start justify-center bg-background px-5 pb-8 pt-[max(2rem,calc((100dvh-494px)/2))]'
+      : 'w-full';
+  const cardClassName =
+    variant === 'page'
+      ? 'w-full max-w-[386px] gap-0 rounded-[26px] border border-border/80 bg-surface px-7 py-8 shadow-todak-panel'
+      : 'w-full gap-0 rounded-[26px] border border-border/80 bg-surface px-6 py-7 shadow-todak-panel';
 
   return (
-    <section className="flex min-h-dvh w-full items-start justify-center bg-background px-5 pb-8 pt-[max(2rem,calc((100dvh-494px)/2))]">
-      <Card className="w-full max-w-[386px] gap-0 rounded-[26px] border border-border/80 bg-surface px-7 py-8 shadow-todak-panel">
+    <section className={wrapperClassName}>
+      <Card className={cardClassName}>
         <Card.Header className="items-center gap-2 text-center">
           <p className="todak-section-label text-todak-coral-500">
             PROJECT HUB
           </p>
           <Card.Title className="todak-title text-[21px] leading-tight sm:text-[23px]">
-            {selectedTab === 'teams' && '프로젝트 들어가기'}
-            {selectedTab === 'create' && '프로젝트 시작하기'}
-            {selectedTab === 'invite' && '프로젝트 참여하기'}
+            {activeTab === 'teams' && '프로젝트 들어가기'}
+            {activeTab === 'create' && '프로젝트 시작하기'}
+            {activeTab === 'invite' && '프로젝트 참여하기'}
           </Card.Title>
           <Card.Description className="todak-subcopy text-[10px] font-bold sm:text-[11px]">
             새 프로젝트를 만들거나, 기존 팀을 선택하거나, 초대 코드로
@@ -66,7 +77,7 @@ export default function ProjectHub({
         </Card.Header>
         <Card.Content className="mt-5 gap-0">
           <Tabs
-            selectedKey={selectedTab ?? defaultTab}
+            selectedKey={activeTab}
             className="gap-0"
             onSelectionChange={key => setSelectedTab(key as TabID)}
           >
