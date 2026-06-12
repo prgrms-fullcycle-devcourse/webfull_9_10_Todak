@@ -3,7 +3,7 @@
 import { cn } from '@/lib/cn';
 import { isSystemError, isTodakApiError } from '@/services/error';
 import { joinRooms } from '@/services/rooms/api';
-import { FieldError, Input, Label } from '@heroui/react';
+import { Button, FieldError, Input, Label } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import {
@@ -110,7 +110,7 @@ export default function InviteTab({
     clearInviteErrors();
   }
 
-  function handleInviteCodePaste(event: ClipboardEvent<HTMLInputElement>) {
+  function handleFirstPartPaste(event: ClipboardEvent<HTMLInputElement>) {
     event.preventDefault();
 
     const { first, second } = splitInviteCode(
@@ -124,6 +124,23 @@ export default function InviteTab({
     if (second.length < 4) {
       secondInviteCodeInputRef.current?.focus();
     }
+  }
+
+  function handleSecondPartPaste(event: ClipboardEvent<HTMLInputElement>) {
+    event.preventDefault();
+
+    const { first, second } = splitInviteCode(
+      event.clipboardData.getData('text'),
+    );
+
+    if (second !== '') {
+      setInviteCodeFirstPart(first);
+      setInviteCodeSecondPart(second);
+    } else {
+      setInviteCodeSecondPart(first);
+    }
+
+    clearInviteErrors();
   }
 
   function handleSecondPartKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -212,7 +229,7 @@ export default function InviteTab({
             inputMode="text"
             maxLength={4}
             onChange={handleInviteCodeFirstPartChange}
-            onPaste={handleInviteCodePaste}
+            onPaste={handleFirstPartPaste}
             placeholder="XXXX"
             ref={firstInviteCodeInputRef}
             value={inviteCodeFirstPart}
@@ -231,7 +248,7 @@ export default function InviteTab({
             maxLength={4}
             onChange={handleInviteCodeSecondPartChange}
             onKeyDown={handleSecondPartKeyDown}
-            onPaste={handleInviteCodePaste}
+            onPaste={handleSecondPartPaste}
             placeholder="XXXX"
             ref={secondInviteCodeInputRef}
             value={inviteCodeSecondPart}
@@ -256,13 +273,13 @@ export default function InviteTab({
         </p>
       )}
 
-      <button
+      <Button
         className="flex h-9 w-full items-center justify-center rounded-xl bg-accent text-xs font-black text-accent-foreground shadow-md transition-colors hover:bg-todak-coral-600 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isJoining}
+        isDisabled={isJoining}
         type="submit"
       >
         {isJoining ? '초대 코드 확인 중...' : '다음 단계로 이동 (프로필 설정)'}
-      </button>
+      </Button>
     </form>
   );
 }
