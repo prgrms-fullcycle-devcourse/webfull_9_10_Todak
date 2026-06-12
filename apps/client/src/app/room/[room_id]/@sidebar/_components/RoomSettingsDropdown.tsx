@@ -2,7 +2,7 @@
 
 import { logoutAuth } from '@/lib/auth';
 import type { RoomInfo, RoomProfile } from '@/services/rooms/model';
-import { Dropdown } from '@heroui/react';
+import { Button, Dropdown } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -10,14 +10,12 @@ interface Props {
   myRoomInfo?: RoomProfile;
   room: RoomInfo;
   roomID: string;
-  userID: string;
 }
 
 export default function RoomSettingsDropdown({
   myRoomInfo,
   room,
   roomID,
-  userID,
 }: Props) {
   const router = useRouter();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -36,10 +34,8 @@ export default function RoomSettingsDropdown({
   }, [toastMessage]);
 
   const handleInviteCopy = async () => {
-    const inviteText = getInviteLink(userID, room.invite_code);
-
     try {
-      await navigator.clipboard.writeText(inviteText);
+      await navigator.clipboard.writeText(room.invite_code);
       setToastMessage('초대코드가 복사되었습니다');
     } catch {
       setToastMessage('초대코드 복사에 실패했습니다');
@@ -65,6 +61,28 @@ export default function RoomSettingsDropdown({
           className="min-w-56 rounded-xl border border-border bg-surface p-1 shadow-todak-panel"
           placement="top"
         >
+          <div className="space-y-2 border-b border-border px-2.5 py-2.5">
+            <MenuLabel label="룸 이름" value={room.name} />
+            <MenuLabel label="연동된 깃허브" value={repoLabel} />
+            <div className="min-w-0">
+              <span className="block text-[10px] font-black text-muted">
+                초대코드
+              </span>
+              <div className="mt-1 flex min-w-0 items-center gap-2">
+                <span className="min-w-0 flex-1 truncate font-todak-mono text-[10px] font-bold text-foreground">
+                  {room.invite_code}
+                </span>
+                <Button
+                  aria-label="초대코드 복사"
+                  className="size-7 rounded-lg border border-border bg-surface-secondary px-0 text-[11px] font-black text-muted shadow-sm transition-colors hover:bg-background hover:text-foreground"
+                  onPress={handleInviteCopy}
+                  type="button"
+                >
+                  ⧉
+                </Button>
+              </div>
+            </div>
+          </div>
           <Dropdown.Menu
             aria-label="룸 설정 메뉴"
             onAction={key => {
@@ -73,36 +91,14 @@ export default function RoomSettingsDropdown({
                 return;
               }
 
-              if (key === 'invite') {
-                void handleInviteCopy();
-                return;
-              }
-
               if (key === 'logout') {
                 void handleLogout();
               }
             }}
           >
-            <Dropdown.Item
-              className="cursor-default"
-              id="room-name"
-              isDisabled
-              textValue={`룸 이름 ${room.name}`}
-            >
-              <MenuLabel label="룸 이름" value={room.name} />
-            </Dropdown.Item>
-            <Dropdown.Item
-              className="cursor-default"
-              id="github-repo"
-              isDisabled
-              textValue={`연동된 깃허브 ${repoLabel}`}
-            >
-              <MenuLabel label="연동된 깃허브" value={repoLabel} />
-            </Dropdown.Item>
             <Dropdown.Item id="settings" isDisabled={!myRoomInfo}>
               설정
             </Dropdown.Item>
-            <Dropdown.Item id="invite">협업자 초대</Dropdown.Item>
             <Dropdown.Item id="logout" variant="danger">
               로그아웃
             </Dropdown.Item>
@@ -128,18 +124,4 @@ function MenuLabel({ label, value }: { label: string; value: string }) {
       </span>
     </span>
   );
-}
-
-function getInviteLink(userID: string, inviteCode: string) {
-  if (typeof window === 'undefined') {
-    return inviteCode;
-  }
-
-  const url = new URL(
-    `/${encodeURIComponent(userID)}/join`,
-    window.location.origin,
-  );
-  url.searchParams.set('inviteCode', inviteCode);
-
-  return url.toString();
 }

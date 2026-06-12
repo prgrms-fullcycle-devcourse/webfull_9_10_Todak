@@ -69,7 +69,6 @@ export default async function Sidebar({ params }: SidebarProps) {
         myRoomInfo={myRoomInfo}
         room={roomInfo}
         roomID={roomID}
-        userID={myInfo.id}
       />
     </>
   );

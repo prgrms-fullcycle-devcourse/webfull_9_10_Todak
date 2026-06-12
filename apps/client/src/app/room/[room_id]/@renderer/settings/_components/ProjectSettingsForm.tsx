@@ -8,6 +8,7 @@ import {
   updateRoomSettings,
 } from '@/services/rooms/api';
 import type { RoomInfo, RoomProfile } from '@/services/rooms/model';
+import { Button } from '@heroui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
@@ -287,13 +288,13 @@ export default function ProjectSettingsForm({
         )}
 
         <div className="flex justify-end">
-          <button
+          <Button
             className="h-9 rounded-xl bg-foreground px-4 text-xs font-black text-background shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={updateSettingsMutation.isPending || !canEdit}
+            isDisabled={updateSettingsMutation.isPending || !canEdit}
             type="submit"
           >
             {updateSettingsMutation.isPending ? '저장 중...' : '저장하기'}
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -332,15 +333,15 @@ export default function ProjectSettingsForm({
             ))}
           </select>
 
-          <button
+          <Button
             className="h-9 rounded-xl bg-foreground px-4 text-xs font-black text-background shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={
+            isDisabled={
               !canEdit ||
               selectedRepoFullName === '' ||
               connectRepositoryMutation.isPending ||
               disconnectRepositoryMutation.isPending
             }
-            onClick={handleRepositoryConnect}
+            onPress={handleRepositoryConnect}
             type="button"
           >
             {connectRepositoryMutation.isPending
@@ -348,21 +349,21 @@ export default function ProjectSettingsForm({
               : currentRepoFullName === null
                 ? '연결하기'
                 : '재연결하기'}
-          </button>
+          </Button>
 
-          <button
+          <Button
             className="h-9 rounded-xl border border-border bg-surface px-4 text-xs font-black text-danger shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={
+            isDisabled={
               !canEdit ||
               currentRepoFullName === null ||
               connectRepositoryMutation.isPending ||
               disconnectRepositoryMutation.isPending
             }
-            onClick={handleRepositoryDisconnect}
+            onPress={handleRepositoryDisconnect}
             type="button"
           >
             {disconnectRepositoryMutation.isPending ? '해제 중...' : '해제'}
-          </button>
+          </Button>
         </div>
 
         {githubRepositoriesQuery.isError && (

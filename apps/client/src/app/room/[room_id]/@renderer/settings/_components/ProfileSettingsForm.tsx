@@ -12,7 +12,13 @@ import { isSystemError, isTodakApiError } from '@/services/error';
 import { updateRoomProfile } from '@/services/rooms/api';
 import type { RoomProfile } from '@/services/rooms/model';
 import { useSpaceStore, type AnimalType } from '@/store/useSpaceStore';
-import { Checkbox, CheckboxGroup, Radio, RadioGroup } from '@heroui/react';
+import {
+  Button,
+  Checkbox,
+  CheckboxGroup,
+  Radio,
+  RadioGroup,
+} from '@heroui/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -330,13 +336,13 @@ export default function ProfileSettingsForm({
         )}
 
         <div className="flex justify-end">
-          <button
+          <Button
             className="h-9 rounded-xl bg-foreground px-4 text-xs font-black text-background shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={updateProfileMutation.isPending}
+            isDisabled={updateProfileMutation.isPending}
             type="submit"
           >
             {updateProfileMutation.isPending ? '저장 중...' : '저장하기'}
-          </button>
+          </Button>
         </div>
       </form>
     </section>
