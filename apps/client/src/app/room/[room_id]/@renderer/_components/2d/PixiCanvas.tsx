@@ -54,6 +54,8 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   const npcRef = useRef<MascotNpcContainer | null>(null);
   const [isNpcReady, setIsNpcReady] = useState(false);
   const { data: notificationData } = useNotifications(roomId);
+  const npcTimeoutRef = useRef<number | null>(null);
+  const prevNotificationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -478,6 +480,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       if (app) {
         app.destroy(true, { children: true, texture: false });
       }
+      if (npcTimeoutRef.current) {
+        window.clearTimeout(npcTimeoutRef.current);
+      }
     };
   }, [roomId, queryClient]);
 
@@ -486,28 +491,36 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     if (!isNpcReady || !npcRef.current) return;
 
     const notifications = notificationData?.notifications ?? [];
-    if (notifications.length === 0) {
-      npcRef.current?.say('오늘도 토닥윗미에서\n즐거운 협업 마라톤 화이팅! 🚀');
-      return;
-    }
+    if (notifications.length === 0) return;
 
-    let activeIndex = 0;
+    const latestNotification = notifications[0];
 
-    // 첫 진입 시 최초 알림 문구 즉시 출력
-    npcRef.current?.say(notifications[0].message);
-
-    // 하단 롤링 배너와 싱크 맞추는 타이머
-    const intervalId = window.setInterval(() => {
-      activeIndex = (activeIndex + 1) % notifications.length;
-      const currentNotice = notifications[activeIndex];
+    if (
+      !latestNotification.is_sample &&
+      latestNotification.id !== prevNotificationIdRef.current
+    ) {
+      if (prevNotificationIdRef.current === null) {
+        prevNotificationIdRef.current = latestNotification.id;
+        return;
+      }
+      prevNotificationIdRef.current = latestNotification.id;
 
       if (npcRef.current) {
-        npcRef.current.say(currentNotice.message);
-      }
-    }, 4000);
+        if (npcTimeoutRef.current) {
+          window.clearTimeout(npcTimeoutRef.current);
+        }
 
-    return () => window.clearInterval(intervalId);
-  }, [notificationData, isNpcReady, roomId]);
+        // NPC 말풍선
+        npcRef.current.say(latestNotification.message);
+        npcTimeoutRef.current = window.setTimeout(() => {
+          if (npcRef.current) {
+            npcRef.current.say('');
+          }
+          npcTimeoutRef.current = null;
+        }, 5000);
+      }
+    }
+  }, [notificationData, isNpcReady]);
 
   return (
     <div className="flex flex-col items-center justify-start gap-2 pt-0 h-full w-full">

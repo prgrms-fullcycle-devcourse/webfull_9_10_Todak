@@ -34,7 +34,7 @@ export function createMascotNpc(
   // 동적 가변형 말풍선 컴포넌트 구조 셋업
   const bubbleContainer = new PIXI.Container();
   bubbleContainer.y = -80;
-  bubbleContainer.visible = true;
+  bubbleContainer.visible = false;
   container.addChild(bubbleContainer);
 
   // 말풍선 배경 그래픽 객체

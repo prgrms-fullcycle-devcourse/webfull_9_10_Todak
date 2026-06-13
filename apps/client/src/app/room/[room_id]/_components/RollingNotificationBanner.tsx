@@ -56,29 +56,14 @@ export default function RollingNotificationBanner() {
 
     const socket = getSocket();
 
-    const roomNotificationEvent = `notification:created:${roomID}`;
-
-    console.log(
-      `🔌 [소켓 디버깅] [${roomNotificationEvent}] 채널 구독을 시작합니다.`,
-      {
-        소켓_ID: socket.id,
-        연결_상태: socket.connected,
-      },
-    );
+    const roomNotificationEvent = `notification:created`;
 
     // 서버에서 새 알림 발송 시 실행될 콜백 핸들러
     const handleNewNotification = (newNotification: RoomNotification) => {
-      console.log(
-        `📥 [소켓 디버깅] 우리 방 [${roomID}]의 실시간 알림 패킷 수신 성공!`,
-        newNotification,
-      );
-
       queryClient.setQueryData<NotificationsResponse>(
         notificationQueryKeys.room(roomID),
         oldData => {
           if (!oldData) return { notifications: [newNotification] };
-
-          // 최신 알림을 맨 앞에 넣고, 최대 5개까지만 유지하도록 자릅니다.
           const updatedList = [newNotification, ...oldData.notifications].slice(
             0,
             5,
@@ -93,19 +78,9 @@ export default function RollingNotificationBanner() {
     // 실시간 이벤트 구독 시작
     socket.on(roomNotificationEvent, handleNewNotification);
 
-    const onConnect = () =>
-      console.log('🟢 [소켓 디버깅] 실시간 소켓 재연결 성공:', socket.id);
-    const onDisconnect = (reason: string) =>
-      console.log('🔴 [소켓 디버깅] 실시간 소켓 연결 끊김:', reason);
-
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-
     // 언마운트 시 해당 룸 전용 채널만 정확하게 클린업 오프(off) 처리
     return () => {
       socket.off(roomNotificationEvent, handleNewNotification);
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
     };
   }, [roomID, queryClient]);
 
