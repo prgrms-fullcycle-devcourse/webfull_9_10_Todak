@@ -9,7 +9,7 @@ const LABEL_OPTIONS = ['feat', 'bug', 'docs', 'refactor', 'enhancement'];
 interface Props {
   issues: ActionItem[];
   onClose: () => void;
-  onUpload: () => void;
+  onUpload: (editedIssues: ActionItem[]) => void;
 }
 
 export default function ReviewModal({ issues, onClose, onUpload }: Props) {
@@ -132,7 +132,7 @@ export default function ReviewModal({ issues, onClose, onUpload }: Props) {
             </Button>
             <Button
               variant="ghost"
-              onClick={onUpload}
+              onClick={() => onUpload(editedIssues)}
               className="rounded-xl bg-todak-coral-500 px-4 py-2 text-xs font-bold text-white hover:bg-todak-coral-600"
             >
               github 업로드

@@ -9,6 +9,9 @@ import { MinuteDetail } from '@/services/minutes/model';
 interface MeetingMinutesProps {
   minutes: MinuteDetail | undefined;
   isLoading: boolean;
+  content: string;
+  onContentChange: (content: string) => void;
+  onSave: () => void;
 }
 
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false });
@@ -20,15 +23,24 @@ const MDPreview = dynamic(
 export default function MeetingMinutes({
   minutes,
   isLoading,
+  content,
+  onContentChange,
+  onSave,
 }: MeetingMinutesProps) {
   const currentMinutesId = useSpaceStore(state => state.currentMinutesId);
-
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
-  const [content, setContent] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(
+    'idle',
+  );
 
-  const displayContent = content || minutes?.content_md || '';
+  const handleSaveClick = async () => {
+    setSaveStatus('saving');
+    await onSave();
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus('idle'), 2000);
+  };
 
   // 회의록 없을 때
   if (!currentMinutesId) {
@@ -79,8 +91,15 @@ export default function MeetingMinutes({
           <span className="rounded-full border border-todak-coral-200 bg-todak-coral-50 px-2 py-0.5 text-[10px] font-bold text-todak-coral-500">
             AI 요약 활성됨
           </span>
-          <button className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50">
-            저장
+          <button
+            onClick={handleSaveClick}
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+          >
+            {saveStatus === 'saving'
+              ? '저장 중...'
+              : saveStatus === 'saved'
+                ? '✓ 저장됨'
+                : '저장'}
           </button>
         </div>
       </div>
@@ -118,15 +137,15 @@ export default function MeetingMinutes({
       >
         {tab === 'edit' ? (
           <MDEditor
-            value={displayContent}
-            onChange={val => setContent(val ?? '')}
+            value={content}
+            onChange={val => onContentChange(val ?? '')}
             height="100%"
             preview="edit"
             className="min-h-[400px]"
           />
         ) : (
           <MDPreview
-            source={displayContent}
+            source={content}
             className="rounded-xl border border-border bg-surface p-4"
           />
         )}
