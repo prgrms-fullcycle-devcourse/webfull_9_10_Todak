@@ -190,13 +190,16 @@ export default function NotificationHistoryModal({
                         href={notif.link}
                         target="_blank"
                         rel="noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        className="text-xs text-slate-600 group-hover:text-slate-900 font-medium break-all underline-offset-2 hover:underline leading-relaxed"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleItemClick(notif);
+                        }}
+                        className="text-xs text-slate-600 group-hover:text-slate-900 font-medium break-all underline-offset-2 hover:underline leading-relaxed self-start"
                       >
                         {notif.message}
                       </a>
                     ) : (
-                      <p className="text-xs text-slate-600 group-hover:text-slate-900 font-medium break-all leading-relaxed">
+                      <p className="text-xs text-slate-600 group-hover:text-slate-900 font-medium break-all leading-relaxed self-start">
                         {notif.message}
                       </p>
                     )}
@@ -228,8 +231,8 @@ export default function NotificationHistoryModal({
         </div>
 
         <div className="px-5 py-2.5 border-t border-slate-50 bg-slate-50/50 text-center">
-          <p className="text-[10px] text-slate-400 font-medium">
-            알림을 클릭하면 읽음 처리되어 목록에서 사라집니다.
+          <p className="text-[10px] text-slate-400 font-medium leading-normal">
+            클릭 시 읽음 상태로 전환되며, 미확인 내역이 우선 노출됩니다.
           </p>
         </div>
       </div>
