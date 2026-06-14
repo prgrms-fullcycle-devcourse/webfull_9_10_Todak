@@ -30,6 +30,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { loadMascotNpcAssets } from '../2d/_npcs/npcAssets';
 import { createMascotNpc, MascotNpcContainer } from '../2d/_npcs/createNpc';
 import { useNotifications } from '@/services/notifications/query';
+import NotificationHistoryModal from './NotificationHistoryModal';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -54,6 +55,10 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   const npcRef = useRef<MascotNpcContainer | null>(null);
   const [isNpcReady, setIsNpcReady] = useState(false);
   const { data: notificationData } = useNotifications(roomId);
+  const npcTimeoutRef = useRef<number | null>(null);
+  const prevNotificationIdRef = useRef<string | null>(null);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const notifications = notificationData?.notifications ?? [];
 
   useEffect(() => {
     let isMounted = true;
@@ -148,7 +153,15 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       const mascotTextures = await loadMascotNpcAssets();
 
       // NPC 배치 생성
-      const helperNpc = createMascotNpc(mascotTextures, 1500, 500, '토닥이');
+      const helperNpc = createMascotNpc(
+        mascotTextures,
+        1500,
+        500,
+        '토닥이',
+        () => {
+          setIsNotificationModalOpen(true);
+        },
+      );
       helperNpc.zIndex = 8;
       world.addChild(helperNpc);
       npcRef.current = helperNpc;
@@ -478,6 +491,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       if (app) {
         app.destroy(true, { children: true, texture: false });
       }
+      if (npcTimeoutRef.current) {
+        window.clearTimeout(npcTimeoutRef.current);
+      }
     };
   }, [roomId, queryClient]);
 
@@ -487,26 +503,61 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
     const notifications = notificationData?.notifications ?? [];
     if (notifications.length === 0) {
-      npcRef.current?.say('오늘도 토닥윗미에서\n즐거운 협업 마라톤 화이팅! 🚀');
+      if (prevNotificationIdRef.current === null) {
+        npcRef.current.say('토닥윗미에 오신 것을 환영합니다! 🚀');
+        npcTimeoutRef.current = window.setTimeout(() => {
+          npcRef.current?.say('');
+        }, 5000);
+        // ID가 없더라도 null이 아닌 상태로 만들어 중복 방지
+        prevNotificationIdRef.current = 'welcome-done';
+      }
       return;
     }
 
-    let activeIndex = 0;
+    const latestNotification = notifications[0];
 
-    // 첫 진입 시 최초 알림 문구 즉시 출력
-    npcRef.current?.say(notifications[0].message);
+    if (prevNotificationIdRef.current === null) {
+      prevNotificationIdRef.current = latestNotification.id;
 
-    // 하단 롤링 배너와 싱크 맞추는 타이머
-    const intervalId = window.setInterval(() => {
-      activeIndex = (activeIndex + 1) % notifications.length;
-      const currentNotice = notifications[activeIndex];
+      npcRef.current.say('토닥윗미에 오신 것을 환영합니다! 🚀');
+
+      if (npcTimeoutRef.current) window.clearTimeout(npcTimeoutRef.current);
+      npcTimeoutRef.current = window.setTimeout(() => {
+        if (npcRef.current) {
+          npcRef.current.say('');
+        }
+        npcTimeoutRef.current = null;
+      }, 5000);
+
+      return;
+    }
+
+    // 실시간 새 알림 적재 발생 시
+    if (
+      !latestNotification.is_sample &&
+      latestNotification.id !== prevNotificationIdRef.current
+    ) {
+      if (prevNotificationIdRef.current === null) {
+        prevNotificationIdRef.current = latestNotification.id;
+        return;
+      }
+      prevNotificationIdRef.current = latestNotification.id;
 
       if (npcRef.current) {
-        npcRef.current.say(currentNotice.message);
-      }
-    }, 4000);
+        if (npcTimeoutRef.current) {
+          window.clearTimeout(npcTimeoutRef.current);
+        }
 
-    return () => window.clearInterval(intervalId);
+        // NPC 말풍선
+        npcRef.current.say(latestNotification.message);
+        npcTimeoutRef.current = window.setTimeout(() => {
+          if (npcRef.current) {
+            npcRef.current.say('');
+          }
+          npcTimeoutRef.current = null;
+        }, 5000);
+      }
+    }
   }, [notificationData, isNpcReady, roomId]);
 
   return (
@@ -525,6 +576,12 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       <p className="text-slate-400 text-sm mt-2 mb-4">
         방향키를 눌러 캐릭터를 움직여 보세요!
       </p>
+      <NotificationHistoryModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+        notifications={notifications}
+        roomId={roomId}
+      />
     </div>
   );
 }

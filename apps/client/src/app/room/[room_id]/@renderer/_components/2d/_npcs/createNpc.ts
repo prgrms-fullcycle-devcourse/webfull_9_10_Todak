@@ -10,6 +10,7 @@ export function createMascotNpc(
   x: number,
   y: number,
   npcName: string = '🤖 헬퍼 마스코트',
+  onClick?: () => void,
 ): MascotNpcContainer {
   const container = new PIXI.Container() as MascotNpcContainer;
   container.x = x;
@@ -31,10 +32,23 @@ export function createMascotNpc(
   nameText.y = 70;
   container.addChild(nameText);
 
+  if (onClick) {
+    container.eventMode = 'static';
+    container.cursor = 'pointer';
+
+    sprite.eventMode = 'static';
+    sprite.cursor = 'pointer';
+
+    container.on('pointerdown', (e: PIXI.FederatedPointerEvent) => {
+      e.stopPropagation();
+      onClick();
+    });
+  }
+
   // 동적 가변형 말풍선 컴포넌트 구조 셋업
   const bubbleContainer = new PIXI.Container();
   bubbleContainer.y = -80;
-  bubbleContainer.visible = true;
+  bubbleContainer.visible = false;
   container.addChild(bubbleContainer);
 
   // 말풍선 배경 그래픽 객체

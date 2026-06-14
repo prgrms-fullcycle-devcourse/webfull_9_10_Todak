@@ -10,7 +10,16 @@ const nextConfig: NextConfig = {
     root: path.resolve(appDir, '../..'),
   },
   images: {
-    domains: ['avatars.githubusercontent.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.githubusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'your-s3-bucket.com',
+      },
+    ],
   },
 };
 
