@@ -135,7 +135,11 @@ export default function NotificationHistoryModal({
             </button>
             <button
               onClick={() => {
-                if (confirm('모든 알림 내역을 완전히 비우시겠습니까?')) {
+                if (
+                  window.confirm(
+                    '🚨 정말로 모든 알림 내역을 완전히 비우시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.',
+                  )
+                ) {
                   deleteAllMutation.mutate();
                 }
               }}
@@ -205,10 +209,14 @@ export default function NotificationHistoryModal({
                   <button
                     onClick={e => {
                       e.stopPropagation();
-                      deleteSingleMutation.mutate(notif.id);
+                      if (
+                        window.confirm('이 알림을 목록에서 삭제하시겠습니까?')
+                      ) {
+                        deleteSingleMutation.mutate(notif.id);
+                      }
                     }}
                     disabled={deleteSingleMutation.isPending}
-                    className="text-slate-300 hover:text-rose-500 p-1 rounded-md hover:bg-white border border-transparent hover:border-slate-100 transition-all opacity-80 group-hover:opacity-100 text-[10px]"
+                    className="text-slate-300 hover:text-rose-500 p-1 rounded-md hover:bg-white border border-transparent hover:border-slate-100 transition-all opacity-80 group-hover:opacity-100 text-[10px] shrink-0"
                     title="이 알림 삭제"
                   >
                     ✖
