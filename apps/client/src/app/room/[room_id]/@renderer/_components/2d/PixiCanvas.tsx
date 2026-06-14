@@ -77,6 +77,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     let cleanupMovement: (() => void) | null = null;
     let cleanupCamera: (() => void) | null = null;
     let handleResize: (() => void) | null = null;
+    let localPlayerContainer: PIXI.Container | null = null;
 
     const initPixi = async () => {
       const container = canvasRef.current;
@@ -284,6 +285,14 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       const player = createPlayer(app, activeTextures, roomId);
       player.container.zIndex = 10;
       world.addChild(player.container);
+
+      // 플레이어 생성 직후 스토어에 과거 저장 좌표가 있다면 강제 복원 스냅
+      const savedPosition = useSpaceStore.getState().lastPosition;
+      if (savedPosition) {
+        player.container.x = savedPosition.x;
+        player.container.y = savedPosition.y;
+      }
+      localPlayerContainer = player.container;
 
       // 캐릭터 내부 좀비 리스너 구독
       unsubscribePlayer = player.unsubscribePlayerStatus;
@@ -584,6 +593,15 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       unsubscribeMeetingId?.();
       unsubscribeRoomsList?.();
       unsubscribeRoomsList?.();
+      npcRef.current = null;
+      setIsNpcReady(false);
+
+      if (localPlayerContainer) {
+        useSpaceStore
+          .getState()
+          .setLastPosition(localPlayerContainer.x, localPlayerContainer.y);
+      }
+
       npcRef.current = null;
       setIsNpcReady(false);
 
