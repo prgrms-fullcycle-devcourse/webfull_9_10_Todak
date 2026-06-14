@@ -91,7 +91,7 @@ export function isApiServerAuthError(error: unknown) {
   }
 
   const status = error.response?.status;
-  const code = getErrorCode(error.response?.data);
+  const code = getApiServerErrorCode(error);
 
   return (
     status === 401 ||
@@ -101,7 +101,32 @@ export function isApiServerAuthError(error: unknown) {
   );
 }
 
-function getErrorCode(data: unknown) {
+export function isApiServerForbiddenError(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+
+  const code = getApiServerErrorCode(error);
+
+  return (
+    error.response?.status === 403 ||
+    code === 'FORBIDDEN' ||
+    code === 'REPO_ADMIN_REQUIRED' ||
+    code === 'GITHUB_SCOPE_REQUIRED'
+  );
+}
+
+export function isApiServerNotFoundError(error: unknown) {
+  return axios.isAxiosError(error) && error.response?.status === 404;
+}
+
+export function getApiServerErrorCode(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return null;
+  }
+
+  const data = error.response?.data;
+
   if (typeof data !== 'object' || data === null || !('code' in data)) {
     return null;
   }
