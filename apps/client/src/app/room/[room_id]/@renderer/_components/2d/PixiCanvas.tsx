@@ -527,7 +527,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
           npcRef.current.say('');
         }
         npcTimeoutRef.current = null;
-      }, 6000);
+      }, 5000);
 
       return;
     }
