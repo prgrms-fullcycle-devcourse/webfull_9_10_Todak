@@ -30,6 +30,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { loadMascotNpcAssets } from '../2d/_npcs/npcAssets';
 import { createMascotNpc, MascotNpcContainer } from '../2d/_npcs/createNpc';
 import { useNotifications } from '@/services/notifications/query';
+import NotificationHistoryModal from './NotificationHistoryModal';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -56,6 +57,8 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   const { data: notificationData } = useNotifications(roomId);
   const npcTimeoutRef = useRef<number | null>(null);
   const prevNotificationIdRef = useRef<string | null>(null);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const notifications = notificationData?.notifications ?? [];
 
   useEffect(() => {
     let isMounted = true;
@@ -150,7 +153,15 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       const mascotTextures = await loadMascotNpcAssets();
 
       // NPC 배치 생성
-      const helperNpc = createMascotNpc(mascotTextures, 1500, 500, '토닥이');
+      const helperNpc = createMascotNpc(
+        mascotTextures,
+        1500,
+        500,
+        '토닥이',
+        () => {
+          setIsNotificationModalOpen(true);
+        },
+      );
       helperNpc.zIndex = 8;
       world.addChild(helperNpc);
       npcRef.current = helperNpc;
@@ -538,6 +549,12 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       <p className="text-slate-400 text-sm mt-2 mb-4">
         방향키를 눌러 캐릭터를 움직여 보세요!
       </p>
+      <NotificationHistoryModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+        notifications={notifications}
+        roomId={roomId}
+      />
     </div>
   );
 }
