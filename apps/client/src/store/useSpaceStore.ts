@@ -4,6 +4,7 @@ import { PrivateRoom, RoomProfile } from '../services/rooms/model';
 
 export type AnimalType = 'cat' | 'dog' | 'rabbit' | 'bear' | 'hamster';
 export type ViewType = '2d' | 'meeting';
+export type ChatTabType = 'all' | 'private';
 
 export interface CharacterInfo {
   id: string;
@@ -44,6 +45,10 @@ interface SpaceState {
   setPrivateRooms: (rooms: PrivateRoom[]) => void;
   currentPrivateRoomId: string | null;
   setCurrentPrivateRoomId: (roomId: string | null) => void;
+
+  // 전역 채팅 탭 상태 및 스위치 오퍼레이터
+  activeChatTab: ChatTabType;
+  setActiveChatTab: (tab: ChatTabType) => void;
 
   // 룸 맴버 상태와 액션
   members: RoomProfile[];
@@ -102,6 +107,9 @@ export const useSpaceStore = create<SpaceState>()(
     setPrivateRooms: rooms => set({ privateRooms: rooms }),
     currentPrivateRoomId: null,
     setCurrentPrivateRoomId: roomId => set({ currentPrivateRoomId: roomId }),
+
+    activeChatTab: 'all',
+    setActiveChatTab: tab => set({ activeChatTab: tab }),
 
     // 룸 맴버 상태 초기값과 업데이트 액션
     members: [],

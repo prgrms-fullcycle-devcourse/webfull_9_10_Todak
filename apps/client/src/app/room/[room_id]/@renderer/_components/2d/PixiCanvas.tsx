@@ -31,6 +31,7 @@ import { loadMascotNpcAssets } from '../2d/_npcs/npcAssets';
 import { createMascotNpc, MascotNpcContainer } from '../2d/_npcs/createNpc';
 import { useNotifications } from '@/services/notifications/query';
 import NotificationHistoryModal from './NotificationHistoryModal';
+import { openChatSafely } from '../../../@chats/_components/ChatOpenButton';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -559,6 +560,26 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       }
     }
   }, [notificationData, isNpcReady, roomId]);
+
+  // 회의실 채팅방 자동 열람
+  useEffect(() => {
+    const unsubscribePrivateRoom = useSpaceStore.subscribe(
+      state => state.currentPrivateRoomId,
+      currentRoomId => {
+        if (currentRoomId !== null) {
+          const store = useSpaceStore.getState();
+
+          openChatSafely();
+
+          store.setActiveChatTab('private');
+        }
+      },
+    );
+
+    return () => {
+      unsubscribePrivateRoom();
+    };
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-start gap-2 pt-0 h-full w-full">
