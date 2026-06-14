@@ -502,10 +502,37 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     if (!isNpcReady || !npcRef.current) return;
 
     const notifications = notificationData?.notifications ?? [];
-    if (notifications.length === 0) return;
+    if (notifications.length === 0) {
+      if (prevNotificationIdRef.current === null) {
+        npcRef.current.say('토닥윗미에 오신 것을 환영합니다! 🚀');
+        npcTimeoutRef.current = window.setTimeout(() => {
+          npcRef.current?.say('');
+        }, 5000);
+        // ID가 없더라도 null이 아닌 상태로 만들어 중복 방지
+        prevNotificationIdRef.current = 'welcome-done';
+      }
+      return;
+    }
 
     const latestNotification = notifications[0];
 
+    if (prevNotificationIdRef.current === null) {
+      prevNotificationIdRef.current = latestNotification.id;
+
+      npcRef.current.say('토닥윗미에 오신 것을 환영합니다! 🚀');
+
+      if (npcTimeoutRef.current) window.clearTimeout(npcTimeoutRef.current);
+      npcTimeoutRef.current = window.setTimeout(() => {
+        if (npcRef.current) {
+          npcRef.current.say('');
+        }
+        npcTimeoutRef.current = null;
+      }, 6000);
+
+      return;
+    }
+
+    // 실시간 새 알림 적재 발생 시
     if (
       !latestNotification.is_sample &&
       latestNotification.id !== prevNotificationIdRef.current
@@ -531,7 +558,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         }, 5000);
       }
     }
-  }, [notificationData, isNpcReady]);
+  }, [notificationData, isNpcReady, roomId]);
 
   return (
     <div className="flex flex-col items-center justify-start gap-2 pt-0 h-full w-full">
