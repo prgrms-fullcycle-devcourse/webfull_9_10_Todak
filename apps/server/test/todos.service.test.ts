@@ -29,8 +29,10 @@ import {
   deleteIssueComment,
   deleteIssueReaction,
   deleteLabelForRepo,
+  listIssueCommentReactions,
   listIssueComments,
   listIssueEvents,
+  listIssueReactions,
   listLabelsForRepo,
   listMilestonesForRepo,
   updateIssue,
@@ -84,6 +86,8 @@ vi.mock('@/services/github.service.js', () => ({
   closeIssue: vi.fn(),
   updateIssue: vi.fn(),
   listLabelsForRepo: vi.fn(),
+  listIssueReactions: vi.fn(),
+  listIssueCommentReactions: vi.fn(),
   listIssueComments: vi.fn(),
   createIssueComment: vi.fn(),
   updateIssueComment: vi.fn(),
@@ -737,15 +741,19 @@ describe('getTodo', () => {
     await expectAppError(getTodo(USER_ID, ROOM_ID, TODO_ID), 'TODO_NOT_FOUND');
   });
 
-  it('Todo 를 snake_case 로 반환', async () => {
+  it('Todo 를 snake_case 로 반환 (reactions 포함)', async () => {
     db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
     db.todo.findFirst.mockResolvedValue(todoRow);
+    db.repo.findUnique.mockResolvedValue({ fullName: 'jiyun/todak' });
+    db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
+    vi.mocked(listIssueReactions).mockResolvedValue([]);
 
     const result = await getTodo(USER_ID, ROOM_ID, TODO_ID);
 
     expect(result.id).toBe(TODO_ID);
     expect(result.milestone_number).toBe(1);
     expect(result.assignee).toBeNull();
+    expect(result.reactions).toEqual([]);
   });
 });
 
@@ -787,6 +795,7 @@ describe('getTodoComments', () => {
         updatedAt: '2026-05-18T00:00:00Z',
       },
     ]);
+    vi.mocked(listIssueCommentReactions).mockResolvedValue([]);
 
     const result = await getTodoComments(USER_ID, ROOM_ID, TODO_ID);
 
@@ -798,6 +807,7 @@ describe('getTodoComments', () => {
     );
     expect(result).toHaveLength(1);
     expect(result[0].body).toBe('댓글입니다');
+    expect(result[0].reactions).toEqual([]);
   });
 });
 

@@ -348,6 +348,9 @@ registry.registerPath({
   path: '/rooms/{roomId}/todos/{todoId}',
   tags: ['Todos'],
   summary: 'Todo 단건 조회',
+  description:
+    'Todo 단건을 반환합니다. GitHub 이슈와 연결된 경우 reactions 필드에 이슈 리액션 목록이 포함됩니다. ' +
+    'GitHub 이슈 미연결 Todo는 reactions: [] 로 반환됩니다.',
   security: [{ bearerAuth: [] }],
   request: { params: TodoIdParamsSchema },
   responses: {
@@ -379,7 +382,8 @@ registry.registerPath({
   tags: ['Todos'],
   summary: 'Todo 댓글 목록',
   description:
-    'GitHub 이슈의 댓글 목록을 반환합니다. GitHub 이슈와 연결된 Todo에만 사용 가능합니다.',
+    'GitHub 이슈의 댓글 목록을 반환합니다. GitHub 이슈와 연결된 Todo에만 사용 가능합니다. ' +
+    '각 댓글에는 reactions 필드가 포함됩니다.',
   security: [{ bearerAuth: [] }],
   request: { params: TodoIdParamsSchema },
   responses: {

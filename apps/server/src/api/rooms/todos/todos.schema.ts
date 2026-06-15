@@ -188,6 +188,27 @@ export const TodoResponseSchema = registry.register(
   }),
 );
 
+export const TodoReactionSchema = registry.register(
+  'TodoReaction',
+  z.object({
+    id: z.number().openapi({ example: 111222333 }),
+    content: z
+      .enum([
+        '+1',
+        '-1',
+        'laugh',
+        'confused',
+        'heart',
+        'hooray',
+        'rocket',
+        'eyes',
+      ])
+      .openapi({ example: '+1' }),
+    user_login: z.string().openapi({ example: 'kangyoungah' }),
+    created_at: z.string().openapi({ example: '2026-05-28T09:00:00Z' }),
+  }),
+);
+
 export const TodoDetailResponseSchema = registry.register(
   'TodoDetail',
   z.object({
@@ -210,6 +231,7 @@ export const TodoDetailResponseSchema = registry.register(
     minutes_id: z.string().nullable().openapi({ example: 'uuid-minutes-1' }),
     assignee: TodoAssigneeSchema.nullable(),
     created_at: z.string().openapi({ example: '2026-05-28T08:20:45.721Z' }),
+    reactions: z.array(TodoReactionSchema).openapi({ example: [] }),
   }),
 );
 
@@ -348,6 +370,7 @@ export const TodoCommentSchema = registry.register(
       .openapi({ example: 'https://avatars.githubusercontent.com/u/1234' }),
     created_at: z.string().openapi({ example: '2026-05-28T09:00:00Z' }),
     updated_at: z.string().openapi({ example: '2026-05-28T09:05:00Z' }),
+    reactions: z.array(TodoReactionSchema).openapi({ example: [] }),
   }),
 );
 
@@ -377,26 +400,5 @@ export const TodoEventSchema = registry.register(
     label: z.string().optional().openapi({ example: 'enhancement' }),
     assignee: z.string().optional().openapi({ example: 'teamuser' }),
     milestone: z.string().optional().openapi({ example: 'Sprint 1' }),
-  }),
-);
-
-export const TodoReactionSchema = registry.register(
-  'TodoReaction',
-  z.object({
-    id: z.number().openapi({ example: 111222333 }),
-    content: z
-      .enum([
-        '+1',
-        '-1',
-        'laugh',
-        'confused',
-        'heart',
-        'hooray',
-        'rocket',
-        'eyes',
-      ])
-      .openapi({ example: '+1' }),
-    user_login: z.string().openapi({ example: 'kangyoungah' }),
-    created_at: z.string().openapi({ example: '2026-05-28T09:00:00Z' }),
   }),
 );

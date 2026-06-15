@@ -8,6 +8,7 @@ import { isUniqueConstraintError } from '../errors/prisma.js';
 import { prisma } from '../lib/prisma.js';
 import type { TodoEventPayload } from '../socket/socket.types.js';
 
+import type { IssueReaction } from './github.service.js';
 import {
   closeIssue,
   createIssue,
@@ -17,8 +18,10 @@ import {
   deleteIssueComment,
   deleteIssueReaction,
   deleteLabelForRepo,
+  listIssueCommentReactions,
   listIssueComments,
   listIssueEvents,
+  listIssueReactions,
   listLabelsForRepo,
   listMilestonesForRepo,
   updateIssue,
@@ -610,7 +613,32 @@ export async function getTodo(userId: string, roomId: string, todoId: string) {
     throw new AppError('TODO_NOT_FOUND');
   }
 
-  return mapTodoToResponse(todo);
+  let reactions: IssueReaction[] = [];
+  if (todo.githubIssueNumber !== null && todo.repoId !== null) {
+    const repo = await prisma.repo.findUnique({
+      where: { id: todo.repoId },
+      select: { fullName: true },
+    });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { accessToken: true },
+    });
+    if (
+      repo !== null &&
+      user?.accessToken !== null &&
+      user?.accessToken !== undefined
+    ) {
+      const [owner, repoName] = repo.fullName.split('/');
+      reactions = await listIssueReactions(
+        user.accessToken,
+        owner,
+        repoName,
+        todo.githubIssueNumber,
+      );
+    }
+  }
+
+  return { ...mapTodoToResponse(todo), reactions };
 }
 
 export async function getTodoComments(
@@ -621,7 +649,24 @@ export async function getTodoComments(
   const { accessToken, owner, repoName, issueNumber } =
     await resolveGithubContext(userId, roomId, todoId);
 
-  return listIssueComments(accessToken, owner, repoName, issueNumber);
+  const comments = await listIssueComments(
+    accessToken,
+    owner,
+    repoName,
+    issueNumber,
+  );
+
+  return Promise.all(
+    comments.map(async comment => ({
+      ...comment,
+      reactions: await listIssueCommentReactions(
+        accessToken,
+        owner,
+        repoName,
+        comment.id,
+      ),
+    })),
+  );
 }
 
 export async function createTodoComment(
