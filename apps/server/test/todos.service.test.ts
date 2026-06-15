@@ -350,6 +350,7 @@ describe('getTodos', () => {
       expect.objectContaining({
         where: {
           roomId: ROOM_ID,
+          isDone: false,
           assigneeId: 'assignee-1',
           minutesId: 'minutes-1',
           githubIssueNumber: { not: null },

@@ -27,9 +27,15 @@ import { useSpaceStore } from '@/store/useSpaceStore';
 import { useTodoListStore } from '@/store/useTodoListStore';
 import { Button, Chip, Dropdown, Input, Modal } from '@heroui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+
+const MarkdownPreview = dynamic(
+  () => import('@uiw/react-md-editor').then(mod => mod.default.Markdown),
+  { ssr: false },
+);
 
 const REACTION_OPTIONS: { content: TodoReactionContent; label: string }[] = [
   { content: '+1', label: '👍' },
@@ -64,6 +70,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   const myChar = useSpaceStore(state => state.myChar);
   const [titleInput, setTitleInput] = useState<string | null>(null);
   const [bodyInput, setBodyInput] = useState<string | null>(null);
+  const [isEditingTodo, setIsEditingTodo] = useState(false);
   const [isDoneInput, setIsDoneInput] = useState<boolean | null>(null);
   const [selectedLabelsInput, setSelectedLabelsInput] = useState<
     string[] | null
@@ -108,7 +115,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
     (detailTodo.assignee.id === myChar.id ||
       detailTodo.assignee.github_username === myChar.githubUsername);
   const canEdit = isOpen && isAssignedToMe;
-  const canReactToIssue = isOpen && !isAssignedToMe;
+  const canComment = isOpen && detailTodo.github_issue_number !== null;
 
   const labelsQuery = useQuery({
     queryKey: ['todos', roomID, 'labels'],
@@ -289,13 +296,33 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
     }
 
     if (nextTitle === detailTodo.title && nextBody === currentBody) {
+      setIsEditingTodo(false);
+      setTitleInput(null);
+      setBodyInput(null);
       return;
     }
 
-    updateTodoMutation.mutate({
-      body: nextBody,
-      title: nextTitle,
-    });
+    updateTodoMutation.mutate(
+      {
+        body: nextBody,
+        title: nextTitle,
+      },
+      {
+        onSuccess: () => {
+          setIsEditingTodo(false);
+          setTitleInput(null);
+          setBodyInput(null);
+        },
+      },
+    );
+  };
+
+  const handleEditTodo = () => {
+    if (!canEdit || updateTodoMutation.isPending) return;
+
+    setTitleInput(detailTodo.title);
+    setBodyInput(detailTodo.body ?? '');
+    setIsEditingTodo(true);
   };
 
   const handleToggleLabel = (labelName: string) => {
@@ -466,6 +493,35 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                       <p className="text-[12px] font-bold text-foreground">
                         To-Do body
                       </p>
+                      {canEdit && (
+                        <Button
+                          aria-label={
+                            isEditingTodo ? 'To-Do 저장하기' : 'To-Do 수정'
+                          }
+                          className={
+                            isEditingTodo
+                              ? 'h-10 rounded-lg bg-foreground px-4 text-[12px] font-bold text-background disabled:opacity-50'
+                              : 'flex size-10 min-w-10 items-center justify-center rounded-lg border border-border bg-white p-0 text-muted hover:text-foreground'
+                          }
+                          isDisabled={updateTodoMutation.isPending}
+                          onPress={
+                            isEditingTodo
+                              ? handleCommitTodoBody
+                              : handleEditTodo
+                          }
+                          type="button"
+                        >
+                          {isEditingTodo ? (
+                            updateTodoMutation.isPending ? (
+                              '저장 중...'
+                            ) : (
+                              '저장하기'
+                            )
+                          ) : (
+                            <PencilIcon />
+                          )}
+                        </Button>
+                      )}
                       {!canEdit && (
                         <p className="text-[11px] font-bold text-muted">
                           담당자 본인만 수정할 수 있습니다.
@@ -473,17 +529,19 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                       )}
                     </header>
                     <div className="space-y-3 px-4 py-4">
-                      {canEdit ? (
+                      {canEdit && isEditingTodo ? (
                         <>
                           <Input
                             className="h-10 rounded-xl border border-border bg-white px-3 text-[13px] font-bold text-foreground"
                             fullWidth
-                            onBlur={handleCommitTodoBody}
                             onChange={event =>
                               setTitleInput(event.target.value)
                             }
                             onKeyDown={event => {
-                              if (event.key === 'Enter') {
+                              if (
+                                (event.metaKey || event.ctrlKey) &&
+                                event.key === 'Enter'
+                              ) {
                                 event.preventDefault();
                                 handleCommitTodoBody();
                               }
@@ -492,28 +550,32 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                           />
                           <textarea
                             className="min-h-40 w-full resize-none rounded-xl border border-border bg-white px-3.5 py-3 text-[13px] font-medium leading-7 text-slate-600 outline-none"
-                            onBlur={handleCommitTodoBody}
                             onChange={event => setBodyInput(event.target.value)}
                             value={bodyValue}
                           />
                           <p className="text-[11px] font-bold text-muted">
-                            {updateTodoMutation.isPending
-                              ? '저장 중...'
-                              : '제목과 본문은 입력창을 벗어나면 자동 저장됩니다.'}
+                            Markdown 문법을 사용할 수 있습니다. 저장은 오른쪽의
+                            저장하기 버튼을 눌러주세요.
                           </p>
                         </>
                       ) : (
                         <>
-                          <p className="whitespace-pre-wrap text-[13px] font-medium leading-7 text-muted">
-                            {detailTodo.body?.trim() ||
-                              '등록된 To-Do 본문이 없습니다.'}
-                          </p>
-                          {canReactToIssue && (
-                            <ReactionPicker
-                              counts={issueReactionCounts}
-                              onReact={content => handleReact('issue', content)}
-                            />
+                          {detailTodo.body?.trim() ? (
+                            <div data-color-mode="light">
+                              <MarkdownPreview
+                                className="bg-transparent text-[13px] font-normal leading-7 text-slate-600"
+                                source={detailTodo.body}
+                              />
+                            </div>
+                          ) : (
+                            <p className="text-[13px] font-medium leading-7 text-muted">
+                              등록된 To-Do 본문이 없습니다.
+                            </p>
                           )}
+                          <ReactionPicker
+                            counts={issueReactionCounts}
+                            onReact={content => handleReact('issue', content)}
+                          />
                         </>
                       )}
                     </div>
@@ -637,7 +699,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                           </div>
                         );
                       })}
-                      {canEdit && (
+                      {canComment && (
                         <div className="space-y-2 border-t border-border pt-3">
                           <textarea
                             className="min-h-20 w-full resize-none rounded-xl border border-border bg-white px-3 py-2 text-[13px] font-medium outline-none"
@@ -820,6 +882,20 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   );
 
   return createPortal(modal, document.body);
+}
+
+function PencilIcon() {
+  return (
+    <svg aria-hidden="true" className="size-5" fill="none" viewBox="0 0 24 24">
+      <path
+        d="m14.7 6.3 3 3M5 19l3.6-.7L18.4 8.5a2.1 2.1 0 0 0-3-3l-9.8 9.8L5 19Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
 }
 
 function DeleteConfirmationModal({

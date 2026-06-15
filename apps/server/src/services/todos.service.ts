@@ -397,6 +397,7 @@ export async function getTodos(
   const todos = await prisma.todo.findMany({
     where: {
       roomId,
+      isDone: false,
       ...(assignee_id !== undefined && { assigneeId: assignee_id }),
       ...(minutes_id !== undefined && { minutesId: minutes_id }),
       ...(is_issued === true && { githubIssueNumber: { not: null } }),

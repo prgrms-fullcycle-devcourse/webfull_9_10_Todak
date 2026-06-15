@@ -22,6 +22,7 @@ export default function RoomSettingsDropdown({
   const router = useRouter();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const repoLabel = room.repo?.full_name ?? '연동된 깃허브 없음';
+  const isHost = myRoomInfo?.is_host === true;
 
   useEffect(() => {
     if (toastMessage === null) {
@@ -89,7 +90,7 @@ export default function RoomSettingsDropdown({
         >
           <div className="space-y-2 border-b border-border px-2.5 py-2.5">
             <MenuLabel label="룸 이름" value={room.name} />
-            <MenuLabel label="연동된 깃허브" value={repoLabel} />
+            {isHost && <MenuLabel label="연동된 깃허브" value={repoLabel} />}
             <div className="min-w-0">
               <span className="block text-[10px] font-black text-muted">
                 초대코드
