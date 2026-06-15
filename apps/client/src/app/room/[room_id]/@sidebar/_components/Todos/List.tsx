@@ -1,6 +1,5 @@
 import { Todo } from '@/services/todos/model';
 import Item from './Item';
-import TodoDetailModal from './TodoDetailModal';
 
 export interface TodoListProps {
   isError: boolean;
@@ -39,7 +38,6 @@ export default function TodoList({ isError, isPending, todos }: TodoListProps) {
       {openTodos.map(todo => (
         <Item key={todo.id} {...todo} />
       ))}
-      <TodoDetailModal />
     </div>
   );
 }

@@ -1076,11 +1076,21 @@ function LabelDropdown({
             key={label.name}
           >
             {editingLabelName === label.name ? (
-              <div className="space-y-2">
+              <div
+                className="space-y-2"
+                onBlur={event => {
+                  if (
+                    !event.currentTarget.contains(
+                      event.relatedTarget as Node | null,
+                    )
+                  ) {
+                    onCommitLabelEdit(label.name);
+                  }
+                }}
+              >
                 <Input
                   className="h-8 rounded-lg border border-border px-2 text-[12px] font-bold"
                   fullWidth
-                  onBlur={() => onCommitLabelEdit(label.name)}
                   onChange={event => onLabelEditNameChange(event.target.value)}
                   onKeyDown={event => {
                     if (event.key === 'Enter') {
@@ -1090,12 +1100,14 @@ function LabelDropdown({
                   }}
                   value={labelEditName}
                 />
-                <div className="grid grid-cols-[24px_1fr] items-center gap-2">
-                  <ColorPreview color={labelEditColor} />
+                <div className="grid grid-cols-[32px_1fr] items-center gap-2">
+                  <ColorPickerPreview
+                    color={labelEditColor}
+                    onChange={onLabelEditColorChange}
+                  />
                   <Input
                     className="h-8 rounded-lg border border-border px-2 text-[12px] font-bold"
                     fullWidth
-                    onBlur={() => onCommitLabelEdit(label.name)}
                     onChange={event =>
                       onLabelEditColorChange(event.target.value)
                     }
@@ -1159,8 +1171,11 @@ function LabelDropdown({
           placeholder="label name"
           value={newLabelName}
         />
-        <div className="grid grid-cols-[24px_1fr] items-center gap-2">
-          <ColorPreview color={newLabelColor} />
+        <div className="grid grid-cols-[32px_1fr] items-center gap-2">
+          <ColorPickerPreview
+            color={newLabelColor}
+            onChange={onNewLabelColorChange}
+          />
           <Input
             className="h-8 rounded-lg border border-border px-2 text-[12px] font-bold"
             fullWidth
@@ -1548,6 +1563,44 @@ function ColorPreview({ color }: { color: string }) {
       style={{ backgroundColor: `#${normalizeHexColor(color)}` }}
       title={`#${normalizeHexColor(color)}`}
     />
+  );
+}
+
+function ColorPickerPreview({
+  color,
+  onChange,
+}: {
+  color: string;
+  onChange: (color: string) => void;
+}) {
+  const normalizedColor = normalizeHexColor(color);
+  const colorPickerValue =
+    normalizedColor.length === 3
+      ? normalizedColor
+          .split('')
+          .map(value => `${value}${value}`)
+          .join('')
+      : normalizedColor;
+
+  return (
+    <label
+      aria-label="라벨 색상 선택"
+      className="relative flex size-8 cursor-pointer items-center justify-center rounded-full focus-within:ring-2 focus-within:ring-todak-coral-300"
+      title="색상 선택"
+    >
+      <span
+        aria-hidden="true"
+        className="size-7 rounded-full border border-border shadow-sm"
+        style={{ backgroundColor: `#${normalizedColor}` }}
+      />
+      <input
+        aria-label="라벨 색상 선택"
+        className="absolute inset-0 cursor-pointer opacity-0"
+        onChange={event => onChange(stripHexPrefix(event.target.value))}
+        type="color"
+        value={`#${colorPickerValue}`}
+      />
+    </label>
   );
 }
 
