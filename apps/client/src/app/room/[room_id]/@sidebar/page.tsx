@@ -62,7 +62,7 @@ export default async function Sidebar({ params }: SidebarProps) {
 
   return (
     <>
-      <MyInformation myInfo={myInfo} myRoomInfo={myRoomInfo} roomID={roomID} />
+      <MyInformation myInfo={myInfo} myRoomInfo={myRoomInfo} />
       <Separator className="my-3 bg-border" />
       <ViewSelection />
       <Separator className="my-3 bg-border" />
@@ -78,6 +78,7 @@ export default async function Sidebar({ params }: SidebarProps) {
         myRoomInfo={myRoomInfo}
         room={roomInfo}
         roomID={roomID}
+        userID={myInfo.id}
       />
     </>
   );

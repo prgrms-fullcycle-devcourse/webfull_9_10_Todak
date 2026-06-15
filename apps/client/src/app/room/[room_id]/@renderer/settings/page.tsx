@@ -72,6 +72,7 @@ export default async function RoomSettingsPage({
           myRoomInfo={myRoomInfo}
           room={roomInfo}
           roomID={roomID}
+          userID={myInfo.id}
         />
       </div>
     </main>
