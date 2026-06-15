@@ -254,6 +254,12 @@ export default function ChatMessages({
 
   const handleMessage = useCallback((msg: ChatMessage) => {
     setSocketMessages(prev => [...prev, msg]);
+
+    const { incrementUnreadChatCount, isChatOpen } = useSpaceStore.getState();
+
+    if (!isChatOpen) {
+      incrementUnreadChatCount();
+    }
   }, []);
 
   const historyRef = useRef(history);
