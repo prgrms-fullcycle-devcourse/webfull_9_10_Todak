@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import Image from 'next/image';
 import { Button, Input } from '@heroui/react';
 import { uploadChatAttachment } from '@/services/chats/api';
 import type { PendingAttachment } from '@/services/chats/model';
@@ -170,10 +171,13 @@ export default function ChatInput({ roomId, onSend }: ChatInputProps) {
               className="relative flex items-center gap-1.5 rounded-lg border border-border bg-white px-2 py-1.5"
             >
               {item.isImage && item.previewUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                // blob URL은 서버 최적화 불가 — unoptimized 필수
+                <Image
                   src={item.previewUrl}
                   alt={item.fileName}
+                  width={36}
+                  height={36}
+                  unoptimized
                   className="h-9 w-9 rounded object-cover"
                 />
               ) : (
@@ -188,13 +192,16 @@ export default function ChatInput({ roomId, onSend }: ChatInputProps) {
               {item.status === 'error' && (
                 <span className="text-[10px] text-red-400">실패</span>
               )}
-              <button
-                onClick={() => removePending(item.id)}
-                className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[10px] text-slate-600 hover:bg-slate-300"
+              <Button
+                onPress={() => removePending(item.id)}
+                isIconOnly
+                size="sm"
+                variant="ghost"
                 aria-label="첨부 삭제"
+                className="ml-0.5 h-4 w-4 min-w-0 rounded-full bg-slate-200 text-[10px] text-slate-600"
               >
                 ✕
-              </button>
+              </Button>
             </div>
           ))}
         </div>

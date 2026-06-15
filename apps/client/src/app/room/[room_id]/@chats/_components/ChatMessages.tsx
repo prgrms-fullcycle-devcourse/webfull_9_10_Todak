@@ -54,11 +54,12 @@ function AttachmentItem({ attachment }: { attachment: ChatAttachment }) {
   if (isImage) {
     return (
       <a href={attachment.url} target="_blank" rel="noopener noreferrer">
-        {/* presigned S3 URL 이라 next/image 대신 일반 img 사용 */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={attachment.url}
           alt={attachment.name}
+          width={320}
+          height={192}
+          unoptimized
           className="max-h-48 max-w-full rounded-xl border border-border object-cover"
         />
       </a>
