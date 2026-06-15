@@ -78,7 +78,7 @@ export default async function RoomLayout({
   return (
     <div className="room-layout-container">
       <SidebarContainer>{sidebar}</SidebarContainer>
-      <RoomMainContainer chats={chats}>
+      <RoomMainContainer chats={chats} roomId={roomID}>
         {renderer ?? children}
       </RoomMainContainer>
     </div>
