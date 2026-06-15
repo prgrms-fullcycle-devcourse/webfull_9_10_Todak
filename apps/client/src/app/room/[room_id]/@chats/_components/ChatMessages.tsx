@@ -4,7 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { useChatHistory } from '../_hooks/useChatHistory';
 import { useChatSocket } from '../_hooks/useChatSocket';
 import { TabType } from '../_types';
-import { Popover, PopoverArrow } from '@heroui/react';
+import { Avatar, Button, Popover } from '@heroui/react';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import type {
   ChatAttachment,
@@ -28,6 +28,7 @@ interface ChatMessagesProps {
 
 const EMOJI_OPTIONS = ['👍', '🔥', '❤️', '😂', '🙂'];
 const MEETING_BOUNDARY_EVENT = 'todak:meeting-boundary';
+const STICKY_SCROLL_THRESHOLD = 48;
 
 interface MeetingBoundaryEventDetail {
   roomId: string;
@@ -143,9 +144,12 @@ function MessageItem({
   onReact: (messageId: string, emoji: string) => void;
   onRemoveLocalMessage: (messageId: string) => void;
 }) {
-  const [showPicker, setShowPicker] = useState(false);
+  const [showMessageMenu, setShowMessageMenu] = useState(false);
   const isPending = isPendingMessage(msg);
   const isFailed = msg.localStatus === 'failed';
+  const authUser = getStoredAuthUser();
+  const isMine =
+    authUser !== null && msg.user.github_username === authUser.login;
 
   const time = new Date(msg.created_at).toLocaleTimeString('ko-KR', {
     hour: '2-digit',
@@ -166,6 +170,63 @@ function MessageItem({
       : msg.type === 'meeting_end'
         ? '회의 종료'
         : (msg.content ?? '');
+  const hasReactions = msg.reactions.length > 0;
+  const handleCopyMessage = async () => {
+    if (!msg.content) return;
+
+    await navigator.clipboard.writeText(msg.content);
+    setShowMessageMenu(false);
+  };
+  const messagePopover = (
+    <Popover.Content
+      className="border-none bg-transparent p-0 shadow-none"
+      placement={isMine ? 'bottom end' : 'bottom start'}
+    >
+      <Popover.Dialog className="flex min-w-36 flex-col gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xs">
+        <Button
+          size="sm"
+          type="button"
+          variant="ghost"
+          onClick={() => void handleCopyMessage()}
+          className="h-8 w-full justify-start rounded-lg px-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-100"
+        >
+          <svg
+            aria-hidden="true"
+            className="h-3.5 w-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          복사하기
+        </Button>
+        <div className="h-px bg-slate-100" />
+        <div className="flex gap-1">
+          {EMOJI_OPTIONS.map(emoji => (
+            <Button
+              key={emoji}
+              isIconOnly
+              size="sm"
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                onReact(msg.id, emoji);
+                setShowMessageMenu(false);
+              }}
+              className="h-7 w-7 min-w-0 rounded-xl p-0 text-base hover:bg-slate-100"
+            >
+              {emoji}
+            </Button>
+          ))}
+        </div>
+      </Popover.Dialog>
+    </Popover.Content>
+  );
 
   if (msg.type === 'meeting_start' || msg.type === 'meeting_end') {
     return (
@@ -187,27 +248,43 @@ function MessageItem({
   }
 
   return (
-    <div className="group relative flex items-start gap-2 px-1 py-1.5">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 overflow-hidden">
-        <Image
+    <div
+      className={`group relative flex items-start gap-2 px-1 py-1.5 ${
+        isMine ? 'ml-auto flex-row-reverse justify-start' : ''
+      }`}
+    >
+      <Avatar className="h-8 w-8 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+        <Avatar.Image
           src={msg.user.avatar_url}
           alt={msg.user.github_username}
-          width={32}
-          height={32}
-          className="h-full w-full object-cover rounded-full"
+          className="h-full w-full rounded-lg object-cover"
         />
-      </div>
-      <div className="flex max-w-[75%] flex-col gap-1 items-start">
-        <div className="flex items-center gap-2">
+        <Avatar.Fallback className="flex h-full w-full items-center justify-center rounded-lg text-[10px] font-bold text-slate-500">
+          {msg.user.github_username.slice(0, 1).toUpperCase()}
+        </Avatar.Fallback>
+      </Avatar>
+      <div
+        className={`flex min-w-0 max-w-[75%] flex-col gap-1 ${
+          isMine ? 'items-end' : 'items-start'
+        }`}
+      >
+        <div
+          className={`flex items-center gap-2 ${
+            isMine ? 'flex-row-reverse' : ''
+          }`}
+        >
           <span className="text-[11px] font-bold text-slate-700">
             {msg.user.github_username}
           </span>
-          <span className="text-[10px] text-slate-400">{time}</span>
         </div>
 
         {/* 첨부 (이미지/PDF 여러 개 가능) */}
         {msg.attachments?.length > 0 && (
-          <div className="flex flex-col gap-1">
+          <div
+            className={`flex flex-col gap-1 ${
+              isMine ? 'items-end' : 'items-start'
+            }`}
+          >
             {msg.attachments.map((att, i) => (
               <AttachmentItem key={i} attachment={att} />
             ))}
@@ -217,58 +294,106 @@ function MessageItem({
         <div className="relative">
           {/* 텍스트가 있을 때만 말풍선 표시 (첨부만 있는 메시지는 생략) */}
           {msg.content && (
-            <div className="flex items-center gap-1.5">
-              {isPending ? (
+            <div
+              className={`flex flex-col ${
+                isMine ? 'items-end' : 'items-start'
+              }`}
+            >
+              <div
+                className={`flex items-end gap-1.5 ${
+                  isMine ? 'flex-row-reverse' : ''
+                }`}
+              >
+                {isPending ? (
+                  <div
+                    className={`rounded-xl border px-3 py-2 text-xs leading-relaxed transition-colors ${
+                      isFailed
+                        ? 'border-red-200 bg-red-50 text-red-500'
+                        : 'border-border bg-surface text-foreground opacity-60'
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                ) : (
+                  <Popover
+                    isOpen={showMessageMenu}
+                    onOpenChange={setShowMessageMenu}
+                  >
+                    <Popover.Trigger>
+                      <div className="cursor-pointer select-text rounded-xl border border-border bg-surface px-3 py-2 text-left text-xs leading-relaxed text-foreground transition-colors hover:bg-slate-50">
+                        {msg.content}
+                      </div>
+                    </Popover.Trigger>
+                    {messagePopover}
+                  </Popover>
+                )}
+                {isFailed && (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                    aria-label="실패한 메시지 삭제"
+                    onClick={() => onRemoveLocalMessage(msg.id)}
+                    className="h-5 w-5 min-w-0 shrink-0 rounded-full bg-red-100 p-0 text-[11px] font-bold text-red-500 transition-colors hover:bg-red-200"
+                  >
+                    ×
+                  </Button>
+                )}
+                <span className="mb-0.5 shrink-0 text-[10px] text-slate-400">
+                  {time}
+                </span>
+              </div>
+
+              {!isPending && hasReactions && (
                 <div
-                  className={`rounded-xl border px-3 py-2 text-xs leading-relaxed transition-colors ${
-                    isFailed
-                      ? 'border-red-200 bg-red-50 text-red-500'
-                      : 'border-border bg-surface text-foreground opacity-60'
+                  className={`mt-1 flex flex-wrap gap-1 ${
+                    isMine ? 'justify-end' : 'justify-start'
                   }`}
                 >
-                  {msg.content}
+                  {!isMine &&
+                    msg.reactions.map((r, i) => (
+                      <Button
+                        key={i}
+                        onClick={() => onReact(msg.id, r.emoji)}
+                        size="sm"
+                        variant="ghost"
+                        className={`h-auto rounded-lg min-w-0 gap-0.5 border px-1 text-[11px] shadow-sm transition-colors ${
+                          r.me
+                            ? 'border-todak-coral-200 bg-todak-coral-50 text-todak-coral-500'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {r.emoji}
+                        {r.count > 0 && (
+                          <span className="pl-0.5 font-semibold text-slate-500">
+                            {r.count}
+                          </span>
+                        )}
+                      </Button>
+                    ))}
+                  {isMine &&
+                    msg.reactions.map((r, i) => (
+                      <Button
+                        key={i}
+                        onClick={() => onReact(msg.id, r.emoji)}
+                        size="sm"
+                        variant="ghost"
+                        className={`h-auto rounded-lg min-w-0 gap-0.5 border px-1 text-[11px] shadow-sm transition-colors ${
+                          r.me
+                            ? 'border-todak-coral-200 bg-todak-coral-50 text-todak-coral-500'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {r.emoji}
+                        {r.count > 0 && (
+                          <span className="pl-0.5 font-semibold text-slate-500">
+                            {r.count}
+                          </span>
+                        )}
+                      </Button>
+                    ))}
                 </div>
-              ) : (
-                <Popover isOpen={showPicker} onOpenChange={setShowPicker}>
-                  <Popover.Trigger>
-                    <button
-                      type="button"
-                      className="cursor-pointer rounded-xl border border-border bg-surface px-3 py-2 text-left text-xs leading-relaxed text-foreground transition-colors hover:bg-slate-50"
-                    >
-                      {msg.content}
-                    </button>
-                  </Popover.Trigger>
-                  <Popover.Content
-                    className="border-none bg-transparent p-0 shadow-none"
-                    placement="bottom start"
-                  >
-                    <Popover.Dialog className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xs">
-                      {EMOJI_OPTIONS.map(emoji => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => {
-                            onReact(msg.id, emoji);
-                            setShowPicker(false);
-                          }}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-base transition-colors hover:bg-slate-100"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </Popover.Dialog>
-                  </Popover.Content>
-                </Popover>
-              )}
-              {isFailed && (
-                <button
-                  type="button"
-                  aria-label="실패한 메시지 삭제"
-                  onClick={() => onRemoveLocalMessage(msg.id)}
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-[11px] font-bold text-red-500 transition-colors hover:bg-red-200"
-                >
-                  ×
-                </button>
               )}
             </div>
           )}
@@ -279,29 +404,6 @@ function MessageItem({
             </p>
           )}
         </div>
-
-        {msg.reactions.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {msg.reactions.map((r, i) => (
-              <button
-                key={i}
-                onClick={() => onReact(msg.id, r.emoji)}
-                className={`flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] shadow-sm transition-colors ${
-                  r.me
-                    ? 'border-todak-coral-200 bg-todak-coral-50 text-todak-coral-500'
-                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {r.emoji}
-                {r.count > 0 && (
-                  <span className="font-semibold text-slate-500 pl-0.5">
-                    {r.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -577,16 +679,32 @@ export default function ChatMessages({
   }, [sendMessage, onSendReady]);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const prevLengthRef = useRef(0);
+  const shouldStickToBottomRef = useRef(true);
+
+  const scrollToBottom = useCallback(() => {
+    const container = containerRef.current;
+    if (container === null) return;
+
+    container.scrollTop = container.scrollHeight;
+  }, []);
+
+  const updateStickyScroll = useCallback(() => {
+    const container = containerRef.current;
+    if (container === null) return;
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+
+    shouldStickToBottomRef.current =
+      distanceFromBottom <= STICKY_SCROLL_THRESHOLD;
+  }, []);
 
   useEffect(() => {
-    if (messages.length > prevLengthRef.current) {
-      if (containerRef.current) {
-        containerRef.current.scrollTop = containerRef.current.scrollHeight;
-      }
+    if (shouldStickToBottomRef.current) {
+      scrollToBottom();
+      requestAnimationFrame(scrollToBottom);
     }
-    prevLengthRef.current = messages.length;
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
   if (shouldBlockPrivate) {
     return (
@@ -599,6 +717,7 @@ export default function ChatMessages({
   return (
     <div
       ref={containerRef}
+      onScroll={updateStickyScroll}
       className="min-h-0 flex-1 overflow-y-auto px-2 py-2"
     >
       {tab === 'private' && (
