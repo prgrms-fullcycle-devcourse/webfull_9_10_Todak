@@ -50,7 +50,7 @@ export default function Chats({
 
   return (
     <div className="chat-panel-container">
-      <ChatHeader meetingStatus={meetingStatus} />
+      <ChatHeader meetingStatus={meetingStatus} tab={tab} />
       <ChatTabs tab={tab} onTabChange={setManualTab} />
       {tab === 'private' && !!currentPrivateRoomId && (
         <ChatMeetingButton
