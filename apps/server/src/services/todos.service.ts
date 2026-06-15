@@ -623,7 +623,11 @@ export async function getTodo(userId: string, roomId: string, todoId: string) {
       where: { id: userId },
       select: { accessToken: true },
     });
-    if (repo !== null && user?.accessToken) {
+    if (
+      repo !== null &&
+      user?.accessToken !== null &&
+      user?.accessToken !== undefined
+    ) {
       const [owner, repoName] = repo.fullName.split('/');
       reactions = await listIssueReactions(
         user.accessToken,
