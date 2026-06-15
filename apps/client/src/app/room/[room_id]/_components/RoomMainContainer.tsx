@@ -15,15 +15,25 @@ export default function RoomMainContainer({
 }: RoomMainContainerProps) {
   const currentView = useSpaceStore(state => state.currentView);
   const isMeetingView = currentView === 'meeting';
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatState, setChatState] = useState({
+    view: currentView,
+    isOpen: false,
+  });
+  const isChatOpen =
+    chatState.view === currentView ? chatState.isOpen : isMeetingView;
 
   return (
     <main className="room-main-container">
       <input
-        checked={isMeetingView || isChatOpen}
+        checked={isChatOpen}
         className="peer/chat sr-only"
         id="room-chat-toggle"
-        onChange={event => setIsChatOpen(event.target.checked)}
+        onChange={event =>
+          setChatState({
+            view: currentView,
+            isOpen: event.target.checked,
+          })
+        }
         type="checkbox"
       />
       <ChatOpenButton />
