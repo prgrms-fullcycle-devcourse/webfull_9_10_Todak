@@ -1,4 +1,18 @@
-export default function HomeRight() {
+import ProjectHub from '@/app/[user_id]/join/_components/ProjectHub';
+
+interface HomeRightProps {
+  userID?: string;
+}
+
+export default function HomeRight({ userID }: HomeRightProps) {
+  if (userID !== undefined) {
+    return (
+      <div className="w-full">
+        <ProjectHub userID={userID} variant="embedded" />
+      </div>
+    );
+  }
+
   return (
     <div className="hidden md:block">
       <div className="mx-auto max-w-md rounded-3xl border border-border bg-surface p-10 text-center shadow-todak-panel">

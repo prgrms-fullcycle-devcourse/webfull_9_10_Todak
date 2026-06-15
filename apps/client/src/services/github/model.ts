@@ -54,6 +54,17 @@ export interface RoomPullRequest {
   html_url: string;
 }
 
+export interface RoomPullRequestDetail extends RoomPullRequest {
+  body: string | null;
+  mergeable: boolean | null;
+  changes: {
+    additions: number;
+    deletions: number;
+    changed_files: number;
+    commits: number;
+  };
+}
+
 export interface PullRequestsPagination {
   page: number;
   limit: number;
@@ -70,6 +81,43 @@ export interface FetchRoomPullRequestsParams {
   state?: PullRequestState;
   page?: number;
   limit?: number;
+}
+
+export interface FetchRoomPullRequestDetailParams {
+  roomId: string;
+  pullNumber: number;
+}
+
+export type PullRequestReviewEvent = 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT';
+
+export interface CreatePullRequestReviewParams {
+  roomId: string;
+  pullNumber: number;
+  body?: string;
+  event?: PullRequestReviewEvent;
+}
+
+export interface PullRequestReviewResult {
+  pull_number: number;
+  review_id: number;
+  state: string;
+  submitted_at: string | null;
+}
+
+export type PullRequestMergeMethod = 'merge' | 'squash' | 'rebase';
+
+export interface MergePullRequestParams {
+  roomId: string;
+  pullNumber: number;
+  merge_method?: PullRequestMergeMethod;
+  commit_title?: string;
+  commit_message?: string;
+}
+
+export interface PullRequestMergeResult {
+  merged: boolean;
+  pull_number: number;
+  merge_commit_sha: string;
 }
 
 export interface FetchGitHubPullRequestParams {

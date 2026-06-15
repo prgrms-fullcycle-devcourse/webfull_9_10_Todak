@@ -1,12 +1,9 @@
-import Image from 'next/image';
+'use client';
 
-const CHARACTER_AVATARS: Record<string, { name: string; src: string }> = {
-  bear: { name: '곰', src: '/assets/bear_front.webp' },
-  cat: { name: '고양이', src: '/assets/cat_front.webp' },
-  dog: { name: '강아지', src: '/assets/dog_front.webp' },
-  hamster: { name: '햄스터', src: '/assets/hamster_front.webp' },
-  rabbit: { name: '토끼', src: '/assets/rabbit_front.webp' },
-};
+import type { AuthUser } from '@/lib/auth';
+import type { RoomProfile } from '@/services/rooms/model';
+import { Chip } from '@heroui/react';
+import Image from 'next/image';
 
 const ROLE_LABELS: Record<string, string> = {
   frontend: 'Frontend',
@@ -16,55 +13,57 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 interface Props {
-  characterType: string | null;
-  name: string;
-  roles: string[];
-  repoName: string | null;
+  myInfo: AuthUser;
+  myRoomInfo?: RoomProfile;
 }
 
-export default function MyInformation({
-  characterType,
-  name,
-  roles,
-  repoName,
-}: Props) {
-  const characterAvatar =
-    characterType === null ? undefined : CHARACTER_AVATARS[characterType];
-  const avatarInitial = name.trim().slice(0, 1) || '?';
-  const roleLabel = roles.map(role => ROLE_LABELS[role] ?? role).join(', ');
-  const repoLabel =
-    repoName === null ? 'repo: 연결된 저장소 없음' : `repo: ${repoName}`;
+export default function MyInformation({ myInfo, myRoomInfo }: Props) {
+  const displayName = myRoomInfo?.nickname?.trim() || myInfo.login;
+  const roles = myRoomInfo?.roles ?? [];
+  const hasAvatar = myInfo.avatarUrl.trim() !== '';
+  const avatarInitial = displayName.trim().slice(0, 1) || '?';
 
   return (
-    <div className="mb-6 rounded-2xl border border-border bg-surface p-4 shadow-surface">
-      <div className="flex items-center gap-3">
-        {characterAvatar ? (
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-secondary">
+    <section className="shrink-0">
+      <div className="flex items-center gap-2.5">
+        {hasAvatar ? (
+          <div className="relative size-9 shrink-0 overflow-hidden rounded-full bg-surface-secondary">
             <Image
-              alt={`${characterAvatar.name} 캐릭터`}
-              className="h-[78%] w-[78%] object-contain"
-              height={550}
-              src={characterAvatar.src}
-              width={420}
+              alt={`${displayName} 프로필 이미지`}
+              className="object-cover"
+              fill
+              sizes="36px"
+              src={myInfo.avatarUrl}
             />
           </div>
         ) : (
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-lg font-black text-muted">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-secondary text-xs font-black text-muted">
             {avatarInitial}
           </div>
         )}
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black text-foreground">
-            {name}
-            <span className="ml-1 font-todak-mono text-[9px] text-accent">
-              [{roleLabel || 'Role'}]
-            </span>
-          </p>
-          <p className="truncate font-todak-mono text-[9px] text-muted">
-            {repoLabel}
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <p className="min-w-0 truncate text-sm font-black text-foreground">
+              {displayName}
+            </p>
+          </div>
+          <p className="mt-0.5 truncate font-todak-mono text-[8px] text-muted">
+            @{myInfo.login}
           </p>
         </div>
       </div>
-    </div>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {(roles.length > 0 ? roles : ['Role']).map(role => (
+          <Chip
+            className="h-5 rounded-md bg-accent/10 px-1.5 font-todak-mono text-[8px] font-black text-accent"
+            key={role}
+            size="sm"
+            variant="soft"
+          >
+            {ROLE_LABELS[role] ?? role}
+          </Chip>
+        ))}
+      </div>
+    </section>
   );
 }

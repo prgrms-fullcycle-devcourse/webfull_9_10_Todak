@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
 import { AnimalType, useSpaceStore } from '@/store/useSpaceStore';
 import { loadAllAnimalAssets } from './_animals/animalAssets';
@@ -28,7 +28,11 @@ import {
 } from '@/services/rooms/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { loadMascotNpcAssets } from '../2d/_npcs/npcAssets';
-import { createMascotNpc } from '../2d/_npcs/createNpc';
+import { createMascotNpc, MascotNpcContainer } from '../2d/_npcs/createNpc';
+import { useNotifications } from '@/services/notifications/query';
+import NotificationHistoryModal from './NotificationHistoryModal';
+import { openChatSafely } from '../../../@chats/_components/ChatOpenButton';
+import rawWallData from '@/app/room/[room_id]/@renderer/_constants/walls.json';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -46,10 +50,29 @@ const STATUS_TO_LABEL_MAP: Record<string, string> = {
   away: '💤 부재',
 };
 
+interface MeetingLabelContainer extends PIXI.Container {
+  redraw: (isMeetingActive: boolean) => void;
+}
+
+interface WallDataConfig {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label?: string;
+}
+
 export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   // 캔버스를 마운트할 DOM 컨테이너 참조
   const canvasRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const npcRef = useRef<MascotNpcContainer | null>(null);
+  const [isNpcReady, setIsNpcReady] = useState(false);
+  const { data: notificationData } = useNotifications(roomId);
+  const npcTimeoutRef = useRef<number | null>(null);
+  const prevNotificationIdRef = useRef<string | null>(null);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const notifications = notificationData?.notifications ?? [];
 
   useEffect(() => {
     let isMounted = true;
@@ -58,9 +81,12 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     let unsubscribeAnimal: (() => void) | null = null;
     let unsubscribePlayer: (() => void) | null = null;
     let unsubscribeModal: (() => void) | null = null;
+    let unsubscribeMeetingId: (() => void) | null = null;
+    let unsubscribeRoomsList: (() => void) | null = null;
     let cleanupMovement: (() => void) | null = null;
     let cleanupCamera: (() => void) | null = null;
     let handleResize: (() => void) | null = null;
+    let localPlayerContainer: PIXI.Container | null = null;
 
     const initPixi = async () => {
       const container = canvasRef.current;
@@ -119,7 +145,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       }
 
       const world = createWorld();
-      world.sortableChildren = true; // zIndex 기반 정렬 활성화
+      world.sortableChildren = true;
       app.stage.addChild(world);
       (window as CustomWindow).__PIXI_APP__ = app;
 
@@ -134,6 +160,105 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       meetingRoom.zIndex = 1;
       world.addChild(meetingRoom);
 
+      const meetingRoomsConfig = [
+        { defaultName: '회의실 A', x: 300, y: 350 },
+        { defaultName: '회의실 B', x: 2050, y: 420 },
+      ];
+
+      const labelContainers: MeetingLabelContainer[] = [];
+
+      meetingRoomsConfig.forEach((config, index) => {
+        const labelContainer = new PIXI.Container() as MeetingLabelContainer;
+        labelContainer.x = config.x;
+        labelContainer.y = config.y;
+        labelContainer.zIndex = 7;
+        world.addChild(labelContainer);
+
+        const labelBg = new PIXI.Graphics();
+        labelContainer.addChild(labelBg);
+
+        const labelText = new PIXI.Text({
+          text: '',
+          style: { fontSize: 13, fontWeight: 'bold', fontFamily: 'Arial' },
+        });
+        labelText.anchor.set(0.5);
+        labelContainer.addChild(labelText);
+
+        labelContainer.redraw = (isMeetingActive: boolean) => {
+          labelBg.clear();
+          const actualRoomData = useSpaceStore.getState().privateRooms[index];
+          const roomName = actualRoomData?.name || config.defaultName;
+
+          if (isMeetingActive) {
+            labelText.text = `🔴 ${roomName} (회의중)`;
+            labelText.style.fill = 0xffffff;
+            labelBg
+              .roundRect(-85, -16, 170, 32, 8)
+              .fill({ color: 0xef4444, alpha: 0.95 })
+              .stroke({ width: 2, color: 0xfca5a5 });
+          } else {
+            labelText.text = `👥 ${roomName}`;
+            labelText.style.fill = 0x475569;
+            labelBg
+              .roundRect(-85, -16, 170, 32, 8)
+              .fill({ color: 0xf1f5f9, alpha: 0.9 })
+              .stroke({ width: 2, color: 0xcbd5e1 });
+          }
+        };
+
+        labelContainers.push(labelContainer);
+      });
+
+      // 회의실 상태 라벨 활성화 여부 및 업데이트
+      const refreshAllMeetingLabels = () => {
+        const state = useSpaceStore.getState();
+
+        labelContainers.forEach((container, index) => {
+          const targetRoom = state.privateRooms[index];
+          let isRoomMeetingActive = false;
+
+          if (targetRoom) {
+            // 내가 이 방에 들어가 있고, 실시간 회의 ID 장부가 활성화
+            if (
+              state.currentPrivateRoomId === targetRoom.id &&
+              state.currentMeetingId !== null
+            ) {
+              isRoomMeetingActive = true;
+            }
+            // 소켓 동기화
+            else if (
+              Object.prototype.hasOwnProperty.call(
+                targetRoom,
+                'is_meeting_active',
+              )
+            ) {
+              const safeRoomRecord = targetRoom as unknown as Record<
+                string,
+                unknown
+              >;
+              if (safeRoomRecord.is_meeting_active === true) {
+                isRoomMeetingActive = true;
+              }
+            }
+          }
+
+          container.redraw(isRoomMeetingActive);
+        });
+      };
+
+      refreshAllMeetingLabels();
+
+      // 스토어의 회의 상태 변화율을 정밀 실시간 감시
+      unsubscribeMeetingId = useSpaceStore.subscribe(
+        state => state.currentMeetingId,
+        () => refreshAllMeetingLabels(),
+      );
+
+      unsubscribeRoomsList = useSpaceStore.subscribe(
+        state => state.privateRooms,
+        () => refreshAllMeetingLabels(),
+      );
+
       // 동물 에셋 로드 & 현재 선택된 동물 결정
       const animalAssets = await loadAllAnimalAssets();
       const currentType = useSpaceStore.getState().currentAnimal;
@@ -144,9 +269,19 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       const mascotTextures = await loadMascotNpcAssets();
 
       // NPC 배치 생성
-      const helperNpc = createMascotNpc(mascotTextures, 1500, 500, '토닥이');
+      const helperNpc = createMascotNpc(
+        mascotTextures,
+        1500,
+        500,
+        '토닥이',
+        () => {
+          setIsNotificationModalOpen(true);
+        },
+      );
       helperNpc.zIndex = 8;
       world.addChild(helperNpc);
+      npcRef.current = helperNpc;
+      setIsNpcReady(true);
 
       // 회의실 입장 시 화면을 어둡게 하는 오버레이
       const darkOverlay = new PIXI.Graphics();
@@ -159,6 +294,14 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       const player = createPlayer(app, activeTextures, roomId);
       player.container.zIndex = 10;
       world.addChild(player.container);
+
+      // 플레이어 생성 직후 스토어에 과거 저장 좌표가 있다면 강제 복원 스냅
+      const savedPosition = useSpaceStore.getState().lastPosition;
+      if (savedPosition) {
+        player.container.x = savedPosition.x;
+        player.container.y = savedPosition.y;
+      }
+      localPlayerContainer = player.container;
 
       // 캐릭터 내부 좀비 리스너 구독
       unsubscribePlayer = player.unsubscribePlayerStatus;
@@ -411,6 +554,13 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         useSpaceStore.getState().setMenuOpen(false);
       });
 
+      // 이동 제한 구역 데이터
+      const staticOfficeWalls: PIXI.Rectangle[] = (
+        rawWallData as WallDataConfig[]
+      ).map(
+        wall => new PIXI.Rectangle(wall.x, wall.y, wall.width, wall.height),
+      );
+
       // 이동 로직 셋업
       cleanupMovement = setupMovement(
         app,
@@ -418,6 +568,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         () => activeTextures,
         darkOverlay,
         roomId,
+        staticOfficeWalls,
       );
 
       // 카메라 셋업
@@ -456,6 +607,20 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       unsubscribeAnimal?.();
       unsubscribePlayer?.();
       unsubscribeModal?.();
+      unsubscribeMeetingId?.();
+      unsubscribeRoomsList?.();
+      unsubscribeRoomsList?.();
+      npcRef.current = null;
+      setIsNpcReady(false);
+
+      if (localPlayerContainer) {
+        useSpaceStore
+          .getState()
+          .setLastPosition(localPlayerContainer.x, localPlayerContainer.y);
+      }
+
+      npcRef.current = null;
+      setIsNpcReady(false);
 
       // 맴버 소켓 이벤트 리스너 제거
       getSocket().off('room:user-joined');
@@ -470,8 +635,94 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       if (app) {
         app.destroy(true, { children: true, texture: false });
       }
+      if (npcTimeoutRef.current) {
+        window.clearTimeout(npcTimeoutRef.current);
+      }
     };
   }, [roomId, queryClient]);
+
+  // 실시간 알림 연동
+  useEffect(() => {
+    if (!isNpcReady || !npcRef.current) return;
+
+    const notifications = notificationData?.notifications ?? [];
+    if (notifications.length === 0) {
+      if (prevNotificationIdRef.current === null) {
+        npcRef.current.say('토닥윗미에 오신 것을 환영합니다! 🚀');
+        npcTimeoutRef.current = window.setTimeout(() => {
+          npcRef.current?.say('');
+        }, 5000);
+        // ID가 없더라도 null이 아닌 상태로 만들어 중복 방지
+        prevNotificationIdRef.current = 'welcome-done';
+      }
+      return;
+    }
+
+    const latestNotification = notifications[0];
+
+    if (prevNotificationIdRef.current === null) {
+      prevNotificationIdRef.current = latestNotification.id;
+
+      npcRef.current.say('토닥윗미에 오신 것을 환영합니다! 🚀');
+
+      if (npcTimeoutRef.current) window.clearTimeout(npcTimeoutRef.current);
+      npcTimeoutRef.current = window.setTimeout(() => {
+        if (npcRef.current) {
+          npcRef.current.say('');
+        }
+        npcTimeoutRef.current = null;
+      }, 5000);
+
+      return;
+    }
+
+    // 실시간 새 알림 적재 발생 시
+    if (
+      !latestNotification.is_sample &&
+      latestNotification.id !== prevNotificationIdRef.current
+    ) {
+      if (prevNotificationIdRef.current === null) {
+        prevNotificationIdRef.current = latestNotification.id;
+        return;
+      }
+      prevNotificationIdRef.current = latestNotification.id;
+
+      if (npcRef.current) {
+        if (npcTimeoutRef.current) {
+          window.clearTimeout(npcTimeoutRef.current);
+        }
+
+        // NPC 말풍선
+        npcRef.current.say(latestNotification.message);
+        npcTimeoutRef.current = window.setTimeout(() => {
+          if (npcRef.current) {
+            npcRef.current.say('');
+          }
+          npcTimeoutRef.current = null;
+        }, 5000);
+      }
+    }
+  }, [notificationData, isNpcReady, roomId]);
+
+  // 회의실 채팅방 자동 열람
+  useEffect(() => {
+    const unsubscribePrivateRoom = useSpaceStore.subscribe(
+      state => state.currentPrivateRoomId,
+      currentRoomId => {
+        if (currentRoomId !== null) {
+          const store = useSpaceStore.getState();
+
+          openChatSafely();
+
+          store.setActiveChatTab('private');
+        }
+      },
+    );
+
+    return () => {
+      unsubscribePrivateRoom();
+    };
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-start gap-2 pt-0 h-full w-full">
@@ -489,6 +740,12 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       <p className="text-slate-400 text-sm mt-2 mb-4">
         방향키를 눌러 캐릭터를 움직여 보세요!
       </p>
+      <NotificationHistoryModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+        notifications={notifications}
+        roomId={roomId}
+      />
     </div>
   );
 }

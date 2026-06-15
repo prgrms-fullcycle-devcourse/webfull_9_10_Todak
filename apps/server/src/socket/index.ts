@@ -8,6 +8,11 @@ import { setUserStatusInAllRooms } from '../services/room-member.service.js';
 
 import { broadcastPrivateRooms } from './broadcast.js';
 import { registerHandlers } from './handlers/index.js';
+import {
+  claimActiveSession,
+  clearAllActiveSessions,
+  releaseActiveSession,
+} from './socket-session.js';
 import { socketAuthMiddleware } from './socket.auth.js';
 import {
   ClientToServerEvents,
@@ -33,7 +38,7 @@ export function initSocket(httpServer: HttpServer): TypedIO {
     SocketData
   >(httpServer, {
     cors: {
-      origin: env.CLIENT_URL,
+      origin: env.CLIENT_URL.split(',').map(s => s.trim()),
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -43,16 +48,40 @@ export function initSocket(httpServer: HttpServer): TypedIO {
   io.use(socketAuthMiddleware);
 
   io.on('connection', socket => {
-    const { login } = socket.data.user;
+    const { id: userId, login } = socket.data.user;
     console.log(`🔌 [${login}] connected (${socket.id})`);
 
+    const previousSocketId = claimActiveSession(userId, socket.id);
+    if (previousSocketId !== null) {
+      const previousSocket = io.sockets.sockets.get(previousSocketId);
+      if (previousSocket !== undefined) {
+        previousSocket.data.replacedByNewSession = true;
+        previousSocket.emit('session:replaced', {
+          message:
+            '다른 탭 또는 브라우저에서 접속하여 이 연결이 종료되었습니다.',
+        });
+        previousSocket.disconnect(true);
+        console.log(
+          `🔌 [${login}] replaced previous session (${previousSocketId})`,
+        );
+      }
+    }
+
     // 개인 알림 라우팅용 개인방(userId) 입장 → to(userId).emit('notification:created')
-    void socket.join(socket.data.user.id);
+    void socket.join(userId);
 
     registerHandlers(io, socket);
 
     socket.on('disconnect', async () => {
       console.log(`🔌 [${login}] disconnected (${socket.id})`);
+
+      if (
+        socket.data.replacedByNewSession ||
+        !releaseActiveSession(userId, socket.id)
+      ) {
+        return;
+      }
+
       try {
         const roomIds = await setUserStatusInAllRooms(
           socket.data.user.id,
@@ -104,6 +133,7 @@ export function closeSocket() {
   }
   // close: true → 하부 연결까지 강제로 종료해 httpServer가 드레인될 수 있게 한다
   io.disconnectSockets(true);
+  clearAllActiveSessions();
   console.log('✅ Socket connections closed');
 }
 

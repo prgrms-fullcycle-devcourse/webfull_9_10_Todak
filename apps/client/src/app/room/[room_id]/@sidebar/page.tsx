@@ -1,13 +1,21 @@
 import AIGuide from './_components/AIGuide';
 import MyInformation from './_components/MyInformation';
 import RecentMeetingLogs from './_components/RecentMeetingLogs';
+import RoomSettingsDropdown from './_components/RoomSettingsDropdown';
 import ViewSelection from './_components/ViewSelection';
 
 import AuthRefreshOnMount from '@/app/_components/AuthRefreshOnMount';
-import { apiServer, isApiServerAuthError } from '@/lib/api.server';
+import {
+  apiServer,
+  isApiServerAuthError,
+  isApiServerNotFoundError,
+} from '@/lib/api.server';
 import type { AuthUser } from '@/lib/auth';
 import type { MinutesList } from '@/services/minutes/model';
-import type { MyRooms, RoomMembers } from '@/services/rooms/model';
+import type { RoomInfo, RoomMembers } from '@/services/rooms/model';
+import { Accordion, Separator } from '@heroui/react';
+import { notFound } from 'next/navigation';
+import PullRequestNotifications from './_components/PullRequestNotifications';
 
 interface SidebarProps {
   params: Promise<{
@@ -23,14 +31,14 @@ export default async function Sidebar({ params }: SidebarProps) {
     limit: '5',
   });
   let myInfo: AuthUser;
-  let myRooms: MyRooms;
+  let roomInfo: RoomInfo;
   let roomMembers: RoomMembers;
   let meetingLogs: MinutesList;
 
   try {
-    [myInfo, myRooms, roomMembers, meetingLogs] = await Promise.all([
+    [myInfo, roomInfo, roomMembers, meetingLogs] = await Promise.all([
       apiServer.get<AuthUser>('/users/me'),
-      apiServer.get<MyRooms>('/rooms'),
+      apiServer.get<RoomInfo>(`/rooms/${roomID}`),
       apiServer.get<RoomMembers>(`/rooms/${roomID}/members`),
       apiServer.get<MinutesList>(
         `/rooms/${roomID}/minutes?${minutesSearchParams.toString()}`,
@@ -41,25 +49,37 @@ export default async function Sidebar({ params }: SidebarProps) {
       return <SidebarFallback />;
     }
 
+    if (isApiServerNotFoundError(error)) {
+      notFound();
+    }
+
     throw error;
   }
 
-  const currentRoom = myRooms.find(room => room.id === roomID);
-  const myRoomProfile = roomMembers.members.find(
+  const myRoomInfo = roomMembers.members.find(
     member => member.github_username === myInfo.login,
   );
 
   return (
     <>
-      <MyInformation
-        characterType={myRoomProfile?.character_type ?? null}
-        name={myRoomProfile?.nickname ?? myInfo.login}
-        repoName={currentRoom?.repo?.full_name ?? null}
-        roles={myRoomProfile?.roles ?? []}
-      />
+      <MyInformation myInfo={myInfo} myRoomInfo={myRoomInfo} />
+      <Separator className="my-3 bg-border" />
       <ViewSelection />
-      <RecentMeetingLogs meetingLogs={meetingLogs.minutes} />
-      <AIGuide />
+      <Separator className="my-3 bg-border" />
+      <Accordion
+        allowsMultipleExpanded
+        className="min-h-0 flex-1 overflow-y-auto pr-1"
+        defaultExpandedKeys={[]}
+      >
+        <RecentMeetingLogs meetingLogs={meetingLogs.minutes} />
+        <PullRequestNotifications />
+      </Accordion>
+      <RoomSettingsDropdown
+        myRoomInfo={myRoomInfo}
+        room={roomInfo}
+        roomID={roomID}
+        userID={myInfo.id}
+      />
     </>
   );
 }
@@ -68,15 +88,18 @@ function SidebarFallback() {
   return (
     <>
       <AuthRefreshOnMount />
-      <MyInformation
-        characterType={null}
-        name="로그인 확인 중"
-        repoName={null}
-        roles={[]}
-      />
+
+      <Separator className="my-3 bg-border" />
       <ViewSelection />
-      <RecentMeetingLogs meetingLogs={[]} />
-      <AIGuide />
+      <Separator className="my-3 bg-border" />
+      <Accordion
+        allowsMultipleExpanded
+        className="min-h-0 flex-1 overflow-y-auto pr-1"
+        defaultExpandedKeys={[]}
+      >
+        <RecentMeetingLogs meetingLogs={[]} />
+        <AIGuide />
+      </Accordion>
     </>
   );
 }

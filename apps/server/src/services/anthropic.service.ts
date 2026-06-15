@@ -121,8 +121,10 @@ export async function generateMinutesSummary(
     system: `당신은 개발 팀의 미팅 로그를 분석하는 전문 프로젝트 매니저(PM) AI입니다.
       제공된 채팅 로그를 바탕으로 회의 제목, 회의록 본문, 액션 아이템을 정리하고,
       반드시 save_minutes 도구를 호출하여 결과를 반환하세요.
-      액션 아이템은 action_items 필드로만 반환하며,
-      회의록 본문(content_md)에는 별도의 '액션 아이템' 목록 섹션을 중복해서 넣지 마세요.
+      '할 일'과 '담당자'(누가 무엇을 하기로 했는지)는 오직 action_items 필드로만 반환하세요.
+      회의록 본문(content_md)에는 할 일·담당자를 나열하는 목록·체크리스트·요약 표
+      (예: '결정 사항 요약' 표에 담당/할 일 칼럼)를 절대 넣지 마세요. 본문에 할 일 할당을 중복하지 마세요.
+      본문의 결정 사항은 표가 아니라 서술형 문장으로 적으세요.
       액션 아이템의 담당자(assignee_github_username)는, 대화에서 그 일을 누가 하기로
       명확히 정해진 경우에만 제공된 멤버 명단의 github_username 중에서 지정하세요.
       이름/닉네임으로 언급됐어도 명단의 해당 github_username으로 매핑하세요.
@@ -142,7 +144,7 @@ export async function generateMinutesSummary(
             content_md: {
               type: 'string',
               description:
-                '회의의 논의 사항과 결정 사항을 일목요연하게 정리한 마크다운 본문. 할 일은 action_items로 별도 반환하므로 본문에 액션 아이템 목록을 중복해 나열하지 마세요.',
+                '회의의 논의 사항과 결정 사항을 일목요연하게 정리한 마크다운 본문. 단, 할 일·담당자를 나열하는 목록이나 요약 표(담당/할 일 칼럼 등)는 넣지 마세요 — 그건 action_items 의 역할입니다. 결정 사항은 서술형 문장으로만 작성합니다.',
             },
             action_items: {
               type: 'array',

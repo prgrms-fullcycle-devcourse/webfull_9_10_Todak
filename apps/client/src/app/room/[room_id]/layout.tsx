@@ -2,8 +2,10 @@ import RoomMainContainer from './_components/RoomMainContainer';
 import SidebarContainer from './_components/SidebarContainer';
 
 import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { fetchRoomInfo } from '@/services/rooms/api.server';
 import { SITE_CONFIG } from '@/constants/metadata';
+import { isApiServerNotFoundError } from '@/lib/api.server';
 
 type Props = {
   params: Promise<{ room_id: string }>;
@@ -11,7 +13,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const roomID = (await params).room_id;
-  const roomInfo = await fetchRoomInfo(roomID);
+  const roomInfo = await getPublicRoomInfo(roomID);
   if (!roomInfo) {
     return {};
   }
@@ -64,7 +66,15 @@ export default async function RoomLayout({
   sidebar,
   chats,
   renderer,
+  params,
 }: LayoutProps<'/room/[room_id]'>) {
+  const { room_id: roomID } = await params;
+  const roomInfo = await getPublicRoomInfo(roomID);
+
+  if (roomInfo === null) {
+    notFound();
+  }
+
   return (
     <div className="room-layout-container">
       <SidebarContainer>{sidebar}</SidebarContainer>
@@ -73,4 +83,16 @@ export default async function RoomLayout({
       </RoomMainContainer>
     </div>
   );
+}
+
+async function getPublicRoomInfo(roomID: string) {
+  try {
+    return await fetchRoomInfo(roomID);
+  } catch (error) {
+    if (isApiServerNotFoundError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
 }

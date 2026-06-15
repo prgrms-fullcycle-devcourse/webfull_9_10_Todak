@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { AppError } from '../../errors/AppError.js';
 import { consumeRateLimit } from '../../middleware/rateLimit.middleware.js';
+import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../services/attachment.service.js';
 import { createChat } from '../../services/chat.service.js';
 import { toggleReaction } from '../../services/reaction.service.js';
 import { toSocketError } from '../socket-error.js';
@@ -11,15 +12,37 @@ import {
   TypedSocket,
 } from '../socket.types.js';
 
-// chat:send 폭주 방지 — 유저당 10초에 10개 (초과 시 TOO_MANY_REQUESTS)
-const CHAT_RATE_LIMIT = 10;
+// chat:send 폭주 방지 — 유저당 10초에 5개 (초과 시 TOO_MANY_REQUESTS)
+const CHAT_RATE_LIMIT = 5;
 const CHAT_RATE_WINDOW_MS = 10_000;
 
-const ChatSendSchema = z.object({
-  roomId: z.string().uuid(),
-  privateRoomId: z.string().uuid().optional(),
-  content: z.string().min(1).max(2000),
-});
+const ChatSendSchema = z
+  .object({
+    roomId: z.string().uuid(),
+    privateRoomId: z.string().uuid().optional(),
+    content: z.string().min(1).max(2000).optional(),
+    /*
+     * 첨부는 먼저 REST 로 업로드 URL 을 받아 S3 에 올린 뒤, 그 s3Key 들을 실어 보낸다.
+     * 한 메시지에 여러 개 가능 (개수 상한 제한).
+     */
+    attachments: z
+      .array(
+        z.object({
+          s3Key: z.string().min(1),
+          fileName: z.string().min(1).max(255),
+        }),
+      )
+      .min(1)
+      .max(MAX_ATTACHMENTS_PER_MESSAGE)
+      .optional(),
+  })
+  // 빈 메시지 방지 — content 또는 attachments 중 하나는 있어야 함
+  .refine(
+    input => input.content !== undefined || input.attachments !== undefined,
+    {
+      message: 'content 또는 attachments 중 하나는 필요합니다.',
+    },
+  );
 
 const ChatReactSchema = z.object({
   roomId: z.string().uuid(),

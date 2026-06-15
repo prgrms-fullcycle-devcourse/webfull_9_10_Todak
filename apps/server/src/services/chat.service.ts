@@ -1,5 +1,11 @@
+import { AppError } from '../errors/AppError.js';
 import { prisma } from '../lib/prisma.js';
 
+import {
+  assertAllowedAttachment,
+  createDownloadUrl,
+  headAttachment,
+} from './attachment.service.js';
 import {
   assertInPrivateRoomSession,
   assertPrivateRoomBelongsToRoom,
@@ -12,6 +18,13 @@ export interface ReactionSummary {
   me: boolean; // 요청한 유저가 이 이모지를 눌렀는지
 }
 
+export interface AttachmentPayload {
+  url: string; // presigned GET URL (만료 있음 — 저장하지 않고 조회 시 생성)
+  mime: string;
+  size: number;
+  name: string; // 원본 파일명 (표시/다운로드용)
+}
+
 export interface ChatPayload {
   id: string;
   room_id: string;
@@ -21,7 +34,8 @@ export interface ChatPayload {
     avatar_url: string | null;
   };
   content: string | null;
-  type: string;
+  type: string; // text | meeting_start | meeting_end
+  attachments: AttachmentPayload[]; // 첨부 없으면 빈 배열
   created_at: string;
   reactions: ReactionSummary[];
 }
@@ -43,11 +57,21 @@ interface ChatRow {
     avatarUrl: string | null;
   };
   reactions: { emoji: string; userId: string }[];
+  attachments: {
+    s3Key: string;
+    mime: string;
+    size: number;
+    originalName: string;
+  }[];
 }
 
 const includeChat = {
   user: { select: { githubUsername: true, avatarUrl: true } },
   reactions: { select: { emoji: true, userId: true } },
+  attachments: {
+    select: { s3Key: true, mime: true, size: true, originalName: true },
+    orderBy: { createdAt: 'asc' }, // 첨부 순서 보존
+  },
 } as const;
 
 function aggregateReactions(
@@ -72,7 +96,23 @@ function aggregateReactions(
   }));
 }
 
-function toPayload(row: ChatRow, currentUserId: string): ChatPayload {
+async function toPayload(
+  row: ChatRow,
+  currentUserId: string,
+): Promise<ChatPayload> {
+  /*
+   * 각 첨부마다 조회용 presigned GET URL 을 즉석에서 발급 (URL 은 DB 에 저장 안 함).
+   * getSignedUrl 은 네트워크 호출 없이 로컬 서명만 하므로 행마다 불러도 가볍다.
+   */
+  const attachments = await Promise.all(
+    row.attachments.map(async att => ({
+      url: await createDownloadUrl(att.s3Key, att.originalName),
+      mime: att.mime,
+      size: att.size,
+      name: att.originalName,
+    })),
+  );
+
   return {
     id: row.id,
     room_id: row.roomId,
@@ -83,6 +123,7 @@ function toPayload(row: ChatRow, currentUserId: string): ChatPayload {
     },
     content: row.content,
     type: row.type,
+    attachments,
     created_at: row.createdAt.toISOString(),
     reactions: aggregateReactions(row.reactions, currentUserId),
   };
@@ -107,7 +148,7 @@ async function fetchChats(
     include: includeChat,
   });
 
-  return rows.map(row => toPayload(row, currentUserId));
+  return Promise.all(rows.map(row => toPayload(row, currentUserId)));
 }
 
 /*
@@ -153,13 +194,54 @@ export async function getPrivateRoomChats(
 }
 
 /*
+ * 첨부 1건을 검증해 DB 저장용 데이터로 변환.
+ * - 다른 룸으로 발급된 key 를 끼워 넣지 못하게 룸 prefix 확인
+ * - S3 에 실제로 올라왔는지(headObject) 확인하고, 클라가 보낸 메타 대신
+ *   S3 의 실제 mime/size 를 신뢰해 허용 정책을 재검증
+ */
+async function buildAttachment(
+  roomId: string,
+  attachment: { s3Key: string; fileName: string },
+): Promise<{
+  s3Key: string;
+  mime: string;
+  size: number;
+  originalName: string;
+}> {
+  if (!attachment.s3Key.startsWith(`chat/${roomId}/`)) {
+    throw new AppError('BAD_REQUEST');
+  }
+
+  const head = await headAttachment(attachment.s3Key);
+  if (head === null) {
+    throw new AppError('BAD_REQUEST'); // 업로드되지 않은 key
+  }
+
+  assertAllowedAttachment(head.mime, head.size);
+
+  return {
+    s3Key: attachment.s3Key,
+    mime: head.mime,
+    size: head.size,
+    originalName: attachment.fileName,
+  };
+}
+
+/*
  * 채팅 메시지 저장 (socket chat:send 핸들러에서 호출).
  * - 메인 룸: 룸 멤버여야 함
  * - 프라이빗 룸: 룸 멤버 + 현재 해당 프라이빗 룸 세션이 열려있어야 함
+ * - content / attachments 중 하나 이상 필요 (핸들러 스키마에서 보장)
+ * - 첨부는 한 메시지에 여러 개 가능 (개수 상한은 핸들러 스키마에서 제한)
  */
 export async function createChat(
   userId: string,
-  input: { roomId: string; privateRoomId?: string; content: string },
+  input: {
+    roomId: string;
+    privateRoomId?: string;
+    content?: string;
+    attachments?: { s3Key: string; fileName: string }[];
+  },
 ): Promise<ChatPayload> {
   await assertRoomMember(input.roomId, userId);
 
@@ -168,13 +250,21 @@ export async function createChat(
     await assertInPrivateRoomSession(input.privateRoomId, userId);
   }
 
+  // 모든 첨부를 병렬 검증 (각각 S3 headObject)
+  const attachments = await Promise.all(
+    (input.attachments ?? []).map(att => buildAttachment(input.roomId, att)),
+  );
+
   const saved = await prisma.chatMessage.create({
     data: {
       roomId: input.roomId,
       privateRoomId: input.privateRoomId ?? null,
       userId,
-      content: input.content,
+      content: input.content ?? null,
       type: 'text',
+      ...(attachments.length > 0 && {
+        attachments: { create: attachments },
+      }),
     },
     include: includeChat,
   });

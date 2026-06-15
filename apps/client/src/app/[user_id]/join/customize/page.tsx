@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import AuthRefreshOnMount from '@/app/_components/AuthRefreshOnMount';
 import { apiServer, isApiServerAuthError } from '@/lib/api.server';
@@ -12,7 +12,6 @@ interface CustomizationPageProps {
   }>;
   searchParams?: Promise<{
     roomID?: string | string[];
-    roomId?: string | string[];
   }>;
 }
 
@@ -22,8 +21,7 @@ export default async function CustomizationPage({
 }: CustomizationPageProps) {
   const { user_id: userID } = await params;
   const resolvedSearchParams = await searchParams;
-  const rawRoomID =
-    resolvedSearchParams?.roomID ?? resolvedSearchParams?.roomId;
+  const rawRoomID = resolvedSearchParams?.roomID;
   const roomID = Array.isArray(rawRoomID) ? rawRoomID[0] : rawRoomID;
   let shouldRefreshAuth = false;
 
@@ -54,7 +52,11 @@ async function redirectUserWhenSetupComplete(roomID: string) {
 
   const currentRoom = rooms.find(room => room.id === roomID);
 
-  if (currentRoom?.is_setup_completed === true) {
+  if (currentRoom === undefined) {
+    notFound();
+  }
+
+  if (currentRoom.is_setup_completed) {
     redirect(`/room/${encodeURIComponent(roomID)}`);
   }
 

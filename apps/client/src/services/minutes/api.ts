@@ -1,5 +1,11 @@
 import { apiClient, api } from '@/lib/api';
-import { EndMeeting, Minute, MinuteDetail, StartMeeting } from './model';
+import {
+  EndMeeting,
+  Minute,
+  MinuteDetail,
+  StartMeeting,
+  UpdateMinutesRequest,
+} from './model';
 
 export async function fetchMeetingLogs(roomID: string) {
   return apiClient.get<Minute[]>(`/rooms/${roomID}/meetings`);
@@ -12,6 +18,7 @@ export function fetchMinutes(
   return apiClient.get<MinuteDetail>(`/rooms/${roomId}/minutes/${minutesId}`);
 }
 
+// 회의 시작/종료
 export async function startMeeting(
   roomId: string,
   privateRoomId: string,
@@ -32,6 +39,7 @@ export async function endMeeting(
   return response.data;
 }
 
+// ai 회의록 생성 요청
 export function generateMinutes(
   roomId: string,
   meetingId: string,
@@ -42,3 +50,12 @@ export function generateMinutes(
     title,
   });
 }
+
+// 회의록 수정
+export const updateMinutes = async (
+  roomId: string,
+  minutesId: string,
+  data: UpdateMinutesRequest,
+) => {
+  return apiClient.patch(`/rooms/${roomId}/minutes/${minutesId}`, data);
+};

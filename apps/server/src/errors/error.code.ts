@@ -135,6 +135,11 @@ export const ERROR_CODES = {
     code: 'TODO_NOT_FOUND',
     message: 'Todo를 찾을 수 없습니다.',
   },
+  TODO_GITHUB_NOT_LINKED: {
+    statusCode: StatusCodes.BAD_REQUEST,
+    code: 'TODO_GITHUB_NOT_LINKED',
+    message: 'GitHub 이슈와 연결되지 않은 Todo입니다.',
+  },
   CHAT_MESSAGE_NOT_FOUND: {
     statusCode: StatusCodes.NOT_FOUND,
     code: 'CHAT_MESSAGE_NOT_FOUND',
@@ -204,6 +209,20 @@ export const ERROR_CODES = {
     statusCode: StatusCodes.CONFLICT,
     code: 'MINUTES_ALREADY_EXISTS',
     message: '해당 회의에 대한 회의록이 이미 존재합니다.',
+  },
+
+  // 413
+  FILE_TOO_LARGE: {
+    statusCode: StatusCodes.REQUEST_TOO_LONG,
+    code: 'FILE_TOO_LARGE',
+    message: '첨부 파일 용량이 허용 범위를 초과했습니다.',
+  },
+
+  // 415
+  UNSUPPORTED_FILE_TYPE: {
+    statusCode: StatusCodes.UNSUPPORTED_MEDIA_TYPE,
+    code: 'UNSUPPORTED_FILE_TYPE',
+    message: '지원하지 않는 파일 형식입니다. (이미지 또는 PDF만 가능)',
   },
 
   // 422

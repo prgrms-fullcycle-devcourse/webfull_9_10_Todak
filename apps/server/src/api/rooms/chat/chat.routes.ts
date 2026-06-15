@@ -4,8 +4,11 @@ import { requireAuth } from '../../../middleware/auth.middleware.js';
 import { validate } from '../../../middleware/validate.middleware.js';
 import { RoomIdParamsSchema } from '../private-room/private-room.schema.js';
 
-import { getMainRoomChatsHandler } from './chat.controller.js';
-import { ChatsQuerySchema } from './chat.schema.js';
+import {
+  createAttachmentUploadUrlHandler,
+  getMainRoomChatsHandler,
+} from './chat.controller.js';
+import { AttachmentUploadSchema, ChatsQuerySchema } from './chat.schema.js';
 
 const router = Router({ mergeParams: true });
 
@@ -16,6 +19,13 @@ router.get(
   validate(RoomIdParamsSchema, 'params'),
   validate(ChatsQuerySchema, 'query'),
   getMainRoomChatsHandler,
+);
+
+router.post(
+  '/attachments',
+  validate(RoomIdParamsSchema, 'params'),
+  validate(AttachmentUploadSchema, 'body'),
+  createAttachmentUploadUrlHandler,
 );
 
 export default router;

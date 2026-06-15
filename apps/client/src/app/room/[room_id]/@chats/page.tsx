@@ -10,6 +10,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { use } from 'react';
 import { MeetingStatus, TabType } from './_types';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import type { PendingAttachment } from '@/services/chats/model';
 
 export default function Chats({
   params,
@@ -34,11 +35,18 @@ export default function Chats({
 
   const tab: TabType = manualTab ?? (currentPrivateRoomId ? 'private' : 'all');
 
-  const sendMessageRef = useRef<(content: string) => void>(() => {});
+  const sendMessageRef = useRef<
+    (content: string, attachments?: PendingAttachment[]) => Promise<void>
+  >(() => Promise.resolve());
 
-  const handleSendReady = useCallback((fn: (content: string) => void) => {
-    sendMessageRef.current = fn;
-  }, []);
+  const handleSendReady = useCallback(
+    (
+      fn: (content: string, attachments?: PendingAttachment[]) => Promise<void>,
+    ) => {
+      sendMessageRef.current = fn;
+    },
+    [],
+  );
 
   return (
     <div className="chat-panel-container">
@@ -54,7 +62,12 @@ export default function Chats({
         />
       )}
       <ChatMessages tab={tab} roomId={room_id} onSendReady={handleSendReady} />
-      <ChatInput onSend={content => sendMessageRef.current(content)} />
+      <ChatInput
+        roomId={room_id}
+        onSend={(content, attachments) =>
+          sendMessageRef.current(content, attachments)
+        }
+      />
     </div>
   );
 }
