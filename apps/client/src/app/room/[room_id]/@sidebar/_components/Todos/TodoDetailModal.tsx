@@ -6,6 +6,7 @@ import {
   createTodoReaction,
   deleteTodoComment,
   deleteTodoLabel,
+  deleteTodoReaction,
   fetchTodo,
   fetchTodoComments,
   fetchTodoEvents,
@@ -86,6 +87,12 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   const [reactionCountsByTarget, setReactionCountsByTarget] = useState<
     Record<string, Partial<Record<TodoReactionContent, number>>>
   >({});
+  const [myReactionsByTarget, setMyReactionsByTarget] = useState<
+    Record<string, Partial<Record<TodoReactionContent, boolean>>>
+  >({});
+  const [myReactionIDs, setMyReactionIDs] = useState<
+    Partial<Record<TodoReactionContent, number>>
+  >({});
   const [deleteConfirmation, setDeleteConfirmation] =
     useState<DeleteConfirmation | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -94,7 +101,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   const todoID = modalContent.id;
 
   const todoDetailQuery = useQuery({
-    queryKey: ['todos', roomID, todoID],
+    queryKey: ['todo-detail', roomID, todoID],
     queryFn: () => fetchTodo(roomID, todoID),
     enabled: isOpen && roomID !== '' && todoID !== '',
   });
@@ -157,6 +164,34 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
     countReactions(detailTodo.reactions),
     reactionCountsByTarget.issue,
   );
+  const isRefreshingTodoDetail =
+    todoDetailQuery.isFetching ||
+    commentsQuery.isFetching ||
+    labelsQuery.isFetching;
+  const myIssueReactionContents = new Set(
+    (detailTodo.reactions ?? [])
+      .filter(
+        reaction =>
+          (reaction.userLogin ?? reaction.user_login) === myChar.githubUsername,
+      )
+      .map(reaction => reaction.content),
+  );
+  Object.entries(myReactionsByTarget.issue ?? {}).forEach(
+    ([content, isSelected]) => {
+      if (isSelected) {
+        myIssueReactionContents.add(content as TodoReactionContent);
+      } else {
+        myIssueReactionContents.delete(content as TodoReactionContent);
+      }
+    },
+  );
+  const getMyIssueReactionID = (content: TodoReactionContent) =>
+    myReactionIDs[content] ??
+    (detailTodo.reactions ?? []).find(
+      reaction =>
+        reaction.content === content &&
+        (reaction.userLogin ?? reaction.user_login) === myChar.githubUsername,
+    )?.id;
 
   const invalidateTodoQueries = () => {
     queryClient.invalidateQueries({ queryKey: ['todos', roomID] });
@@ -169,7 +204,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
       updateTodo(roomID, todoID, payload),
     onError: () => setActionMessage('To-Do 수정 중 오류가 발생했습니다.'),
     onSuccess: response => {
-      queryClient.setQueryData(['todos', roomID, todoID], response);
+      queryClient.setQueryData(['todo-detail', roomID, todoID], response);
       setModalContent(response.todo);
       invalidateTodoQueries();
       setActionMessage('To-Do가 업데이트되었습니다.');
@@ -276,6 +311,11 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
       createTodoReaction(roomID, todoID, { content }),
   });
 
+  const deleteReactionMutation = useMutation({
+    mutationFn: ({ reactionID }: { reactionID: number }) =>
+      deleteTodoReaction(roomID, todoID, String(reactionID)),
+  });
+
   if (typeof document === 'undefined') {
     return null;
   }
@@ -357,14 +397,78 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   };
 
   const handleReact = (targetKey: string, content: TodoReactionContent) => {
+    if (targetKey !== 'issue') {
+      return;
+    }
+
+    if (myIssueReactionContents.has(content)) {
+      const reactionID = getMyIssueReactionID(content);
+      if (reactionID === undefined || deleteReactionMutation.isPending) return;
+
+      updateReactionCount(targetKey, content, -1);
+      setMyReactionsByTarget(current => ({
+        ...current,
+        [targetKey]: {
+          ...current[targetKey],
+          [content]: false,
+        },
+      }));
+
+      deleteReactionMutation.mutate(
+        { reactionID },
+        {
+          onError: () => {
+            updateReactionCount(targetKey, content, 1);
+            setMyReactionsByTarget(current => ({
+              ...current,
+              [targetKey]: {
+                ...current[targetKey],
+                [content]: true,
+              },
+            }));
+            setActionMessage('리액션 삭제에 실패했습니다.');
+          },
+          onSuccess: () => {
+            setMyReactionIDs(current => ({
+              ...current,
+              [content]: undefined,
+            }));
+          },
+        },
+      );
+      return;
+    }
+
+    if (createReactionMutation.isPending) return;
+
     updateReactionCount(targetKey, content, 1);
+    setMyReactionsByTarget(current => ({
+      ...current,
+      [targetKey]: {
+        ...current[targetKey],
+        [content]: true,
+      },
+    }));
 
     createReactionMutation.mutate(
       { content },
       {
         onError: () => {
           updateReactionCount(targetKey, content, -1);
+          setMyReactionsByTarget(current => ({
+            ...current,
+            [targetKey]: {
+              ...current[targetKey],
+              [content]: false,
+            },
+          }));
           setActionMessage('리액션 추가에 실패했습니다.');
+        },
+        onSuccess: response => {
+          setMyReactionIDs(current => ({
+            ...current,
+            [content]: response.reaction.id,
+          }));
         },
       },
     );
@@ -409,6 +513,22 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
     setIsDoneInput(true);
     updateTodoMutation.mutate({ is_done: true });
   };
+
+  const handleRefreshTodoDetail = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: ['todo-detail', roomID, todoID],
+      }),
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: ['todos', roomID, todoID, 'comments'],
+      }),
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: ['todos', roomID, 'labels'],
+      }),
+    ]);
 
   const handleConfirmDelete = () => {
     if (deleteConfirmation === null) {
@@ -462,6 +582,15 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                       @{assigneeName}
                     </strong>
                   </span>
+                  <Button
+                    aria-label="To-Do 상세 새로고침"
+                    className="ml-auto flex size-8 min-w-8 items-center justify-center bg-transparent p-0 text-muted hover:text-foreground disabled:opacity-60"
+                    isDisabled={isRefreshingTodoDetail}
+                    onPress={() => void handleRefreshTodoDetail()}
+                    type="button"
+                  >
+                    <RefreshIcon isRefreshing={isRefreshingTodoDetail} />
+                  </Button>
                 </div>
               </div>
               <Modal.CloseTrigger />
@@ -574,6 +703,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                           )}
                           <ReactionPicker
                             counts={issueReactionCounts}
+                            selectedContents={myIssueReactionContents}
                             onReact={content => handleReact('issue', content)}
                           />
                         </>
@@ -601,10 +731,6 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                       {commentsQuery.data?.comments.map(comment => {
                         const isMyComment =
                           comment.authorLogin === myChar.githubUsername;
-                        const commentReactionCounts = mergeReactionCounts(
-                          countReactions(comment.reactions),
-                          reactionCountsByTarget[`comment-${comment.id}`],
-                        );
 
                         return (
                           <div
@@ -652,48 +778,33 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                                 <p className="whitespace-pre-wrap text-[13px] font-medium leading-6 text-slate-600">
                                   {comment.body}
                                 </p>
-                                <div className="mt-3 flex items-center justify-between gap-2">
-                                  {!isMyComment ? (
-                                    <ReactionPicker
-                                      counts={commentReactionCounts}
-                                      onReact={content =>
-                                        handleReact(
-                                          `comment-${comment.id}`,
-                                          content,
-                                        )
+                                {isMyComment && (
+                                  <div className="mt-3 flex justify-end gap-1">
+                                    <Button
+                                      className="h-7 rounded-lg bg-white px-2 text-[10px] font-black text-muted"
+                                      onPress={() => {
+                                        setEditingCommentID(comment.id);
+                                        setCommentEditInput(comment.body);
+                                      }}
+                                      type="button"
+                                    >
+                                      수정
+                                    </Button>
+                                    <Button
+                                      className="h-7 rounded-lg bg-danger px-2 text-[10px] font-black text-white"
+                                      onPress={() =>
+                                        setDeleteConfirmation({
+                                          id: comment.id,
+                                          name: '댓글',
+                                          type: 'comment',
+                                        })
                                       }
-                                    />
-                                  ) : (
-                                    <span />
-                                  )}
-                                  {isMyComment && (
-                                    <div className="flex justify-end gap-1">
-                                      <Button
-                                        className="h-7 rounded-lg bg-white px-2 text-[10px] font-black text-muted"
-                                        onPress={() => {
-                                          setEditingCommentID(comment.id);
-                                          setCommentEditInput(comment.body);
-                                        }}
-                                        type="button"
-                                      >
-                                        수정
-                                      </Button>
-                                      <Button
-                                        className="h-7 rounded-lg bg-danger px-2 text-[10px] font-black text-white"
-                                        onPress={() =>
-                                          setDeleteConfirmation({
-                                            id: comment.id,
-                                            name: '댓글',
-                                            type: 'comment',
-                                          })
-                                        }
-                                        type="button"
-                                      >
-                                        삭제
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
+                                      type="button"
+                                    >
+                                      삭제
+                                    </Button>
+                                  </div>
+                                )}
                               </>
                             )}
                           </div>
@@ -898,6 +1009,25 @@ function PencilIcon() {
   );
 }
 
+function RefreshIcon({ isRefreshing }: { isRefreshing: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M20 11a8 8 0 1 0-2.34 5.66M20 5v6h-6"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
 function DeleteConfirmationModal({
   isOpen,
   isDeleting,
@@ -961,9 +1091,11 @@ function DeleteConfirmationModal({
 function ReactionPicker({
   counts,
   onReact,
+  selectedContents,
 }: {
   counts: Partial<Record<TodoReactionContent, number>>;
   onReact: (content: TodoReactionContent) => void;
+  selectedContents: Set<TodoReactionContent>;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -981,8 +1113,16 @@ function ReactionPicker({
           <div className="flex items-center gap-3">
             {REACTION_OPTIONS.map(reaction => (
               <button
-                aria-label={`${reaction.content} 리액션 추가`}
-                className="rounded-lg px-1.5 py-1 text-2xl leading-none transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-todak-coral-300"
+                aria-label={`${reaction.content} ${
+                  selectedContents.has(reaction.content)
+                    ? '내 리액션'
+                    : '리액션 추가'
+                }`}
+                className={`rounded-lg px-1.5 py-1 text-2xl leading-none transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-todak-coral-300 ${
+                  selectedContents.has(reaction.content)
+                    ? 'bg-blue-500/30 ring-1 ring-blue-400'
+                    : ''
+                }`}
                 key={reaction.content}
                 onClick={() => onReact(reaction.content)}
                 type="button"
@@ -998,7 +1138,16 @@ function ReactionPicker({
         reaction => (counts[reaction.content] ?? 0) > 0,
       ).map(reaction => (
         <button
-          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-blue-500 bg-blue-500/10 px-3 text-[13px] font-black text-foreground transition-colors hover:bg-blue-500/15 disabled:opacity-50"
+          aria-label={`${reaction.label} ${
+            selectedContents.has(reaction.content)
+              ? '내 반응'
+              : '다른 사용자의 반응'
+          }`}
+          className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-black text-foreground transition-colors disabled:opacity-50 ${
+            selectedContents.has(reaction.content)
+              ? 'border-blue-500 bg-sky-100 hover:bg-sky-200'
+              : 'border-slate-300 bg-white hover:bg-slate-50'
+          }`}
           key={reaction.content}
           onClick={() => onReact(reaction.content)}
           type="button"
