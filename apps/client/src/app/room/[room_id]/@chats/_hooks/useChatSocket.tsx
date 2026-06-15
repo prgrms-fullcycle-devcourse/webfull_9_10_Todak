@@ -21,7 +21,10 @@ export function useChatSocket({
   onReaction,
 }: UseChatSocketParams) {
   const sendMessage = useCallback(
-    (content: string, attachments?: PendingAttachment[]): Promise<void> => {
+    (
+      content: string,
+      attachments?: PendingAttachment[],
+    ): Promise<ChatMessage | null> => {
       return new Promise((resolve, reject) => {
         const socket = getSocket();
         socket.emit(
@@ -33,9 +36,14 @@ export function useChatSocket({
             ...(attachments && attachments.length > 0 ? { attachments } : {}),
             ...(privateRoomId ? { privateRoomId } : {}),
           },
-          (ack: { ok: boolean; code?: string; message?: string }) => {
+          (ack: {
+            ok: boolean;
+            chat?: ChatMessage;
+            code?: string;
+            message?: string;
+          }) => {
             if (ack.ok) {
-              resolve();
+              resolve(ack.chat ?? null);
             } else {
               reject(new Error(ack.code ?? 'CHAT_SEND_ERROR'));
             }

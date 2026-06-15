@@ -120,7 +120,7 @@ export default function ChatInput({ roomId, onSend }: ChatInputProps) {
     });
   };
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!canSend || sending) return;
 
     const attachments: PendingAttachment[] = doneAttachments.map(p => ({
@@ -132,13 +132,17 @@ export default function ChatInput({ roomId, onSend }: ChatInputProps) {
 
     const content = input.trim();
     setSending(true);
-    try {
-      await onSend(content, attachments);
-      pending.forEach(p => p.previewUrl && URL.revokeObjectURL(p.previewUrl));
-      setInput('');
-      setPending([]);
-      setError(null);
-    } catch (err) {
+    const pendingToCleanup = pending;
+
+    setInput('');
+    setPending([]);
+    setError(null);
+    setSending(false);
+    pendingToCleanup.forEach(
+      item => item.previewUrl && URL.revokeObjectURL(item.previewUrl),
+    );
+
+    void onSend(content, attachments).catch(err => {
       const code = err instanceof Error ? err.message : '';
       if (code === 'TOO_MANY_REQUESTS') {
         setError(
@@ -147,9 +151,7 @@ export default function ChatInput({ roomId, onSend }: ChatInputProps) {
       } else {
         setError('메시지 전송에 실패했어요. 다시 시도해주세요.');
       }
-    } finally {
-      setSending(false);
-    }
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

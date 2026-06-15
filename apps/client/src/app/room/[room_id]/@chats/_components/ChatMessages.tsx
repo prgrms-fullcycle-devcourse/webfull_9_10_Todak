@@ -4,6 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { useChatHistory } from '../_hooks/useChatHistory';
 import { useChatSocket } from '../_hooks/useChatSocket';
 import { TabType } from '../_types';
+import { Popover } from '@heroui/react';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import type {
   ChatAttachment,
@@ -35,6 +36,11 @@ interface MeetingBoundaryEventDetail {
   createdAt: string;
 }
 
+type LocalChatMessage = ChatMessage & {
+  localStatus?: 'sending' | 'failed';
+  errorMessage?: string;
+};
+
 // 헬퍼 함수
 function applyReactionToList(
   reactions: ChatMessage['reactions'],
@@ -54,6 +60,26 @@ function applyReactionToList(
   return reactions
     .map(r => (r.emoji === event.emoji ? { ...r, count: r.count - 1 } : r))
     .filter(r => r.count > 0);
+}
+
+function isPendingMessage(msg: LocalChatMessage) {
+  return msg.id.startsWith('local-pending-');
+}
+
+function isMatchingPendingMessage(
+  pendingMessage: LocalChatMessage,
+  message: ChatMessage,
+) {
+  const sentAt = new Date(pendingMessage.created_at).getTime();
+  const receivedAt = new Date(message.created_at).getTime();
+
+  return (
+    isPendingMessage(pendingMessage) &&
+    pendingMessage.content === message.content &&
+    pendingMessage.private_room_id === message.private_room_id &&
+    pendingMessage.user.github_username === message.user.github_username &&
+    Math.abs(receivedAt - sentAt) < 30_000
+  );
 }
 
 // 첨부 한 건 렌더 — 이미지는 인라인 썸네일, 그 외(PDF 등)는 파일 카드
@@ -91,11 +117,15 @@ function AttachmentItem({ attachment }: { attachment: ChatAttachment }) {
 function MessageItem({
   msg,
   onReact,
+  onRemoveLocalMessage,
 }: {
-  msg: ChatMessage;
+  msg: LocalChatMessage;
   onReact: (messageId: string, emoji: string) => void;
+  onRemoveLocalMessage: (messageId: string) => void;
 }) {
   const [showPicker, setShowPicker] = useState(false);
+  const isPending = isPendingMessage(msg);
+  const isFailed = msg.localStatus === 'failed';
 
   const time = new Date(msg.created_at).toLocaleTimeString('ko-KR', {
     hour: '2-digit',
@@ -167,29 +197,66 @@ function MessageItem({
         <div className="relative">
           {/* 텍스트가 있을 때만 말풍선 표시 (첨부만 있는 메시지는 생략) */}
           {msg.content && (
-            <div
-              onClick={() => setShowPicker(prev => !prev)}
-              className="cursor-pointer rounded-xl border border-border bg-surface px-3 py-2 text-xs leading-relaxed text-foreground transition-colors hover:bg-slate-50"
-            >
-              {msg.content}
+            <div className="flex items-center gap-1.5">
+              {isPending ? (
+                <div
+                  className={`rounded-xl border px-3 py-2 text-xs leading-relaxed transition-colors ${
+                    isFailed
+                      ? 'border-red-200 bg-red-50 text-red-500'
+                      : 'border-border bg-surface text-foreground opacity-60'
+                  }`}
+                >
+                  {msg.content}
+                </div>
+              ) : (
+                <Popover isOpen={showPicker} onOpenChange={setShowPicker}>
+                  <Popover.Trigger>
+                    <button
+                      type="button"
+                      className="cursor-pointer rounded-xl border border-border bg-surface px-3 py-2 text-left text-xs leading-relaxed text-foreground transition-colors hover:bg-slate-50"
+                    >
+                      {msg.content}
+                    </button>
+                  </Popover.Trigger>
+                  <Popover.Content
+                    className="border-none bg-transparent p-0 shadow-none"
+                    placement="bottom start"
+                  >
+                    <Popover.Dialog className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xs">
+                      {EMOJI_OPTIONS.map(emoji => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => {
+                            onReact(msg.id, emoji);
+                            setShowPicker(false);
+                          }}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-base transition-colors hover:bg-slate-100"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </Popover.Dialog>
+                  </Popover.Content>
+                </Popover>
+              )}
+              {isFailed && (
+                <button
+                  type="button"
+                  aria-label="실패한 메시지 삭제"
+                  onClick={() => onRemoveLocalMessage(msg.id)}
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-[11px] font-bold text-red-500 transition-colors hover:bg-red-200"
+                >
+                  ×
+                </button>
+              )}
             </div>
           )}
 
-          {showPicker && (
-            <div className="absolute -top-10 left-12 z-10 flex gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
-              {EMOJI_OPTIONS.map(emoji => (
-                <button
-                  key={emoji}
-                  onClick={() => {
-                    onReact(msg.id, emoji);
-                    setShowPicker(false);
-                  }}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-base transition-colors hover:bg-slate-100"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
+          {isFailed && (
+            <p className="mt-1 text-[10px] font-semibold text-red-400">
+              {msg.errorMessage ?? '전송 실패'}
+            </p>
           )}
         </div>
 
@@ -237,6 +304,9 @@ export default function ChatMessages({
 
   const { data: history } = useChatHistory(roomId, privateRoomId, tab);
   const [socketMessages, setSocketMessages] = useState<ChatMessage[]>([]);
+  const [pendingMessages, setPendingMessages] = useState<LocalChatMessage[]>(
+    [],
+  );
   const [meetingBoundaryMessages, setMeetingBoundaryMessages] = useState<
     ChatMessage[]
   >([]);
@@ -260,6 +330,7 @@ export default function ChatMessages({
     ...meetingBoundaryMessages.filter(
       msg => msg.private_room_id === privateRoomId,
     ),
+    ...pendingMessages.filter(msg => msg.private_room_id === privateRoomId),
     ...socketMessages.filter(
       socketMsg => !(history ?? []).some(h => h.id === socketMsg.id),
     ),
@@ -269,7 +340,15 @@ export default function ChatMessages({
   );
 
   const handleMessage = useCallback((msg: ChatMessage) => {
-    setSocketMessages(prev => [...prev, msg]);
+    setPendingMessages(prev =>
+      prev.filter(
+        pendingMessage => !isMatchingPendingMessage(pendingMessage, msg),
+      ),
+    );
+    setSocketMessages(prev => {
+      if (prev.some(prevMsg => prevMsg.id === msg.id)) return prev;
+      return [...prev, msg];
+    });
   }, []);
 
   useEffect(() => {
@@ -332,12 +411,80 @@ export default function ChatMessages({
     });
   }, []);
 
-  const { sendMessage, sendReaction } = useChatSocket({
+  const { sendMessage: sendSocketMessage, sendReaction } = useChatSocket({
     roomId,
     privateRoomId: shouldBlockPrivate ? null : privateRoomId,
     onMessage: handleMessage,
     onReaction: handleReaction,
   });
+
+  const handleRemoveLocalMessage = useCallback((messageId: string) => {
+    setPendingMessages(prev => prev.filter(msg => msg.id !== messageId));
+  }, []);
+
+  const sendMessage = useCallback(
+    async (content: string, attachments?: PendingAttachment[]) => {
+      const trimmedContent = content.trim();
+      const authUser = getStoredAuthUser();
+      const pendingMessage =
+        trimmedContent.length > 0
+          ? {
+              id: `local-pending-${crypto.randomUUID()}`,
+              room_id: roomId,
+              private_room_id: privateRoomId,
+              user: {
+                github_username: authUser?.login ?? '나',
+                avatar_url: authUser?.avatarUrl ?? '',
+              },
+              content: trimmedContent,
+              type: 'text' as const,
+              created_at: new Date().toISOString(),
+              reactions: [],
+              attachments: [],
+              localStatus: 'sending' as const,
+            }
+          : null;
+
+      if (pendingMessage !== null) {
+        setPendingMessages(prev => [...prev, pendingMessage]);
+      }
+
+      try {
+        const savedMessage = await sendSocketMessage(content, attachments);
+        if (pendingMessage !== null) {
+          setPendingMessages(prev =>
+            prev.filter(msg => msg.id !== pendingMessage.id),
+          );
+        }
+        if (savedMessage !== null) {
+          setSocketMessages(prev => {
+            if (prev.some(msg => msg.id === savedMessage.id)) return prev;
+            return [...prev, savedMessage];
+          });
+        }
+      } catch (error) {
+        if (pendingMessage !== null) {
+          const code = error instanceof Error ? error.message : '';
+          setPendingMessages(prev =>
+            prev.map(msg =>
+              msg.id === pendingMessage.id
+                ? {
+                    ...msg,
+                    localStatus: 'failed',
+                    errorMessage:
+                      code === 'TOO_MANY_REQUESTS'
+                        ? '너무 빠르게 보냈어요'
+                        : '전송 실패',
+                  }
+                : msg,
+            ),
+          );
+        }
+        throw error;
+      }
+    },
+    [privateRoomId, roomId, sendSocketMessage],
+  );
 
   useEffect(() => {
     onSendReady(sendMessage);
@@ -377,7 +524,12 @@ export default function ChatMessages({
         </div>
       )}
       {messages.map(msg => (
-        <MessageItem key={msg.id} msg={msg} onReact={sendReaction} />
+        <MessageItem
+          key={msg.id}
+          msg={msg}
+          onReact={sendReaction}
+          onRemoveLocalMessage={handleRemoveLocalMessage}
+        />
       ))}
     </div>
   );
