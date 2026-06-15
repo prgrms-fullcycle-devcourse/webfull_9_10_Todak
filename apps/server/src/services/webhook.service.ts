@@ -115,6 +115,7 @@ function toTodoPayload(todo: {
   assigneeId: string | null;
   minutesId: string | null;
   githubIssueNumber: number | null;
+  milestoneNumber?: number | null;
   isDone: boolean;
   createdAt: Date;
 }): TodoEventPayload {
@@ -127,6 +128,7 @@ function toTodoPayload(todo: {
     assignee_id: todo.assigneeId,
     minutes_id: todo.minutesId,
     github_issue_number: todo.githubIssueNumber,
+    milestone_number: todo.milestoneNumber ?? null,
     is_done: todo.isDone,
     created_at: todo.createdAt,
   };

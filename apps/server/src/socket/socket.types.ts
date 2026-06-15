@@ -64,6 +64,7 @@ export interface TodoEventPayload {
   assignee_id: string | null;
   minutes_id: string | null;
   github_issue_number: number | null;
+  milestone_number: number | null;
   is_done: boolean;
   created_at: Date;
 }
@@ -267,6 +268,9 @@ export interface ServerToClientEvents {
   // 알림 (개인방 userId 으로 emit)
   'notification:created': (data: NotificationEventPayload) => void;
 
+  // Session (동일 계정 중복 접속)
+  'session:replaced': (data: { message: string }) => void;
+
   // System
   error: (data: { message: string; code: string }) => void;
 }
@@ -320,6 +324,8 @@ export interface InterServerEvents {}
  */
 export interface SocketData {
   user: SocketUser;
+  /** 다른 탭/브라우저 접속으로 서버가 끊은 소켓 — disconnect 후처리(away 등) 생략 */
+  replacedByNewSession?: boolean;
 }
 
 /*

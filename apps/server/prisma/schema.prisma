@@ -232,6 +232,7 @@ model Todo {
   assigneeId        String?  @map("assignee_id") @db.Uuid
   minutesId         String?  @map("minutes_id") @db.Uuid
   githubIssueNumber Int?     @map("github_issue_number")
+  milestoneNumber   Int?     @map("milestone_number")
   title             String
   body              String?
   labels            String[]
