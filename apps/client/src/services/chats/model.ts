@@ -5,12 +5,36 @@ export interface ChatUser {
   avatar_url: string;
 }
 
+export interface Reaction {
+  emoji: string;
+  count: number;
+  me: boolean;
+}
+
+export interface ChatAttachment {
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+export interface PendingAttachment {
+  s3Key: string;
+  fileName: string;
+  mime: string;
+  size: number;
+}
+
 export interface ChatMessage {
   id: string;
+  room_id: string;
+  private_room_id: string | null;
   user: ChatUser;
   content: string | null;
   type: ChatType;
   created_at: string;
+  reactions: Reaction[];
+  attachments: ChatAttachment[];
 }
 
 export interface FetchChatsParams {
@@ -21,26 +45,6 @@ export interface FetchChatsParams {
 
 export interface FetchPrivateChatsParams extends FetchChatsParams {
   privateRoomId: string;
-}
-
-export interface Reaction {
-  emoji: string;
-  count: number;
-  me: boolean; // 내가 누른 리액션인지
-}
-
-export interface ChatMessage {
-  id: string;
-  room_id: string;
-  private_room_id: string | null;
-  user: {
-    github_username: string;
-    avatar_url: string;
-  };
-  content: string | null;
-  type: 'text' | 'meeting_start' | 'meeting_end';
-  created_at: string;
-  reactions: Reaction[];
 }
 
 export interface ChatReactionEvent {
