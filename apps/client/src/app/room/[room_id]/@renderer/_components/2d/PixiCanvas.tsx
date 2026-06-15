@@ -32,6 +32,7 @@ import { createMascotNpc, MascotNpcContainer } from '../2d/_npcs/createNpc';
 import { useNotifications } from '@/services/notifications/query';
 import NotificationHistoryModal from './NotificationHistoryModal';
 import { openChatSafely } from '../../../@chats/_components/ChatOpenButton';
+import rawWallData from '@/app/room/[room_id]/@renderer/_constants/walls.json';
 
 interface CustomWindow extends Window {
   __PIXI_APP__?: PIXI.Application;
@@ -51,6 +52,14 @@ const STATUS_TO_LABEL_MAP: Record<string, string> = {
 
 interface MeetingLabelContainer extends PIXI.Container {
   redraw: (isMeetingActive: boolean) => void;
+}
+
+interface WallDataConfig {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label?: string;
 }
 
 export default function PixiCanvas({ roomId }: PixiCanvasProps) {
@@ -545,6 +554,13 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         useSpaceStore.getState().setMenuOpen(false);
       });
 
+      // 이동 제한 구역 데이터
+      const staticOfficeWalls: PIXI.Rectangle[] = (
+        rawWallData as WallDataConfig[]
+      ).map(
+        wall => new PIXI.Rectangle(wall.x, wall.y, wall.width, wall.height),
+      );
+
       // 이동 로직 셋업
       cleanupMovement = setupMovement(
         app,
@@ -552,6 +568,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         () => activeTextures,
         darkOverlay,
         roomId,
+        staticOfficeWalls,
       );
 
       // 카메라 셋업

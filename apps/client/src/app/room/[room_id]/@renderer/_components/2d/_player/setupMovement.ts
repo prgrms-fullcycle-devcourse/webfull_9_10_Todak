@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 import type { AnimalAssetPack } from '../_animals/types';
-import { type Player, CHAR_HEIGHT } from './createPlayer';
+import { type Player, CHAR_HEIGHT, CHAR_WIDTH } from './createPlayer';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
 import {
   enterPrivateRoom,
@@ -12,12 +12,58 @@ import { useSpaceStore } from '@/store/useSpaceStore';
 
 const SPEED = 6;
 
+// 캐릭터 히트박스 비율
+const HITBOX_WIDTH_RATIO = 0.6;
+const HITBOX_HEIGHT_RATIO = 0.8;
+
+// 설정된 비율에 맞춰 캐릭터의 히트박스 계산
+function getPlayerHitbox(x: number, y: number): PIXI.Rectangle {
+  const w = CHAR_WIDTH * HITBOX_WIDTH_RATIO;
+  const h = CHAR_HEIGHT * HITBOX_HEIGHT_RATIO;
+
+  return new PIXI.Rectangle(x - w / 2, y - h / 2, w, h);
+}
+
+// 두 사각형(AABB)이 서로 겹쳤는지 판별
+function checkIntersect(r1: PIXI.Rectangle, r2: PIXI.Rectangle): boolean {
+  return (
+    r1.x < r2.x + r2.width &&
+    r1.x + r1.width > r2.x &&
+    r1.y < r2.y + r2.height &&
+    r1.height + r1.y > r2.y
+  );
+}
+
+// 벽 충돌 스캔
+function checkWallCollision(
+  targetX: number,
+  targetY: number,
+  walls: PIXI.Rectangle[],
+): boolean {
+  const projectedHitbox = getPlayerHitbox(targetX, targetY);
+  return walls.some(wall => checkIntersect(projectedHitbox, wall));
+}
+
+// 캐릭터 발바닥 히트박스
+function getPlayerFeetSensor(x: number, y: number): PIXI.Rectangle {
+  const sensorWidth = 16;
+  const sensorHeight = 10;
+
+  return new PIXI.Rectangle(
+    x - sensorWidth / 2,
+    y + (CHAR_HEIGHT * HITBOX_HEIGHT_RATIO) / 2 - sensorHeight,
+    sensorWidth,
+    sensorHeight,
+  );
+}
+
 export function setupMovement(
   app: PIXI.Application,
   player: Player,
   getTextures: () => AnimalAssetPack,
   darkOverlay: PIXI.Graphics,
   roomId: string,
+  walls: PIXI.Rectangle[],
 ): () => void {
   const keys: Record<string, boolean> = {};
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -43,6 +89,9 @@ export function setupMovement(
 
     const moveStep = SPEED * t.deltaTime;
 
+    const prevX = container.x;
+    const prevY = container.y;
+
     if (keys['ArrowUp']) {
       container.y -= moveStep;
       sprite.texture = textures.back;
@@ -53,6 +102,10 @@ export function setupMovement(
       sprite.texture = textures.front;
       sprite.scale.x = baseScaleX;
       isMoving = true;
+    }
+    container.y = Math.max(50, Math.min(1170 - 50, container.y));
+    if (checkWallCollision(container.x, container.y, walls)) {
+      container.y = prevY;
     }
 
     if (keys['ArrowLeft']) {
@@ -65,6 +118,10 @@ export function setupMovement(
       sprite.texture = textures.walk[walkFrame];
       sprite.scale.x = -baseScaleX;
       isMoving = true;
+    }
+    container.x = Math.max(30, Math.min(2455 - 30, container.x));
+    if (checkWallCollision(container.x, container.y, walls)) {
+      container.x = prevX;
     }
 
     if (isMoving) {
@@ -102,11 +159,8 @@ export function setupMovement(
       }
     }
 
-    // 캐릭터 현재 좌표
-    const playerX = player.container.x;
-    const playerY = player.container.y;
-
-    const playerHitbox = new PIXI.Rectangle(playerX - 15, playerY - 30, 30, 50);
+    // 캐릭터 발바닥 영역 지정
+    const playerFeet = getPlayerFeetSensor(container.x, container.y);
 
     function checkIntersect(r1: PIXI.Rectangle, r2: PIXI.Rectangle) {
       return (
@@ -119,7 +173,7 @@ export function setupMovement(
 
     const ROOMS_CONFIG = window.DYNAMIC_ROOMS_CONFIG || [];
     const insideRoom = ROOMS_CONFIG.find(room =>
-      checkIntersect(playerHitbox, room.bounds),
+      checkIntersect(playerFeet, room.bounds),
     );
 
     const newRoomId = insideRoom ? insideRoom.id : null;
@@ -129,7 +183,6 @@ export function setupMovement(
       if (currentRoomId === null && newRoomId !== null) {
         if (newRoomId.startsWith('empty-room')) return;
         isProcessing = true;
-        const roomToEnter = newRoomId;
 
         enterPrivateRoom(roomId, newRoomId)
           .then(() => {
@@ -137,21 +190,18 @@ export function setupMovement(
               roomId: roomId,
               privateRoomId: newRoomId,
             });
-            currentRoomId = roomToEnter;
+            currentRoomId = newRoomId;
             useSpaceStore.getState().setMyStatus('💬 회의중');
             useSpaceStore.getState().setCurrentPrivateRoomId(newRoomId);
-
-            updateMemberStatus(roomId, 'meeting').catch(err =>
-              console.error('❌ 회의중 상태 DB 각인 실패:', err),
-            );
+            updateMemberStatus(roomId, 'meeting');
           })
           .catch(err => console.error(`입장 실패:`, err))
           .finally(() => {
             isProcessing = false;
           });
 
-        darkOverlay.clear();
         darkOverlay
+          .clear()
           .rect(0, 0, WORLD_WIDTH, WORLD_HEIGHT)
           .fill({ color: 0x111111, alpha: 0.65 })
           .roundRect(
@@ -180,14 +230,12 @@ export function setupMovement(
             currentRoomId = null;
             darkOverlay.visible = false;
             useSpaceStore.getState().setCurrentPrivateRoomId(null);
+            useSpaceStore.getState().setMyStatus('🔥 집중');
+            updateMemberStatus(roomId, 'focus');
           })
           .catch(err => console.error(`HTTP 퇴장 API 실패:`, err))
           .finally(() => {
             isProcessing = false;
-            useSpaceStore.getState().setMyStatus('🔥 집중');
-            updateMemberStatus(roomId, 'focus').catch(err =>
-              console.error('❌ 집중 상태 DB 원복 실패:', err),
-            );
           });
       }
     }
