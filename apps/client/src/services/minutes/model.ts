@@ -41,7 +41,7 @@ export interface MinuteDetail {
   room_id: string;
   meeting_id: string;
   title: string;
-  type: string;
+  type: 'meeting' | 'troubleshooting' | 'etc';
   content_md: string;
   action_items: ActionItem[];
   status: string;
@@ -64,4 +64,25 @@ export interface EndMeeting {
   status: 'ended';
   ended_at: string;
   message_count: number;
+}
+
+// 회의록 수정
+export interface UpdateMinutesRequest {
+  title?: string;
+  type?: 'meeting' | 'troubleshooting' | 'etc';
+  content_md?: string;
+  status?: 'confirmed' | 'draft';
+  action_items?: ActionItem[];
+}
+
+export interface UpdateMinutesResponse {
+  id: string;
+  room_id: string;
+  title: string;
+  type: 'meeting' | 'troubleshooting' | 'etc';
+  content_md: string;
+  action_items: ActionItem[];
+  status: 'draft' | 'confirmed' | 'generating' | 'failed';
+  linked_issue_numbers: number[];
+  updated_at: string;
 }

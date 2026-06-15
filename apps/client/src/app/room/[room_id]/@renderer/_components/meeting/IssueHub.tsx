@@ -1,31 +1,38 @@
 'use client';
 
 import { useState } from 'react';
-
 import CompleteModal from './CompleteModal';
 import ReviewModal from './ReviewModal';
 import { ActionItem } from '@/services/minutes/model';
 
-// const LABEL_COLORS = {
-//   FEAT: 'bg-green-100 text-green-600',
-//   BUG: 'bg-red-100 text-red-500',
-//   DOCS: 'bg-blue-100 text-blue-500',
-//   REFACTOR: 'bg-purple-100 text-purple-500',
-// };
-
 interface IssueHubProps {
   actionItems: ActionItem[];
   minutesId: string | null;
+  roomId: string;
+  onSave: () => void;
+  onActionItemsChange: (items: ActionItem[]) => void;
 }
 
-export default function IssueHub({ actionItems, minutesId }: IssueHubProps) {
+export default function IssueHub({
+  actionItems,
+  minutesId,
+  roomId,
+  onSave,
+  onActionItemsChange,
+}: IssueHubProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [modal, setModal] = useState<'none' | 'review' | 'complete'>('none');
 
   const toggleSelect = (idx: number) => {
     setSelected(prev => {
       const next = new Set(prev);
-      next.has(idx) ? next.delete(idx) : next.add(idx);
+
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.add(idx);
+      }
+
       return next;
     });
   };
@@ -136,7 +143,10 @@ export default function IssueHub({ actionItems, minutesId }: IssueHubProps) {
         <ReviewModal
           issues={selectedItems}
           onClose={() => setModal('none')}
-          onUpload={() => setModal('complete')}
+          onUpload={editedIssues => {
+            onActionItemsChange(editedIssues);
+            setModal('complete');
+          }}
         />
       )}
       {modal === 'complete' && (
