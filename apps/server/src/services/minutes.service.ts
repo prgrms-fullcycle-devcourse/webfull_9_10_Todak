@@ -54,6 +54,12 @@ export class MinutesService {
 
     if (status !== undefined) {
       whereCondition.status = status;
+    } else {
+      /*
+       * 기본 목록에서는 생성 실패한 회의록을 제외한다(전이/에러 상태).
+       * 특정 상태를 보고 싶으면 status 쿼리로 명시한다(status=failed 도 가능).
+       */
+      whereCondition.status = { not: 'failed' };
     }
 
     const skip = (page - 1) * limit;

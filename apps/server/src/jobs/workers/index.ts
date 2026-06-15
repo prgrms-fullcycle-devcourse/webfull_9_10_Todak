@@ -19,6 +19,8 @@ import {
 import { getIO } from '../../socket/index.js';
 import { addJob } from '../queues/index.js';
 
+import { classifyMinutesFailReason } from './minutes-fail-reason.js';
+
 const connection = redis;
 
 export const aiReviewWorker = new Worker(
@@ -220,12 +222,15 @@ minutesGenerationWorker.on('failed', async (job, err) => {
     })
     .catch(() => null);
 
+  const reason = classifyMinutesFailReason(err);
+
   if (roomId !== undefined) {
     getIO().to(roomId).emit('minutes:generation-failed', {
       room_id: roomId,
       minutes_id: minutesId,
       meeting_id: meetingId,
       status: 'failed',
+      reason,
     });
 
     /*
