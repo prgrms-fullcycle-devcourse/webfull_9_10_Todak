@@ -7,12 +7,12 @@ export interface TodoAssignee {
 export interface Todo {
   id: string;
   room_id: string;
-  repo_id?: string | null;
+  repo_id: string | null;
   title: string;
   body: string | null;
   labels: string[];
-  assignee_id?: string | null;
   github_issue_number: number | null;
+  milestone_number: number | null;
   is_done: boolean;
   minutes_id: string | null;
   assignee: TodoAssignee | null;
@@ -31,7 +31,8 @@ export interface UpdateTodoPayload {
   title?: string;
   body?: string | null;
   labels?: string[];
-  assignee_id?: string | null;
+  assignee_ids?: string[];
+  milestone_number?: number | null;
   is_done?: boolean;
 }
 
@@ -51,14 +52,14 @@ export interface TodoLabelsResponse {
 
 export interface CreateTodoLabelPayload {
   name: string;
-  color?: string;
+  color: string;
   description?: string;
 }
 
 export interface UpdateTodoLabelPayload {
-  name?: string;
+  new_name?: string;
   color?: string;
-  description?: string | null;
+  description?: string;
 }
 
 export interface TodoLabelResponse {
@@ -66,35 +67,26 @@ export interface TodoLabelResponse {
 }
 
 export interface TodoMilestone {
-  id: number;
   number: number;
   title: string;
   description: string | null;
   state: 'open' | 'closed';
-  due_on: string | null;
-  open_issues: number;
-  closed_issues: number;
-  html_url: string;
+  dueOn: string | null;
+  openIssues: number;
+  closedIssues: number;
 }
 
 export interface TodoMilestonesResponse {
   milestones: TodoMilestone[];
 }
 
-export interface TodoCommentUser {
-  id: number;
-  login: string;
-  avatar_url: string;
-  html_url: string;
-}
-
 export interface TodoComment {
   id: number;
   body: string;
-  user: TodoCommentUser | null;
-  html_url: string;
-  created_at: string;
-  updated_at: string;
+  authorLogin: string;
+  authorAvatarUrl: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TodoCommentsResponse {
@@ -109,24 +101,40 @@ export interface TodoCommentResponse {
   comment: TodoComment;
 }
 
-export interface TodoEventActor {
-  id: number;
-  login: string;
-  avatar_url: string;
-  html_url: string;
-}
-
 export interface TodoEvent {
-  id: number | string;
+  id: number;
   event: string;
-  actor: TodoEventActor | null;
-  created_at: string;
-  label?: TodoLabel;
-  milestone?: TodoMilestone;
-  assignee?: TodoEventActor;
-  assigner?: TodoEventActor;
+  actorLogin: string;
+  actorAvatarUrl: string;
+  createdAt: string;
+  label?: string;
+  assignee?: string;
+  milestone?: string;
+  issue_type?: {
+    color?: string;
+    name: string;
+  } | null;
+  project_card?: {
+    column_name?: string | null;
+    previous_column_name?: string | null;
+    project_name?: string | null;
+    project_url?: string | null;
+  } | null;
+  project_field?: {
+    field_name?: string | null;
+    from?: string | null;
+    project_name?: string | null;
+    to?: string | null;
+  } | null;
+  rename?: {
+    from: string;
+    to: string;
+  } | null;
   commit_id?: string | null;
   commit_url?: string | null;
+  performed_via_github_app?: {
+    name: string;
+  } | null;
 }
 
 export interface TodoEventsResponse {
@@ -146,8 +154,8 @@ export type TodoReactionContent =
 export interface TodoReaction {
   id: number;
   content: TodoReactionContent;
-  user: TodoCommentUser | null;
-  created_at: string;
+  userLogin: string;
+  createdAt: string;
 }
 
 export interface TodoReactionPayload {
@@ -158,7 +166,4 @@ export interface TodoReactionResponse {
   reaction: TodoReaction;
 }
 
-export interface TodoMutationDeleteResponse {
-  success: boolean;
-  data: null;
-}
+export type TodoMutationDeleteResponse = null;

@@ -13,7 +13,7 @@ const TODO_TAB_OPTIONS = [
   },
   {
     id: 'mine',
-    label: '내 할 일만',
+    label: '내 할 일',
   },
 ] as const;
 
