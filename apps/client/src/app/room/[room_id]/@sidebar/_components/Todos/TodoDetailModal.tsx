@@ -6,6 +6,7 @@ import {
   createTodoReaction,
   deleteTodoComment,
   deleteTodoLabel,
+  fetchTodo,
   fetchTodoComments,
   fetchTodoEvents,
   fetchTodoLabels,
@@ -18,6 +19,7 @@ import type {
   Todo,
   TodoEvent,
   TodoLabel,
+  TodoReaction,
   TodoReactionContent,
   UpdateTodoPayload,
 } from '@/services/todos/api';
@@ -60,12 +62,12 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   const setIsModalOpen = useTodoListStore(state => state.setIsModalOpen);
   const isOpen = useTodoListStore(state => state.isOpen);
   const myChar = useSpaceStore(state => state.myChar);
-  const [titleInput, setTitleInput] = useState(modalContent.title);
-  const [bodyInput, setBodyInput] = useState(modalContent.body ?? '');
-  const [isDoneInput, setIsDoneInput] = useState(modalContent.is_done);
-  const [selectedLabels, setSelectedLabels] = useState<string[]>(
-    modalContent.labels,
-  );
+  const [titleInput, setTitleInput] = useState<string | null>(null);
+  const [bodyInput, setBodyInput] = useState<string | null>(null);
+  const [isDoneInput, setIsDoneInput] = useState<boolean | null>(null);
+  const [selectedLabelsInput, setSelectedLabelsInput] = useState<
+    string[] | null
+  >(null);
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState('ededed');
   const [editingLabelName, setEditingLabelName] = useState<string | null>(null);
@@ -83,16 +85,28 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
 
   const roomID = modalContent.room_id;
   const todoID = modalContent.id;
-  const assigneeName = modalContent.assignee?.github_username ?? '미지정';
+
+  const todoDetailQuery = useQuery({
+    queryKey: ['todos', roomID, todoID],
+    queryFn: () => fetchTodo(roomID, todoID),
+    enabled: isOpen && roomID !== '' && todoID !== '',
+  });
+
+  const detailTodo = todoDetailQuery.data?.todo ?? modalContent;
+  const titleValue = titleInput ?? detailTodo.title;
+  const bodyValue = bodyInput ?? detailTodo.body ?? '';
+  const isDoneValue = isDoneInput ?? detailTodo.is_done;
+  const selectedLabels = selectedLabelsInput ?? detailTodo.labels;
+  const assigneeName = detailTodo.assignee?.github_username ?? '미지정';
   const issueLabel =
-    modalContent.github_issue_number !== null
-      ? `#${modalContent.github_issue_number}`
+    detailTodo.github_issue_number !== null
+      ? `#${detailTodo.github_issue_number}`
       : '연결 없음';
-  const status = getTodoStatusMeta(isDoneInput);
+  const status = getTodoStatusMeta(isDoneValue);
   const isAssignedToMe =
-    modalContent.assignee !== null &&
-    (modalContent.assignee.id === myChar.id ||
-      modalContent.assignee.github_username === myChar.githubUsername);
+    detailTodo.assignee !== null &&
+    (detailTodo.assignee.id === myChar.id ||
+      detailTodo.assignee.github_username === myChar.githubUsername);
   const canEdit = isOpen && isAssignedToMe;
   const canReactToIssue = isOpen && !isAssignedToMe;
 
@@ -132,6 +146,10 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
 
     return [...fetched, ...missingLabels];
   }, [labelsQuery.data?.labels, selectedLabels]);
+  const issueReactionCounts = mergeReactionCounts(
+    countReactions(detailTodo.reactions),
+    reactionCountsByTarget.issue,
+  );
 
   const invalidateTodoQueries = () => {
     queryClient.invalidateQueries({ queryKey: ['todos', roomID] });
@@ -144,6 +162,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
       updateTodo(roomID, todoID, payload),
     onError: () => setActionMessage('To-Do 수정 중 오류가 발생했습니다.'),
     onSuccess: response => {
+      queryClient.setQueryData(['todos', roomID, todoID], response);
       setModalContent(response.todo);
       invalidateTodoQueries();
       setActionMessage('To-Do가 업데이트되었습니다.');
@@ -159,7 +178,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
     onSuccess: response => {
       queryClient.invalidateQueries({ queryKey: ['todos', roomID, 'labels'] });
       const nextLabels = [...new Set([...selectedLabels, response.label.name])];
-      setSelectedLabels(nextLabels);
+      setSelectedLabelsInput(nextLabels);
       updateTodoMutation.mutate({ labels: nextLabels });
       setNewLabelName('');
       setNewLabelColor('ededed');
@@ -189,7 +208,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
         const nextLabels = selectedLabels.map(label =>
           label === variables.labelName ? response.label.name : label,
         );
-        setSelectedLabels(nextLabels);
+        setSelectedLabelsInput(nextLabels);
         updateTodoMutation.mutate({ labels: nextLabels });
       }
       setEditingLabelName(null);
@@ -201,7 +220,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
     onSuccess: (_response, labelName) => {
       queryClient.invalidateQueries({ queryKey: ['todos', roomID, 'labels'] });
       const nextLabels = selectedLabels.filter(label => label !== labelName);
-      setSelectedLabels(nextLabels);
+      setSelectedLabelsInput(nextLabels);
       updateTodoMutation.mutate({ labels: nextLabels });
     },
   });
@@ -259,17 +278,17 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
       return;
     }
 
-    const nextTitle = titleInput.trim();
-    const nextBody = bodyInput.trim() || null;
-    const currentBody = modalContent.body?.trim() || null;
+    const nextTitle = titleValue.trim();
+    const nextBody = bodyValue.trim() || null;
+    const currentBody = detailTodo.body?.trim() || null;
 
     if (nextTitle === '') {
-      setTitleInput(modalContent.title);
+      setTitleInput(detailTodo.title);
       setActionMessage('제목은 비워둘 수 없습니다.');
       return;
     }
 
-    if (nextTitle === modalContent.title && nextBody === currentBody) {
+    if (nextTitle === detailTodo.title && nextBody === currentBody) {
       return;
     }
 
@@ -286,7 +305,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
       ? selectedLabels.filter(label => label !== labelName)
       : [...selectedLabels, labelName];
 
-    setSelectedLabels(nextLabels);
+    setSelectedLabelsInput(nextLabels);
     updateTodoMutation.mutate({ labels: nextLabels });
   };
 
@@ -356,7 +375,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   };
 
   const handleCompleteTodo = () => {
-    if (!canEdit || updateTodoMutation.isPending || isDoneInput) {
+    if (!canEdit || updateTodoMutation.isPending || isDoneValue) {
       return;
     }
 
@@ -394,15 +413,15 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                 <p className="text-[12px] font-bold text-muted">GitHub Issue</p>
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                   <Modal.Heading className="min-w-0 text-[22px] font-black leading-tight text-foreground">
-                    {modalContent.title}
+                    {detailTodo.title}
                   </Modal.Heading>
                   <span className="font-todak-mono text-[18px] font-bold text-todak-coral-500">
                     {issueLabel}
                   </span>
                 </div>
                 <p className="text-[11px] font-bold text-muted">
-                  생성 {formatDateTime(modalContent.created_at)} · 회의록{' '}
-                  {modalContent.minutes_id ?? '연결 없음'}
+                  생성 {formatDateTime(detailTodo.created_at)} · 회의록{' '}
+                  {detailTodo.minutes_id ?? '연결 없음'}
                 </p>
                 <div className="flex flex-wrap items-center gap-2 text-[12px] font-medium text-muted">
                   <span
@@ -469,13 +488,13 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                                 handleCommitTodoBody();
                               }
                             }}
-                            value={titleInput}
+                            value={titleValue}
                           />
                           <textarea
                             className="min-h-40 w-full resize-none rounded-xl border border-border bg-white px-3.5 py-3 text-[13px] font-medium leading-7 text-slate-600 outline-none"
                             onBlur={handleCommitTodoBody}
                             onChange={event => setBodyInput(event.target.value)}
-                            value={bodyInput}
+                            value={bodyValue}
                           />
                           <p className="text-[11px] font-bold text-muted">
                             {updateTodoMutation.isPending
@@ -486,12 +505,12 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                       ) : (
                         <>
                           <p className="whitespace-pre-wrap text-[13px] font-medium leading-7 text-muted">
-                            {modalContent.body?.trim() ||
+                            {detailTodo.body?.trim() ||
                               '등록된 To-Do 본문이 없습니다.'}
                           </p>
                           {canReactToIssue && (
                             <ReactionPicker
-                              counts={reactionCountsByTarget.issue ?? {}}
+                              counts={issueReactionCounts}
                               onReact={content => handleReact('issue', content)}
                             />
                           )}
@@ -520,6 +539,10 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                       {commentsQuery.data?.comments.map(comment => {
                         const isMyComment =
                           comment.authorLogin === myChar.githubUsername;
+                        const commentReactionCounts = mergeReactionCounts(
+                          countReactions(comment.reactions),
+                          reactionCountsByTarget[`comment-${comment.id}`],
+                        );
 
                         return (
                           <div
@@ -570,11 +593,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                                 <div className="mt-3 flex items-center justify-between gap-2">
                                   {!isMyComment ? (
                                     <ReactionPicker
-                                      counts={
-                                        reactionCountsByTarget[
-                                          `comment-${comment.id}`
-                                        ] ?? {}
-                                      }
+                                      counts={commentReactionCounts}
                                       onReact={content =>
                                         handleReact(
                                           `comment-${comment.id}`,
@@ -770,14 +789,14 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                     <Button
                       className="h-10 w-full rounded-lg bg-purple-600 text-[12px] font-bold text-white shadow-sm hover:bg-purple-700 disabled:opacity-50"
                       isDisabled={
-                        !canEdit || updateTodoMutation.isPending || isDoneInput
+                        !canEdit || updateTodoMutation.isPending || isDoneValue
                       }
                       onPress={handleCompleteTodo}
                       type="button"
                     >
                       {updateTodoMutation.isPending
                         ? '완료 처리 중...'
-                        : isDoneInput
+                        : isDoneValue
                           ? '완료된 To-Do'
                           : 'To-Do 완료하기'}
                     </Button>
@@ -1142,6 +1161,41 @@ function LabelChips({ labels }: { labels: string[] }) {
         </Chip>
       ))}
     </div>
+  );
+}
+
+function countReactions(reactions?: TodoReaction[]) {
+  return (reactions ?? []).reduce<Partial<Record<TodoReactionContent, number>>>(
+    (counts, reaction) => ({
+      ...counts,
+      [reaction.content]: (counts[reaction.content] ?? 0) + 1,
+    }),
+    {},
+  );
+}
+
+function mergeReactionCounts(
+  baseCounts: Partial<Record<TodoReactionContent, number>>,
+  optimisticCounts?: Partial<Record<TodoReactionContent, number>>,
+) {
+  if (optimisticCounts === undefined) {
+    return baseCounts;
+  }
+
+  return REACTION_OPTIONS.reduce<Partial<Record<TodoReactionContent, number>>>(
+    (counts, reaction) => {
+      const count =
+        (baseCounts[reaction.content] ?? 0) +
+        (optimisticCounts[reaction.content] ?? 0);
+
+      return count > 0
+        ? {
+            ...counts,
+            [reaction.content]: count,
+          }
+        : counts;
+    },
+    {},
   );
 }
 

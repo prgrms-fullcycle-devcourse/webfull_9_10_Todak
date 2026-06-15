@@ -72,6 +72,10 @@ export async function deleteTodos(roomID: string, todoID: string) {
   );
 }
 
+export async function fetchTodo(roomID: string, todoID: string) {
+  return apiClient.get<TodoResponse>(`rooms/${roomID}/todos/${todoID}`);
+}
+
 export async function updateTodo(
   roomID: string,
   todoID: string,

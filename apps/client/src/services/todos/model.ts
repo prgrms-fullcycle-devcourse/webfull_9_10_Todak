@@ -17,6 +17,7 @@ export interface Todo {
   minutes_id: string | null;
   assignee: TodoAssignee | null;
   created_at: string;
+  reactions?: TodoReaction[];
 }
 
 export interface TodosResponse {
@@ -87,6 +88,7 @@ export interface TodoComment {
   authorAvatarUrl: string;
   createdAt: string;
   updatedAt: string;
+  reactions?: TodoReaction[];
 }
 
 export interface TodoCommentsResponse {
@@ -154,8 +156,10 @@ export type TodoReactionContent =
 export interface TodoReaction {
   id: number;
   content: TodoReactionContent;
-  userLogin: string;
-  createdAt: string;
+  userLogin?: string;
+  user_login?: string;
+  createdAt?: string;
+  created_at?: string;
 }
 
 export interface TodoReactionPayload {
