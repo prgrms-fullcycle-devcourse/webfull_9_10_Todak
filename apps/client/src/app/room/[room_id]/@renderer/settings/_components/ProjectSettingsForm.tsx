@@ -269,7 +269,7 @@ export default function ProjectSettingsForm({
         </div>
 
         <dl className="grid gap-3 sm:grid-cols-2">
-          <SettingField label="연동된 깃허브" value={repoLabel} />
+          {canEdit && <SettingField label="연동된 깃허브" value={repoLabel} />}
           <SettingField label="초대 코드" value={room.invite_code} />
           <SettingField
             label="현재 참여 인원"
@@ -292,106 +292,110 @@ export default function ProjectSettingsForm({
           </p>
         )}
 
-        <div className="flex justify-end">
-          <Button
-            className="h-9 rounded-xl bg-foreground px-4 text-xs font-black text-background shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            isDisabled={updateSettingsMutation.isPending || !canEdit}
-            type="submit"
-          >
-            {updateSettingsMutation.isPending ? '저장 중...' : '저장하기'}
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex justify-end">
+            <Button
+              className="h-9 rounded-xl bg-foreground px-4 text-xs font-black text-background shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              isDisabled={updateSettingsMutation.isPending}
+              type="submit"
+            >
+              {updateSettingsMutation.isPending ? '저장 중...' : '저장하기'}
+            </Button>
+          </div>
+        )}
       </form>
 
-      <section className="mt-6 border-t border-border pt-5">
-        <p className="text-xs font-black text-slate-700">GitHub 연동</p>
-        <p className="mt-1 text-[11px] font-bold leading-5 text-muted">
-          이 프로젝트 룸과 연결할 GitHub 레포지토리를 선택하거나 현재 연동을
-          해제할 수 있습니다.
-        </p>
+      {canEdit && (
+        <section className="mt-6 border-t border-border pt-5">
+          <p className="text-xs font-black text-slate-700">GitHub 연동</p>
+          <p className="mt-1 text-[11px] font-bold leading-5 text-muted">
+            이 프로젝트 룸과 연결할 GitHub 레포지토리를 선택하거나 현재 연동을
+            해제할 수 있습니다.
+          </p>
 
-        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-          <select
-            className="todak-select h-9 appearance-none rounded-xl px-3.5 py-0 text-xs font-semibold"
-            disabled={
-              !canEdit ||
-              githubRepositoriesQuery.isPending ||
-              connectRepositoryMutation.isPending ||
-              disconnectRepositoryMutation.isPending
-            }
-            onChange={event => {
-              setSelectedRepoFullName(event.target.value);
-              setRepoError(null);
-              setRepoSuccessMessage(null);
-            }}
-            value={selectedRepoFullName}
-          >
-            <option value="">
-              {githubRepositoriesQuery.isPending
-                ? '레포지토리 불러오는 중...'
-                : 'GitHub 레포지토리 선택'}
-            </option>
-            {(githubRepositoriesQuery.data ?? []).map(repository => (
-              <option key={repository.id} value={repository.full_name}>
-                {repository.full_name}
+          <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+            <select
+              className="todak-select h-9 appearance-none rounded-xl px-3.5 py-0 text-xs font-semibold"
+              disabled={
+                !canEdit ||
+                githubRepositoriesQuery.isPending ||
+                connectRepositoryMutation.isPending ||
+                disconnectRepositoryMutation.isPending
+              }
+              onChange={event => {
+                setSelectedRepoFullName(event.target.value);
+                setRepoError(null);
+                setRepoSuccessMessage(null);
+              }}
+              value={selectedRepoFullName}
+            >
+              <option value="">
+                {githubRepositoriesQuery.isPending
+                  ? '레포지토리 불러오는 중...'
+                  : 'GitHub 레포지토리 선택'}
               </option>
-            ))}
-          </select>
+              {(githubRepositoriesQuery.data ?? []).map(repository => (
+                <option key={repository.id} value={repository.full_name}>
+                  {repository.full_name}
+                </option>
+              ))}
+            </select>
 
-          <Button
-            className="h-9 rounded-xl bg-foreground px-4 text-xs font-black text-background shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            isDisabled={
-              !canEdit ||
-              selectedRepoFullName === '' ||
-              connectRepositoryMutation.isPending ||
-              disconnectRepositoryMutation.isPending
-            }
-            onPress={handleRepositoryConnect}
-            type="button"
-          >
-            {connectRepositoryMutation.isPending
-              ? '저장 중...'
-              : currentRepoFullName === null
-                ? '연결하기'
-                : '재연결하기'}
-          </Button>
+            <Button
+              className="h-9 rounded-xl bg-foreground px-4 text-xs font-black text-background shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              isDisabled={
+                !canEdit ||
+                selectedRepoFullName === '' ||
+                connectRepositoryMutation.isPending ||
+                disconnectRepositoryMutation.isPending
+              }
+              onPress={handleRepositoryConnect}
+              type="button"
+            >
+              {connectRepositoryMutation.isPending
+                ? '저장 중...'
+                : currentRepoFullName === null
+                  ? '연결하기'
+                  : '재연결하기'}
+            </Button>
 
-          <Button
-            className="h-9 rounded-xl border border-border bg-surface px-4 text-xs font-black text-danger shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-            isDisabled={
-              !canEdit ||
-              currentRepoFullName === null ||
-              connectRepositoryMutation.isPending ||
-              disconnectRepositoryMutation.isPending
-            }
-            onPress={handleRepositoryDisconnect}
-            type="button"
-          >
-            {disconnectRepositoryMutation.isPending ? '해제 중...' : '해제'}
-          </Button>
-        </div>
+            <Button
+              className="h-9 rounded-xl border border-border bg-surface px-4 text-xs font-black text-danger shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              isDisabled={
+                !canEdit ||
+                currentRepoFullName === null ||
+                connectRepositoryMutation.isPending ||
+                disconnectRepositoryMutation.isPending
+              }
+              onPress={handleRepositoryDisconnect}
+              type="button"
+            >
+              {disconnectRepositoryMutation.isPending ? '해제 중...' : '해제'}
+            </Button>
+          </div>
 
-        {githubRepositoriesQuery.isError && (
-          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600">
-            GitHub 레포지토리 목록을 불러오지 못했습니다.
-          </p>
-        )}
+          {githubRepositoriesQuery.isError && (
+            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600">
+              GitHub 레포지토리 목록을 불러오지 못했습니다.
+            </p>
+          )}
 
-        {repoError !== null && (
-          <p
-            className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600"
-            role="alert"
-          >
-            {repoError}
-          </p>
-        )}
+          {repoError !== null && (
+            <p
+              className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600"
+              role="alert"
+            >
+              {repoError}
+            </p>
+          )}
 
-        {repoSuccessMessage !== null && (
-          <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-700">
-            {repoSuccessMessage}
-          </p>
-        )}
-      </section>
+          {repoSuccessMessage !== null && (
+            <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-700">
+              {repoSuccessMessage}
+            </p>
+          )}
+        </section>
+      )}
 
       <section className="mt-6 border-t border-border pt-5">
         <p className="text-xs font-black text-danger">프로젝트 탈퇴</p>

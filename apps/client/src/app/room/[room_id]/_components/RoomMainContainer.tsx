@@ -28,8 +28,12 @@ export default function RoomMainContainer({
     state => state.clearUnreadChatCount,
   );
   const isMeetingView = currentView === 'meeting';
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const isChatVisible = isMeetingView || isChatOpen;
+  const [chatState, setChatState] = useState({
+    view: currentView,
+    isOpen: false,
+  });
+  const isChatOpen =
+    chatState.view === currentView ? chatState.isOpen : isMeetingView;
 
   useEffect(() => {
     setChatOpen(isChatVisible);
@@ -68,10 +72,15 @@ export default function RoomMainContainer({
   return (
     <main className="room-main-container">
       <input
-        checked={isChatVisible}
+        checked={isChatOpen}
         className="peer/chat sr-only"
         id="room-chat-toggle"
-        onChange={event => setIsChatOpen(event.target.checked)}
+        onChange={event =>
+          setChatState({
+            view: currentView,
+            isOpen: event.target.checked,
+          })
+        }
         type="checkbox"
       />
       <ChatOpenButton />

@@ -79,7 +79,8 @@ export async function githubCallback(
     await saveRefreshToken(user.id, refreshToken);
 
     res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
-    res.redirect(`${env.CLIENT_URL}/auth/callback?token=${accessToken}`);
+    const clientUrl = env.CLIENT_URL.split(',')[0].trim();
+    res.redirect(`${clientUrl}/auth/callback?token=${accessToken}`);
   } catch (err) {
     next(err);
   }

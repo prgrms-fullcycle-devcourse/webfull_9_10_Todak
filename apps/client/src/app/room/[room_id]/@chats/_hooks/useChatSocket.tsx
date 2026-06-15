@@ -21,7 +21,10 @@ export function useChatSocket({
   onReaction,
 }: UseChatSocketParams) {
   const sendMessage = useCallback(
-    (content: string, attachments?: PendingAttachment[]): Promise<void> => {
+    (
+      content: string,
+      attachments?: PendingAttachment[],
+    ): Promise<ChatMessage | null> => {
       return new Promise((resolve, reject) => {
         const socket = getSocket();
         socket.emit(
@@ -33,9 +36,14 @@ export function useChatSocket({
             ...(attachments && attachments.length > 0 ? { attachments } : {}),
             ...(privateRoomId ? { privateRoomId } : {}),
           },
-          (ack: { ok: boolean; code?: string; message?: string }) => {
+          (ack: {
+            ok: boolean;
+            chat?: ChatMessage;
+            code?: string;
+            message?: string;
+          }) => {
             if (ack.ok) {
-              resolve();
+              resolve(ack.chat ?? null);
             } else {
               reject(new Error(ack.code ?? 'CHAT_SEND_ERROR'));
             }
@@ -47,22 +55,32 @@ export function useChatSocket({
   );
 
   const sendReaction = useCallback(
-    (messageId: string, emoji: string) => {
-      const socket = getSocket();
-      socket.emit(
-        'chat:react',
-        {
-          roomId,
-          messageId,
-          emoji,
-          ...(privateRoomId ? { privateRoomId } : {}),
-        },
-        (ack: { ok: boolean; code?: string; message?: string }) => {
-          if (!ack.ok) {
-            console.error('리액션 실패:', ack.code, ack.message);
-          }
-        },
-      );
+    (messageId: string, emoji: string): Promise<ChatReactionEvent> => {
+      return new Promise((resolve, reject) => {
+        const socket = getSocket();
+        socket.emit(
+          'chat:react',
+          {
+            roomId,
+            messageId,
+            emoji,
+            ...(privateRoomId ? { privateRoomId } : {}),
+          },
+          (ack: {
+            ok: boolean;
+            reaction?: ChatReactionEvent;
+            code?: string;
+            message?: string;
+          }) => {
+            if (ack.ok && ack.reaction !== undefined) {
+              resolve(ack.reaction);
+              return;
+            }
+
+            reject(new Error(ack.code ?? 'CHAT_REACT_ERROR'));
+          },
+        );
+      });
     },
     [roomId, privateRoomId],
   );

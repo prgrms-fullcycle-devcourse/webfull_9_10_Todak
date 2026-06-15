@@ -6,6 +6,7 @@ import {
   createTodoReaction,
   deleteTodoComment,
   deleteTodoLabel,
+  deleteTodoReaction,
   fetchTodo,
   fetchTodoComments,
   fetchTodoEvents,
@@ -27,9 +28,15 @@ import { useSpaceStore } from '@/store/useSpaceStore';
 import { useTodoListStore } from '@/store/useTodoListStore';
 import { Button, Chip, Dropdown, Input, Modal } from '@heroui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+
+const MarkdownPreview = dynamic(
+  () => import('@uiw/react-md-editor').then(mod => mod.default.Markdown),
+  { ssr: false },
+);
 
 const REACTION_OPTIONS: { content: TodoReactionContent; label: string }[] = [
   { content: '+1', label: '👍' },
@@ -64,6 +71,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   const myChar = useSpaceStore(state => state.myChar);
   const [titleInput, setTitleInput] = useState<string | null>(null);
   const [bodyInput, setBodyInput] = useState<string | null>(null);
+  const [isEditingTodo, setIsEditingTodo] = useState(false);
   const [isDoneInput, setIsDoneInput] = useState<boolean | null>(null);
   const [selectedLabelsInput, setSelectedLabelsInput] = useState<
     string[] | null
@@ -79,6 +87,12 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   const [reactionCountsByTarget, setReactionCountsByTarget] = useState<
     Record<string, Partial<Record<TodoReactionContent, number>>>
   >({});
+  const [myReactionsByTarget, setMyReactionsByTarget] = useState<
+    Record<string, Partial<Record<TodoReactionContent, boolean>>>
+  >({});
+  const [myReactionIDs, setMyReactionIDs] = useState<
+    Partial<Record<TodoReactionContent, number>>
+  >({});
   const [deleteConfirmation, setDeleteConfirmation] =
     useState<DeleteConfirmation | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -87,7 +101,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   const todoID = modalContent.id;
 
   const todoDetailQuery = useQuery({
-    queryKey: ['todos', roomID, todoID],
+    queryKey: ['todo-detail', roomID, todoID],
     queryFn: () => fetchTodo(roomID, todoID),
     enabled: isOpen && roomID !== '' && todoID !== '',
   });
@@ -108,7 +122,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
     (detailTodo.assignee.id === myChar.id ||
       detailTodo.assignee.github_username === myChar.githubUsername);
   const canEdit = isOpen && isAssignedToMe;
-  const canReactToIssue = isOpen && !isAssignedToMe;
+  const canComment = isOpen && detailTodo.github_issue_number !== null;
 
   const labelsQuery = useQuery({
     queryKey: ['todos', roomID, 'labels'],
@@ -150,6 +164,34 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
     countReactions(detailTodo.reactions),
     reactionCountsByTarget.issue,
   );
+  const isRefreshingTodoDetail =
+    todoDetailQuery.isFetching ||
+    commentsQuery.isFetching ||
+    labelsQuery.isFetching;
+  const myIssueReactionContents = new Set(
+    (detailTodo.reactions ?? [])
+      .filter(
+        reaction =>
+          (reaction.userLogin ?? reaction.user_login) === myChar.githubUsername,
+      )
+      .map(reaction => reaction.content),
+  );
+  Object.entries(myReactionsByTarget.issue ?? {}).forEach(
+    ([content, isSelected]) => {
+      if (isSelected) {
+        myIssueReactionContents.add(content as TodoReactionContent);
+      } else {
+        myIssueReactionContents.delete(content as TodoReactionContent);
+      }
+    },
+  );
+  const getMyIssueReactionID = (content: TodoReactionContent) =>
+    myReactionIDs[content] ??
+    (detailTodo.reactions ?? []).find(
+      reaction =>
+        reaction.content === content &&
+        (reaction.userLogin ?? reaction.user_login) === myChar.githubUsername,
+    )?.id;
 
   const invalidateTodoQueries = () => {
     queryClient.invalidateQueries({ queryKey: ['todos', roomID] });
@@ -162,7 +204,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
       updateTodo(roomID, todoID, payload),
     onError: () => setActionMessage('To-Do 수정 중 오류가 발생했습니다.'),
     onSuccess: response => {
-      queryClient.setQueryData(['todos', roomID, todoID], response);
+      queryClient.setQueryData(['todo-detail', roomID, todoID], response);
       setModalContent(response.todo);
       invalidateTodoQueries();
       setActionMessage('To-Do가 업데이트되었습니다.');
@@ -269,6 +311,11 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
       createTodoReaction(roomID, todoID, { content }),
   });
 
+  const deleteReactionMutation = useMutation({
+    mutationFn: ({ reactionID }: { reactionID: number }) =>
+      deleteTodoReaction(roomID, todoID, String(reactionID)),
+  });
+
   if (typeof document === 'undefined') {
     return null;
   }
@@ -289,13 +336,33 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
     }
 
     if (nextTitle === detailTodo.title && nextBody === currentBody) {
+      setIsEditingTodo(false);
+      setTitleInput(null);
+      setBodyInput(null);
       return;
     }
 
-    updateTodoMutation.mutate({
-      body: nextBody,
-      title: nextTitle,
-    });
+    updateTodoMutation.mutate(
+      {
+        body: nextBody,
+        title: nextTitle,
+      },
+      {
+        onSuccess: () => {
+          setIsEditingTodo(false);
+          setTitleInput(null);
+          setBodyInput(null);
+        },
+      },
+    );
+  };
+
+  const handleEditTodo = () => {
+    if (!canEdit || updateTodoMutation.isPending) return;
+
+    setTitleInput(detailTodo.title);
+    setBodyInput(detailTodo.body ?? '');
+    setIsEditingTodo(true);
   };
 
   const handleToggleLabel = (labelName: string) => {
@@ -330,14 +397,78 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   };
 
   const handleReact = (targetKey: string, content: TodoReactionContent) => {
+    if (targetKey !== 'issue') {
+      return;
+    }
+
+    if (myIssueReactionContents.has(content)) {
+      const reactionID = getMyIssueReactionID(content);
+      if (reactionID === undefined || deleteReactionMutation.isPending) return;
+
+      updateReactionCount(targetKey, content, -1);
+      setMyReactionsByTarget(current => ({
+        ...current,
+        [targetKey]: {
+          ...current[targetKey],
+          [content]: false,
+        },
+      }));
+
+      deleteReactionMutation.mutate(
+        { reactionID },
+        {
+          onError: () => {
+            updateReactionCount(targetKey, content, 1);
+            setMyReactionsByTarget(current => ({
+              ...current,
+              [targetKey]: {
+                ...current[targetKey],
+                [content]: true,
+              },
+            }));
+            setActionMessage('리액션 삭제에 실패했습니다.');
+          },
+          onSuccess: () => {
+            setMyReactionIDs(current => ({
+              ...current,
+              [content]: undefined,
+            }));
+          },
+        },
+      );
+      return;
+    }
+
+    if (createReactionMutation.isPending) return;
+
     updateReactionCount(targetKey, content, 1);
+    setMyReactionsByTarget(current => ({
+      ...current,
+      [targetKey]: {
+        ...current[targetKey],
+        [content]: true,
+      },
+    }));
 
     createReactionMutation.mutate(
       { content },
       {
         onError: () => {
           updateReactionCount(targetKey, content, -1);
+          setMyReactionsByTarget(current => ({
+            ...current,
+            [targetKey]: {
+              ...current[targetKey],
+              [content]: false,
+            },
+          }));
           setActionMessage('리액션 추가에 실패했습니다.');
+        },
+        onSuccess: response => {
+          setMyReactionIDs(current => ({
+            ...current,
+            [content]: response.reaction.id,
+          }));
         },
       },
     );
@@ -382,6 +513,22 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
     setIsDoneInput(true);
     updateTodoMutation.mutate({ is_done: true });
   };
+
+  const handleRefreshTodoDetail = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: ['todo-detail', roomID, todoID],
+      }),
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: ['todos', roomID, todoID, 'comments'],
+      }),
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: ['todos', roomID, 'labels'],
+      }),
+    ]);
 
   const handleConfirmDelete = () => {
     if (deleteConfirmation === null) {
@@ -435,6 +582,15 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                       @{assigneeName}
                     </strong>
                   </span>
+                  <Button
+                    aria-label="To-Do 상세 새로고침"
+                    className="ml-auto flex size-8 min-w-8 items-center justify-center bg-transparent p-0 text-muted hover:text-foreground disabled:opacity-60"
+                    isDisabled={isRefreshingTodoDetail}
+                    onPress={() => void handleRefreshTodoDetail()}
+                    type="button"
+                  >
+                    <RefreshIcon isRefreshing={isRefreshingTodoDetail} />
+                  </Button>
                 </div>
               </div>
               <Modal.CloseTrigger />
@@ -466,6 +622,35 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                       <p className="text-[12px] font-bold text-foreground">
                         To-Do body
                       </p>
+                      {canEdit && (
+                        <Button
+                          aria-label={
+                            isEditingTodo ? 'To-Do 저장하기' : 'To-Do 수정'
+                          }
+                          className={
+                            isEditingTodo
+                              ? 'h-10 rounded-lg bg-foreground px-4 text-[12px] font-bold text-background disabled:opacity-50'
+                              : 'flex size-10 min-w-10 items-center justify-center rounded-lg border border-border bg-white p-0 text-muted hover:text-foreground'
+                          }
+                          isDisabled={updateTodoMutation.isPending}
+                          onPress={
+                            isEditingTodo
+                              ? handleCommitTodoBody
+                              : handleEditTodo
+                          }
+                          type="button"
+                        >
+                          {isEditingTodo ? (
+                            updateTodoMutation.isPending ? (
+                              '저장 중...'
+                            ) : (
+                              '저장하기'
+                            )
+                          ) : (
+                            <PencilIcon />
+                          )}
+                        </Button>
+                      )}
                       {!canEdit && (
                         <p className="text-[11px] font-bold text-muted">
                           담당자 본인만 수정할 수 있습니다.
@@ -473,17 +658,19 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                       )}
                     </header>
                     <div className="space-y-3 px-4 py-4">
-                      {canEdit ? (
+                      {canEdit && isEditingTodo ? (
                         <>
                           <Input
                             className="h-10 rounded-xl border border-border bg-white px-3 text-[13px] font-bold text-foreground"
                             fullWidth
-                            onBlur={handleCommitTodoBody}
                             onChange={event =>
                               setTitleInput(event.target.value)
                             }
                             onKeyDown={event => {
-                              if (event.key === 'Enter') {
+                              if (
+                                (event.metaKey || event.ctrlKey) &&
+                                event.key === 'Enter'
+                              ) {
                                 event.preventDefault();
                                 handleCommitTodoBody();
                               }
@@ -492,28 +679,33 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                           />
                           <textarea
                             className="min-h-40 w-full resize-none rounded-xl border border-border bg-white px-3.5 py-3 text-[13px] font-medium leading-7 text-slate-600 outline-none"
-                            onBlur={handleCommitTodoBody}
                             onChange={event => setBodyInput(event.target.value)}
                             value={bodyValue}
                           />
                           <p className="text-[11px] font-bold text-muted">
-                            {updateTodoMutation.isPending
-                              ? '저장 중...'
-                              : '제목과 본문은 입력창을 벗어나면 자동 저장됩니다.'}
+                            Markdown 문법을 사용할 수 있습니다. 저장은 오른쪽의
+                            저장하기 버튼을 눌러주세요.
                           </p>
                         </>
                       ) : (
                         <>
-                          <p className="whitespace-pre-wrap text-[13px] font-medium leading-7 text-muted">
-                            {detailTodo.body?.trim() ||
-                              '등록된 To-Do 본문이 없습니다.'}
-                          </p>
-                          {canReactToIssue && (
-                            <ReactionPicker
-                              counts={issueReactionCounts}
-                              onReact={content => handleReact('issue', content)}
-                            />
+                          {detailTodo.body?.trim() ? (
+                            <div data-color-mode="light">
+                              <MarkdownPreview
+                                className="bg-transparent text-[13px] font-normal leading-7 text-slate-600"
+                                source={detailTodo.body}
+                              />
+                            </div>
+                          ) : (
+                            <p className="text-[13px] font-medium leading-7 text-muted">
+                              등록된 To-Do 본문이 없습니다.
+                            </p>
                           )}
+                          <ReactionPicker
+                            counts={issueReactionCounts}
+                            selectedContents={myIssueReactionContents}
+                            onReact={content => handleReact('issue', content)}
+                          />
                         </>
                       )}
                     </div>
@@ -539,10 +731,6 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                       {commentsQuery.data?.comments.map(comment => {
                         const isMyComment =
                           comment.authorLogin === myChar.githubUsername;
-                        const commentReactionCounts = mergeReactionCounts(
-                          countReactions(comment.reactions),
-                          reactionCountsByTarget[`comment-${comment.id}`],
-                        );
 
                         return (
                           <div
@@ -590,54 +778,39 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                                 <p className="whitespace-pre-wrap text-[13px] font-medium leading-6 text-slate-600">
                                   {comment.body}
                                 </p>
-                                <div className="mt-3 flex items-center justify-between gap-2">
-                                  {!isMyComment ? (
-                                    <ReactionPicker
-                                      counts={commentReactionCounts}
-                                      onReact={content =>
-                                        handleReact(
-                                          `comment-${comment.id}`,
-                                          content,
-                                        )
+                                {isMyComment && (
+                                  <div className="mt-3 flex justify-end gap-1">
+                                    <Button
+                                      className="h-7 rounded-lg bg-white px-2 text-[10px] font-black text-muted"
+                                      onPress={() => {
+                                        setEditingCommentID(comment.id);
+                                        setCommentEditInput(comment.body);
+                                      }}
+                                      type="button"
+                                    >
+                                      수정
+                                    </Button>
+                                    <Button
+                                      className="h-7 rounded-lg bg-danger px-2 text-[10px] font-black text-white"
+                                      onPress={() =>
+                                        setDeleteConfirmation({
+                                          id: comment.id,
+                                          name: '댓글',
+                                          type: 'comment',
+                                        })
                                       }
-                                    />
-                                  ) : (
-                                    <span />
-                                  )}
-                                  {isMyComment && (
-                                    <div className="flex justify-end gap-1">
-                                      <Button
-                                        className="h-7 rounded-lg bg-white px-2 text-[10px] font-black text-muted"
-                                        onPress={() => {
-                                          setEditingCommentID(comment.id);
-                                          setCommentEditInput(comment.body);
-                                        }}
-                                        type="button"
-                                      >
-                                        수정
-                                      </Button>
-                                      <Button
-                                        className="h-7 rounded-lg bg-danger px-2 text-[10px] font-black text-white"
-                                        onPress={() =>
-                                          setDeleteConfirmation({
-                                            id: comment.id,
-                                            name: '댓글',
-                                            type: 'comment',
-                                          })
-                                        }
-                                        type="button"
-                                      >
-                                        삭제
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
+                                      type="button"
+                                    >
+                                      삭제
+                                    </Button>
+                                  </div>
+                                )}
                               </>
                             )}
                           </div>
                         );
                       })}
-                      {canEdit && (
+                      {canComment && (
                         <div className="space-y-2 border-t border-border pt-3">
                           <textarea
                             className="min-h-20 w-full resize-none rounded-xl border border-border bg-white px-3 py-2 text-[13px] font-medium outline-none"
@@ -822,6 +995,39 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   return createPortal(modal, document.body);
 }
 
+function PencilIcon() {
+  return (
+    <svg aria-hidden="true" className="size-5" fill="none" viewBox="0 0 24 24">
+      <path
+        d="m14.7 6.3 3 3M5 19l3.6-.7L18.4 8.5a2.1 2.1 0 0 0-3-3l-9.8 9.8L5 19Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function RefreshIcon({ isRefreshing }: { isRefreshing: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M20 11a8 8 0 1 0-2.34 5.66M20 5v6h-6"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
 function DeleteConfirmationModal({
   isOpen,
   isDeleting,
@@ -885,9 +1091,11 @@ function DeleteConfirmationModal({
 function ReactionPicker({
   counts,
   onReact,
+  selectedContents,
 }: {
   counts: Partial<Record<TodoReactionContent, number>>;
   onReact: (content: TodoReactionContent) => void;
+  selectedContents: Set<TodoReactionContent>;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -905,8 +1113,16 @@ function ReactionPicker({
           <div className="flex items-center gap-3">
             {REACTION_OPTIONS.map(reaction => (
               <button
-                aria-label={`${reaction.content} 리액션 추가`}
-                className="rounded-lg px-1.5 py-1 text-2xl leading-none transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-todak-coral-300"
+                aria-label={`${reaction.content} ${
+                  selectedContents.has(reaction.content)
+                    ? '내 리액션'
+                    : '리액션 추가'
+                }`}
+                className={`rounded-lg px-1.5 py-1 text-2xl leading-none transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-todak-coral-300 ${
+                  selectedContents.has(reaction.content)
+                    ? 'bg-blue-500/30 ring-1 ring-blue-400'
+                    : ''
+                }`}
                 key={reaction.content}
                 onClick={() => onReact(reaction.content)}
                 type="button"
@@ -922,7 +1138,16 @@ function ReactionPicker({
         reaction => (counts[reaction.content] ?? 0) > 0,
       ).map(reaction => (
         <button
-          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-blue-500 bg-blue-500/10 px-3 text-[13px] font-black text-foreground transition-colors hover:bg-blue-500/15 disabled:opacity-50"
+          aria-label={`${reaction.label} ${
+            selectedContents.has(reaction.content)
+              ? '내 반응'
+              : '다른 사용자의 반응'
+          }`}
+          className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-black text-foreground transition-colors disabled:opacity-50 ${
+            selectedContents.has(reaction.content)
+              ? 'border-blue-500 bg-sky-100 hover:bg-sky-200'
+              : 'border-slate-300 bg-white hover:bg-slate-50'
+          }`}
           key={reaction.content}
           onClick={() => onReact(reaction.content)}
           type="button"
@@ -1000,11 +1225,21 @@ function LabelDropdown({
             key={label.name}
           >
             {editingLabelName === label.name ? (
-              <div className="space-y-2">
+              <div
+                className="space-y-2"
+                onBlur={event => {
+                  if (
+                    !event.currentTarget.contains(
+                      event.relatedTarget as Node | null,
+                    )
+                  ) {
+                    onCommitLabelEdit(label.name);
+                  }
+                }}
+              >
                 <Input
                   className="h-8 rounded-lg border border-border px-2 text-[12px] font-bold"
                   fullWidth
-                  onBlur={() => onCommitLabelEdit(label.name)}
                   onChange={event => onLabelEditNameChange(event.target.value)}
                   onKeyDown={event => {
                     if (event.key === 'Enter') {
@@ -1014,12 +1249,14 @@ function LabelDropdown({
                   }}
                   value={labelEditName}
                 />
-                <div className="grid grid-cols-[24px_1fr] items-center gap-2">
-                  <ColorPreview color={labelEditColor} />
+                <div className="grid grid-cols-[32px_1fr] items-center gap-2">
+                  <ColorPickerPreview
+                    color={labelEditColor}
+                    onChange={onLabelEditColorChange}
+                  />
                   <Input
                     className="h-8 rounded-lg border border-border px-2 text-[12px] font-bold"
                     fullWidth
-                    onBlur={() => onCommitLabelEdit(label.name)}
                     onChange={event =>
                       onLabelEditColorChange(event.target.value)
                     }
@@ -1083,8 +1320,11 @@ function LabelDropdown({
           placeholder="label name"
           value={newLabelName}
         />
-        <div className="grid grid-cols-[24px_1fr] items-center gap-2">
-          <ColorPreview color={newLabelColor} />
+        <div className="grid grid-cols-[32px_1fr] items-center gap-2">
+          <ColorPickerPreview
+            color={newLabelColor}
+            onChange={onNewLabelColorChange}
+          />
           <Input
             className="h-8 rounded-lg border border-border px-2 text-[12px] font-bold"
             fullWidth
@@ -1472,6 +1712,44 @@ function ColorPreview({ color }: { color: string }) {
       style={{ backgroundColor: `#${normalizeHexColor(color)}` }}
       title={`#${normalizeHexColor(color)}`}
     />
+  );
+}
+
+function ColorPickerPreview({
+  color,
+  onChange,
+}: {
+  color: string;
+  onChange: (color: string) => void;
+}) {
+  const normalizedColor = normalizeHexColor(color);
+  const colorPickerValue =
+    normalizedColor.length === 3
+      ? normalizedColor
+          .split('')
+          .map(value => `${value}${value}`)
+          .join('')
+      : normalizedColor;
+
+  return (
+    <label
+      aria-label="라벨 색상 선택"
+      className="relative flex size-8 cursor-pointer items-center justify-center rounded-full focus-within:ring-2 focus-within:ring-todak-coral-300"
+      title="색상 선택"
+    >
+      <span
+        aria-hidden="true"
+        className="size-7 rounded-full border border-border shadow-sm"
+        style={{ backgroundColor: `#${normalizedColor}` }}
+      />
+      <input
+        aria-label="라벨 색상 선택"
+        className="absolute inset-0 cursor-pointer opacity-0"
+        onChange={event => onChange(stripHexPrefix(event.target.value))}
+        type="color"
+        value={`#${colorPickerValue}`}
+      />
+    </label>
   );
 }
 
