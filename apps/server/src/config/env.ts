@@ -21,7 +21,7 @@ const EnvSchema = z.object({
 
   JWT_SECRET: z.string().min(32),
 
-  CLIENT_URL: z.string().url().default('http://localhost:3000'),
+  CLIENT_URL: z.string().default('http://localhost:3000'),
 
   WEBHOOK_SECRET: z.string().min(1),
 
