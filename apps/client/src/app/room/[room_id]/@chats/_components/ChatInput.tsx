@@ -1,6 +1,12 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import Image from 'next/image';
 import { Button, Input } from '@heroui/react';
 import { uploadChatAttachment } from '@/services/chats/api';
@@ -9,6 +15,10 @@ import type { PendingAttachment } from '@/services/chats/model';
 interface ChatInputProps {
   roomId: string;
   onSend: (content: string, attachments?: PendingAttachment[]) => Promise<void>;
+}
+
+export interface ChatInputHandle {
+  addFiles: (files: FileList | File[]) => void;
 }
 
 // 서버 정책과 동일하게 맞춘 허용 형식/용량 (빠른 피드백용 — 서버에서도 재검증됨)
@@ -47,233 +57,311 @@ function validateFile(file: File): string | null {
   return null;
 }
 
-export default function ChatInput({ roomId, onSend }: ChatInputProps) {
-  const [input, setInput] = useState('');
-  const [pending, setPending] = useState<PendingItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
+  function ChatInput({ roomId, onSend }, ref) {
+    const [input, setInput] = useState('');
+    const [pending, setPending] = useState<PendingItem[]>([]);
+    const [error, setError] = useState<string | null>(null);
+    const [sending, setSending] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const dragDepthRef = useRef(0);
 
-  const hasUploading = pending.some(p => p.status === 'uploading');
-  const doneAttachments = pending.filter(
-    (p): p is PendingItem & { s3Key: string } =>
-      p.status === 'done' && !!p.s3Key,
-  );
-  const canSend =
-    (input.trim().length > 0 || doneAttachments.length > 0) &&
-    !hasUploading &&
-    !sending;
+    const hasUploading = pending.some(p => p.status === 'uploading');
+    const doneAttachments = pending.filter(
+      (p): p is PendingItem & { s3Key: string } =>
+        p.status === 'done' && !!p.s3Key,
+    );
+    const canSend =
+      (input.trim().length > 0 || doneAttachments.length > 0) &&
+      !hasUploading &&
+      !sending;
 
-  const handleFiles = async (fileList: FileList) => {
-    setError(null);
-    const files = Array.from(fileList);
+    const handleFiles = useCallback(
+      async (fileList: FileList | File[]) => {
+        setError(null);
+        const files = Array.from(fileList);
 
-    for (const file of files) {
-      if (pending.length >= MAX_ATTACHMENTS) {
-        setError(`첨부는 최대 ${MAX_ATTACHMENTS}개까지 가능해요.`);
-        break;
-      }
+        for (const file of files) {
+          if (pending.length >= MAX_ATTACHMENTS) {
+            setError(`첨부는 최대 ${MAX_ATTACHMENTS}개까지 가능해요.`);
+            break;
+          }
 
-      const validationError = validateFile(file);
-      if (validationError) {
-        setError(validationError);
-        continue;
-      }
+          const validationError = validateFile(file);
+          if (validationError) {
+            setError(validationError);
+            continue;
+          }
 
-      const id = crypto.randomUUID();
-      const isImage = file.type.startsWith('image/');
-      const previewUrl = isImage ? URL.createObjectURL(file) : undefined;
+          const id = crypto.randomUUID();
+          const isImage = file.type.startsWith('image/');
+          const previewUrl = isImage ? URL.createObjectURL(file) : undefined;
 
-      setPending(prev => [
-        ...prev,
-        {
-          id,
-          fileName: file.name,
-          mime: file.type,
-          size: file.size,
-          isImage,
-          previewUrl,
-          status: 'uploading',
-        },
-      ]);
+          setPending(prev => [
+            ...prev,
+            {
+              id,
+              fileName: file.name,
+              mime: file.type,
+              size: file.size,
+              isImage,
+              previewUrl,
+              status: 'uploading',
+            },
+          ]);
 
-      try {
-        const { s3Key } = await uploadChatAttachment(roomId, file);
-        setPending(prev =>
-          prev.map(p => (p.id === id ? { ...p, status: 'done', s3Key } : p)),
-        );
-      } catch (err) {
-        console.error('[upload error]', err);
-        setError('업로드에 실패했어요. 다시 시도해주세요.');
-        setPending(prev =>
-          prev.map(p => (p.id === id ? { ...p, status: 'error' } : p)),
-        );
-      }
-    }
-  };
-
-  const removePending = (id: string) => {
-    setPending(prev => {
-      const target = prev.find(p => p.id === id);
-      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
-      return prev.filter(p => p.id !== id);
-    });
-  };
-
-  const handleSend = () => {
-    if (!canSend || sending) return;
-
-    const attachments: PendingAttachment[] = doneAttachments.map(p => ({
-      s3Key: p.s3Key,
-      fileName: p.fileName,
-      mime: p.mime,
-      size: p.size,
-    }));
-
-    const content = input.trim();
-    setSending(true);
-    const pendingToCleanup = pending;
-
-    setInput('');
-    setPending([]);
-    setError(null);
-    setSending(false);
-    pendingToCleanup.forEach(
-      item => item.previewUrl && URL.revokeObjectURL(item.previewUrl),
+          try {
+            const { s3Key } = await uploadChatAttachment(roomId, file);
+            setPending(prev =>
+              prev.map(p =>
+                p.id === id ? { ...p, status: 'done', s3Key } : p,
+              ),
+            );
+          } catch (err) {
+            console.error('[upload error]', err);
+            setError('업로드에 실패했어요. 다시 시도해주세요.');
+            setPending(prev =>
+              prev.map(p => (p.id === id ? { ...p, status: 'error' } : p)),
+            );
+          }
+        }
+      },
+      [pending.length, roomId],
     );
 
-    void onSend(content, attachments).catch(err => {
-      const code = err instanceof Error ? err.message : '';
-      if (code === 'TOO_MANY_REQUESTS') {
-        setError(
-          '메시지를 너무 빠르게 보내고 있어요. 잠시 후 다시 시도해주세요.',
-        );
-      } else {
-        setError('메시지 전송에 실패했어요. 다시 시도해주세요.');
-      }
-    });
-  };
+    useImperativeHandle(
+      ref,
+      () => ({
+        addFiles: files => {
+          void handleFiles(files);
+        },
+      }),
+      [handleFiles],
+    );
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
-      if (e.nativeEvent.isComposing) return;
-      handleSend();
-    }
-  };
+      e.stopPropagation();
+      dragDepthRef.current += 1;
 
-  return (
-    <div className="shrink-0 border-t border-border bg-surface px-3 py-3">
-      {/* 첨부 미리보기 */}
-      {pending.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-2">
-          {pending.map(item => (
-            <div
-              key={item.id}
-              className="relative flex items-center gap-1.5 rounded-lg border border-border bg-white px-2 py-1.5"
-            >
-              {item.isImage && item.previewUrl ? (
-                // blob URL은 서버 최적화 불가 — unoptimized 필수
-                <Image
-                  src={item.previewUrl}
-                  alt={item.fileName}
-                  width={36}
-                  height={36}
-                  unoptimized
-                  className="h-9 w-9 rounded object-cover"
-                />
-              ) : (
-                <span className="text-lg">📄</span>
-              )}
-              <span className="max-w-[90px] truncate text-[11px] text-slate-600">
-                {item.fileName}
-              </span>
-              {item.status === 'uploading' && (
-                <span className="text-[10px] text-slate-400">업로드중…</span>
-              )}
-              {item.status === 'error' && (
-                <span className="text-[10px] text-red-400">실패</span>
-              )}
-              <Button
-                onPress={() => removePending(item.id)}
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                aria-label="첨부 삭제"
-                className="ml-0.5 h-4 w-4 min-w-0 rounded-full bg-slate-200 text-[10px] text-slate-600"
+      if (e.dataTransfer.types.includes('Files')) {
+        setIsDragging(true);
+      }
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.dataTransfer.types.includes('Files')) {
+        e.dataTransfer.dropEffect = 'copy';
+        setIsDragging(true);
+      }
+    };
+
+    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+
+      if (dragDepthRef.current === 0) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragDepthRef.current = 0;
+      setIsDragging(false);
+
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) {
+        void handleFiles(files);
+      }
+    };
+
+    const removePending = (id: string) => {
+      setPending(prev => {
+        const target = prev.find(p => p.id === id);
+        if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+        return prev.filter(p => p.id !== id);
+      });
+    };
+
+    const handleSend = () => {
+      if (!canSend || sending) return;
+
+      const attachments: PendingAttachment[] = doneAttachments.map(p => ({
+        s3Key: p.s3Key,
+        fileName: p.fileName,
+        mime: p.mime,
+        size: p.size,
+      }));
+
+      const content = input.trim();
+      setSending(true);
+      const pendingToCleanup = pending;
+
+      setInput('');
+      setPending([]);
+      setError(null);
+      setSending(false);
+      pendingToCleanup.forEach(
+        item => item.previewUrl && URL.revokeObjectURL(item.previewUrl),
+      );
+
+      void onSend(content, attachments).catch(err => {
+        const code = err instanceof Error ? err.message : '';
+        if (code === 'TOO_MANY_REQUESTS') {
+          setError(
+            '메시지를 너무 빠르게 보내고 있어요. 잠시 후 다시 시도해주세요.',
+          );
+        } else {
+          setError('메시지 전송에 실패했어요. 다시 시도해주세요.');
+        }
+      });
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (e.nativeEvent.isComposing) return;
+        handleSend();
+      }
+    };
+
+    return (
+      <div
+        className={`relative shrink-0 border-t px-3 py-3 transition-colors ${
+          isDragging
+            ? 'border-todak-coral-200 bg-todak-coral-50/60'
+            : 'border-border bg-surface'
+        }`}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {isDragging && (
+          <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-xl border border-dashed border-todak-coral-300 bg-white/80 text-xs font-semibold text-todak-coral-500">
+            파일을 여기에 놓아 첨부하기
+          </div>
+        )}
+        {/* 첨부 미리보기 */}
+        {pending.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {pending.map(item => (
+              <div
+                key={item.id}
+                className="relative flex items-center gap-1.5 rounded-lg border border-border bg-white px-2 py-1.5"
               >
-                ✕
-              </Button>
-            </div>
-          ))}
+                {item.isImage && item.previewUrl ? (
+                  // blob URL은 서버 최적화 불가 — unoptimized 필수
+                  <Image
+                    src={item.previewUrl}
+                    alt={item.fileName}
+                    width={36}
+                    height={36}
+                    unoptimized
+                    className="h-9 w-9 rounded object-cover"
+                  />
+                ) : (
+                  <span className="text-lg">📄</span>
+                )}
+                <span className="max-w-[90px] truncate text-[11px] text-slate-600">
+                  {item.fileName}
+                </span>
+                {item.status === 'uploading' && (
+                  <span className="text-[10px] text-slate-400">업로드중…</span>
+                )}
+                {item.status === 'error' && (
+                  <span className="text-[10px] text-red-400">실패</span>
+                )}
+                <Button
+                  onPress={() => removePending(item.id)}
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  aria-label="첨부 삭제"
+                  className="ml-0.5 h-4 w-4 min-w-0 rounded-full bg-slate-200 text-[10px] text-slate-600"
+                >
+                  ✕
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {error && <p className="mb-1.5 text-[11px] text-red-400">{error}</p>}
+
+        <div className="flex items-center gap-2">
+          {/* 숨겨진 파일 입력 */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ALLOWED_MIME.join(',')}
+            className="hidden"
+            onChange={e => {
+              if (e.target.files) handleFiles(e.target.files);
+              e.target.value = ''; // 같은 파일 재선택 허용
+            }}
+          />
+
+          {/* 파일 첨부 버튼 (클립) */}
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            isDisabled={pending.length >= MAX_ATTACHMENTS}
+            className="h-9 w-9 min-w-0 rounded-xl border border-border bg-surface p-0 text-slate-500 disabled:opacity-40"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          </Button>
+
+          <Input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="메시지를 전송하세요..."
+            className="h-9 flex-1 rounded-xl border border-border bg-surface px-3.5 text-xs text-foreground placeholder:text-slate-400 focus:border-accent"
+            fullWidth
+          />
+          <Button
+            onClick={handleSend}
+            isDisabled={!canSend}
+            variant="primary"
+            className="h-9 w-9 min-w-0 rounded-xl bg-accent p-0 text-accent-foreground disabled:opacity-40"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </Button>
         </div>
-      )}
-
-      {error && <p className="mb-1.5 text-[11px] text-red-400">{error}</p>}
-
-      <div className="flex items-center gap-2">
-        {/* 숨겨진 파일 입력 */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={ALLOWED_MIME.join(',')}
-          className="hidden"
-          onChange={e => {
-            if (e.target.files) handleFiles(e.target.files);
-            e.target.value = ''; // 같은 파일 재선택 허용
-          }}
-        />
-
-        {/* 파일 첨부 버튼 (클립) */}
-        <Button
-          onClick={() => fileInputRef.current?.click()}
-          isDisabled={pending.length >= MAX_ATTACHMENTS}
-          className="h-9 w-9 min-w-0 rounded-xl border border-border bg-surface p-0 text-slate-500 disabled:opacity-40"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-          </svg>
-        </Button>
-
-        <Input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="메시지를 전송하세요..."
-          className="h-9 flex-1 rounded-xl border border-border bg-surface px-3.5 text-xs text-foreground placeholder:text-slate-400 focus:border-accent"
-          fullWidth
-        />
-        <Button
-          onClick={handleSend}
-          isDisabled={!canSend}
-          variant="primary"
-          className="h-9 w-9 min-w-0 rounded-xl bg-accent p-0 text-accent-foreground disabled:opacity-40"
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-        </Button>
       </div>
-    </div>
-  );
-}
+    );
+  },
+);
+
+export default ChatInput;

@@ -1,7 +1,7 @@
 'use client';
 
 import ChatHeader from './_components/ChatHeader';
-import ChatInput from './_components/ChatInput';
+import ChatInput, { type ChatInputHandle } from './_components/ChatInput';
 import ChatMeetingButton from './_components/ChatMeetingButton';
 import ChatMessages from './_components/ChatMessages';
 import ChatTabs from './_components/ChatTabs';
@@ -38,6 +38,9 @@ export default function Chats({
   const sendMessageRef = useRef<
     (content: string, attachments?: PendingAttachment[]) => Promise<void>
   >(() => Promise.resolve());
+  const chatInputRef = useRef<ChatInputHandle>(null);
+  const dragDepthRef = useRef(0);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   const handleSendReady = useCallback(
     (
@@ -48,8 +51,61 @@ export default function Chats({
     [],
   );
 
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepthRef.current += 1;
+
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDraggingFile(true);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.dataTransfer.types.includes('Files')) {
+      e.dataTransfer.dropEffect = 'copy';
+      setIsDraggingFile(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+
+    if (dragDepthRef.current === 0) {
+      setIsDraggingFile(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepthRef.current = 0;
+    setIsDraggingFile(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      chatInputRef.current?.addFiles(files);
+    }
+  };
+
   return (
-    <div className="chat-panel-container">
+    <div
+      className="chat-panel-container relative"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDraggingFile && (
+        <div className="pointer-events-none absolute inset-2 z-50 flex items-center justify-center rounded-xl border border-dashed border-todak-coral-300 bg-white/80 text-xs font-semibold text-todak-coral-500 shadow-2xs">
+          파일을 여기에 놓아 채팅에 첨부하기
+        </div>
+      )}
       <ChatHeader meetingStatus={meetingStatus} tab={tab} />
       <ChatTabs tab={tab} onTabChange={setManualTab} />
       {tab === 'private' && !!currentPrivateRoomId && (
@@ -63,6 +119,7 @@ export default function Chats({
       )}
       <ChatMessages tab={tab} roomId={room_id} onSendReady={handleSendReady} />
       <ChatInput
+        ref={chatInputRef}
         roomId={room_id}
         onSend={(content, attachments) =>
           sendMessageRef.current(content, attachments)
