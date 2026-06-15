@@ -6,14 +6,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '@/lib/prisma.js';
+import { redis } from '@/lib/redis.js';
 import {
   createPullRequestReview as ghCreateReview,
   getPullRequest,
+  listPullRequests as ghListPullRequests,
   mergePullRequest as ghMergePullRequest,
 } from '@/services/github.service.js';
 import {
   createPullRequestReview,
   getPullRequestDetail,
+  getPullRequests,
   mergePullRequest,
 } from '@/services/prs.service.js';
 
@@ -32,6 +35,10 @@ vi.mock('@/services/github.service.js', () => ({
   createPullRequestReview: vi.fn(),
 }));
 
+vi.mock('@/lib/redis.js', () => ({
+  redis: { get: vi.fn(), set: vi.fn() },
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -40,6 +47,10 @@ const gh = getPullRequest as any;
 const ghMerge = ghMergePullRequest as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ghReview = ghCreateReview as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ghList = ghListPullRequests as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const r = redis as any;
 
 const USER_ID = 'user-1';
 const ROOM_ID = 'room-1';
@@ -308,5 +319,64 @@ describe('createPullRequestReview', () => {
         event: 'APPROVE',
       }),
     ).rejects.toMatchObject({ code: 'PR_REVIEW_NOT_ALLOWED' });
+  });
+});
+
+describe('getPullRequests - 캐싱', () => {
+  // octokit pulls.list 응답 중 사용하는 필드만 담은 가짜 PR
+  const fakePull = {
+    number: 7,
+    title: 'feat: 캐싱',
+    state: 'open',
+    draft: false,
+    merged_at: null,
+    user: { login: 'tkdgh7063', avatar_url: 'https://avatar/1' },
+    head: { ref: 'feat/cache' },
+    base: { ref: 'develop' },
+    assignees: [],
+    labels: [{ name: 'backend' }],
+    created_at: '2026-06-15T00:00:00.000Z',
+    updated_at: '2026-06-15T01:00:00.000Z',
+    html_url: 'https://github.com/owner/repo/pull/7',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.roomMember.findFirst.mockResolvedValue({ id: 'membership-1' });
+    db.room.findUnique.mockResolvedValue({
+      id: ROOM_ID,
+      repos: [{ id: 'repo-1', fullName: 'owner/repo' }],
+    });
+    db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
+  });
+
+  const query = { state: 'open' as const, page: 1, limit: 30 };
+  const cacheKey = 'pr:list:owner/repo:open:p1:l30';
+
+  it('캐시 미스: GitHub 호출 후 결과를 캐시에 저장', async () => {
+    r.get.mockResolvedValue(null);
+    ghList.mockResolvedValue([fakePull]);
+
+    const res = await getPullRequests(USER_ID, ROOM_ID, query);
+
+    expect(ghList).toHaveBeenCalledOnce();
+    // 단기 TTL(30s)로 캐시 저장
+    expect(r.set).toHaveBeenCalledWith(
+      cacheKey,
+      JSON.stringify([fakePull]),
+      'EX',
+      30,
+    );
+    expect(res.pull_requests[0].number).toBe(7);
+  });
+
+  it('캐시 히트: GitHub 미호출하고 캐시 데이터로 응답', async () => {
+    r.get.mockResolvedValue(JSON.stringify([fakePull]));
+
+    const res = await getPullRequests(USER_ID, ROOM_ID, query);
+
+    expect(ghList).not.toHaveBeenCalled();
+    expect(r.set).not.toHaveBeenCalled();
+    expect(res.pull_requests[0].number).toBe(7);
   });
 });
