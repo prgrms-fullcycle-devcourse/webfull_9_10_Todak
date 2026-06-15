@@ -7,7 +7,7 @@ import type { PendingAttachment } from '@/services/chats/model';
 
 interface ChatInputProps {
   roomId: string;
-  onSend: (content: string, attachments?: PendingAttachment[]) => void;
+  onSend: (content: string, attachments?: PendingAttachment[]) => Promise<void>;
 }
 
 // 서버 정책과 동일하게 맞춘 허용 형식/용량 (빠른 피드백용 — 서버에서도 재검증됨)
@@ -50,6 +50,7 @@ export default function ChatInput({ roomId, onSend }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [pending, setPending] = useState<PendingItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasUploading = pending.some(p => p.status === 'uploading');
@@ -58,7 +59,9 @@ export default function ChatInput({ roomId, onSend }: ChatInputProps) {
       p.status === 'done' && !!p.s3Key,
   );
   const canSend =
-    (input.trim().length > 0 || doneAttachments.length > 0) && !hasUploading;
+    (input.trim().length > 0 || doneAttachments.length > 0) &&
+    !hasUploading &&
+    !sending;
 
   const handleFiles = async (fileList: FileList) => {
     setError(null);
@@ -116,8 +119,8 @@ export default function ChatInput({ roomId, onSend }: ChatInputProps) {
     });
   };
 
-  const handleSend = () => {
-    if (!canSend) return;
+  const handleSend = async () => {
+    if (!canSend || sending) return;
 
     const attachments: PendingAttachment[] = doneAttachments.map(p => ({
       s3Key: p.s3Key,
@@ -126,12 +129,26 @@ export default function ChatInput({ roomId, onSend }: ChatInputProps) {
       size: p.size,
     }));
 
-    onSend(input.trim(), attachments);
-
-    pending.forEach(p => p.previewUrl && URL.revokeObjectURL(p.previewUrl));
-    setInput('');
-    setPending([]);
-    setError(null);
+    const content = input.trim();
+    setSending(true);
+    try {
+      await onSend(content, attachments);
+      pending.forEach(p => p.previewUrl && URL.revokeObjectURL(p.previewUrl));
+      setInput('');
+      setPending([]);
+      setError(null);
+    } catch (err) {
+      const code = err instanceof Error ? err.message : '';
+      if (code === 'TOO_MANY_REQUESTS') {
+        setError(
+          '메시지를 너무 빠르게 보내고 있어요. 잠시 후 다시 시도해주세요.',
+        );
+      } else {
+        setError('메시지 전송에 실패했어요. 다시 시도해주세요.');
+      }
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

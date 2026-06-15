@@ -36,11 +36,13 @@ export default function Chats({
   const tab: TabType = manualTab ?? (currentPrivateRoomId ? 'private' : 'all');
 
   const sendMessageRef = useRef<
-    (content: string, attachments?: PendingAttachment[]) => void
-  >(() => {});
+    (content: string, attachments?: PendingAttachment[]) => Promise<void>
+  >(() => Promise.resolve());
 
   const handleSendReady = useCallback(
-    (fn: (content: string, attachments?: PendingAttachment[]) => void) => {
+    (
+      fn: (content: string, attachments?: PendingAttachment[]) => Promise<void>,
+    ) => {
       sendMessageRef.current = fn;
     },
     [],

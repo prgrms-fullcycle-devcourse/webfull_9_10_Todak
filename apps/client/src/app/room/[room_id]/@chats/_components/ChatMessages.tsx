@@ -17,7 +17,10 @@ interface ChatMessagesProps {
   tab: TabType;
   roomId: string;
   onSendReady: (
-    sendMessage: (content: string, attachments?: PendingAttachment[]) => void,
+    sendMessage: (
+      content: string,
+      attachments?: PendingAttachment[],
+    ) => Promise<void>,
   ) => void;
 }
 
