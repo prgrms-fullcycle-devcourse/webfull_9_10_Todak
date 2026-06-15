@@ -198,12 +198,17 @@ export function useInitRooms(roomId: string) {
     });
 
     // 팀원 간 회의 상태 동기화
-    socket.on('meeting:started', ({ meetingId }: { meetingId: string }) => {
-      useSpaceStore.getState().setCurrentMeetingId(meetingId);
-    });
+    socket.on(
+      'meeting:started',
+      ({ meetingId, hostId }: { meetingId: string; hostId: string }) => {
+        useSpaceStore.getState().setCurrentMeetingId(meetingId);
+        useSpaceStore.getState().setCurrentMeetingHostId(hostId);
+      },
+    );
 
     socket.on('meeting:ended', () => {
       useSpaceStore.getState().setCurrentMeetingId(null);
+      useSpaceStore.getState().setCurrentMeetingHostId(null);
     });
 
     socket.on(

@@ -57,6 +57,8 @@ interface SpaceState {
   // 프라이빗룸 진행중인 회의 id
   currentMeetingId: string | null;
   setCurrentMeetingId: (id: string | null) => void;
+  currentMeetingHostId: string | null;
+  setCurrentMeetingHostId: (id: string | null) => void;
 
   // AI 생성 회의록 id
   currentMinutesId: string | null;
@@ -122,6 +124,8 @@ export const useSpaceStore = create<SpaceState>()(
     // 프라이빗룸 회의 초기값 추가
     currentMeetingId: null,
     setCurrentMeetingId: id => set({ currentMeetingId: id }),
+    currentMeetingHostId: null,
+    setCurrentMeetingHostId: id => set({ currentMeetingHostId: id }),
 
     // AI 생성 회의록 id 초기값
     currentMinutesId: null,

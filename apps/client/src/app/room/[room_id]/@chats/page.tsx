@@ -18,10 +18,17 @@ export default function Chats({
   params: Promise<{ room_id: string }>;
 }) {
   const { room_id } = use(params);
-  const [meetingStatus, setMeetingStatus] = useState<MeetingStatus>('ended');
   const currentPrivateRoomId = useSpaceStore(
     state => state.currentPrivateRoomId,
   );
+  const privateRooms = useSpaceStore(state => state.privateRooms);
+  const setPrivateRooms = useSpaceStore(state => state.setPrivateRooms);
+  const currentPrivateRoom = privateRooms.find(
+    room => room.id === currentPrivateRoomId,
+  );
+  const meetingStatus: MeetingStatus = currentPrivateRoom?.is_meeting_active
+    ? 'ongoing'
+    : 'ended';
 
   const [manualTab, setManualTab] = useState<TabType | null>(null);
   const prevPrivateRoomIdRef = useRef(currentPrivateRoomId);
@@ -49,6 +56,21 @@ export default function Chats({
       sendMessageRef.current = fn;
     },
     [],
+  );
+
+  const handleMeetingStatusChange = useCallback(
+    (isActive: boolean) => {
+      if (!currentPrivateRoomId) return;
+
+      setPrivateRooms(
+        privateRooms.map(room =>
+          room.id === currentPrivateRoomId
+            ? { ...room, is_meeting_active: isActive }
+            : room,
+        ),
+      );
+    },
+    [currentPrivateRoomId, privateRooms, setPrivateRooms],
   );
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
@@ -111,9 +133,7 @@ export default function Chats({
       {tab === 'private' && !!currentPrivateRoomId && (
         <ChatMeetingButton
           meetingStatus={meetingStatus}
-          onToggle={() =>
-            setMeetingStatus(prev => (prev === 'ongoing' ? 'ended' : 'ongoing'))
-          }
+          onMeetingStatusChange={handleMeetingStatusChange}
           roomId={room_id}
         />
       )}
