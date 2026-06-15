@@ -4,6 +4,7 @@ import { PrivateRoom, RoomProfile } from '../services/rooms/model';
 
 export type AnimalType = 'cat' | 'dog' | 'rabbit' | 'bear' | 'hamster';
 export type ViewType = '2d' | 'meeting';
+export type ChatTabType = 'all' | 'private';
 
 export interface CharacterInfo {
   id: string;
@@ -45,6 +46,10 @@ interface SpaceState {
   currentPrivateRoomId: string | null;
   setCurrentPrivateRoomId: (roomId: string | null) => void;
 
+  // 전역 채팅 탭 상태 및 스위치 오퍼레이터
+  activeChatTab: ChatTabType;
+  setActiveChatTab: (tab: ChatTabType) => void;
+
   // 룸 맴버 상태와 액션
   members: RoomProfile[];
   setMembers: (members: RoomProfile[]) => void;
@@ -56,6 +61,10 @@ interface SpaceState {
   // AI 생성 회의록 id
   currentMinutesId: string | null;
   setCurrentMinutesId: (id: string | null) => void;
+
+  // 내 캐릭터 위치 기억용
+  lastPosition: { x: number; y: number } | null;
+  setLastPosition: (x: number, y: number) => void;
 }
 
 export const useSpaceStore = create<SpaceState>()(
@@ -103,6 +112,9 @@ export const useSpaceStore = create<SpaceState>()(
     currentPrivateRoomId: null,
     setCurrentPrivateRoomId: roomId => set({ currentPrivateRoomId: roomId }),
 
+    activeChatTab: 'all',
+    setActiveChatTab: tab => set({ activeChatTab: tab }),
+
     // 룸 맴버 상태 초기값과 업데이트 액션
     members: [],
     setMembers: members => set({ members }),
@@ -114,5 +126,9 @@ export const useSpaceStore = create<SpaceState>()(
     // AI 생성 회의록 id 초기값
     currentMinutesId: null,
     setCurrentMinutesId: id => set({ currentMinutesId: id }),
+
+    // 캐릭터 스폰 장소 및 초기값
+    lastPosition: null,
+    setLastPosition: (x, y) => set({ lastPosition: { x, y } }),
   })),
 );

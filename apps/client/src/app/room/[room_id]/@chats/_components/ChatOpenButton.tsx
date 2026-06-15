@@ -6,6 +6,16 @@ const toggleChat = () => {
   document.getElementById('room-chat-toggle')?.click();
 };
 
+export const openChatSafely = () => {
+  const toggleEl = document.getElementById(
+    'room-chat-toggle',
+  ) as HTMLInputElement | null;
+
+  if (toggleEl && !toggleEl.checked) {
+    toggleEl.click();
+  }
+};
+
 export default function ChatOpenButton() {
   return (
     <Button
