@@ -1,7 +1,11 @@
 import { useEffect, useCallback } from 'react';
 import { getSocket } from '@/lib/socket';
 import { getAuthToken } from '@/lib/auth';
-import { ChatMessage, ChatReactionEvent } from '@/services/chats/model';
+import {
+  ChatMessage,
+  ChatReactionEvent,
+  PendingAttachment,
+} from '@/services/chats/model';
 
 interface UseChatSocketParams {
   roomId: string;
@@ -17,13 +21,15 @@ export function useChatSocket({
   onReaction,
 }: UseChatSocketParams) {
   const sendMessage = useCallback(
-    (content: string) => {
+    (content: string, attachments?: PendingAttachment[]) => {
       const socket = getSocket();
       socket.emit(
         'chat:send',
         {
           roomId,
-          content,
+          // 빈 텍스트는 서버 스키마(min 1)에 걸리므로 있을 때만 포함 (첨부만 전송 가능)
+          ...(content ? { content } : {}),
+          ...(attachments && attachments.length > 0 ? { attachments } : {}),
           ...(privateRoomId ? { privateRoomId } : {}),
         },
         (ack: { ok: boolean; code?: string; message?: string }) => {
