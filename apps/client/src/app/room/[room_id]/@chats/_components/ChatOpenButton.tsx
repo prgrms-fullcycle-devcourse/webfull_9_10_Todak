@@ -31,7 +31,8 @@ export default function ChatOpenButton() {
       }
     >
       <span
-        className={`relative flex size-10 items-center justify-center ${
+        key={unreadChatCount}
+        className={`relative flex size-10 items-center justify-center rounded-full ${
           hasUnreadChat ? 'chat-open-button-unread' : ''
         }`}
       >
