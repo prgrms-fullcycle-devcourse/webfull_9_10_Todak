@@ -762,6 +762,58 @@ export async function listIssueEvents(
 
 // ─── Reactions ───────────────────────────────────────────────────────────────
 
+export async function listIssueReactions(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+): Promise<IssueReaction[]> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.reactions.listForIssue({
+      owner,
+      repo,
+      issue_number: issueNumber,
+    });
+
+    return data.map(r => ({
+      id: r.id,
+      content: r.content as ReactionContent,
+      userLogin: r.user?.login ?? '',
+      createdAt: r.created_at,
+    }));
+  } catch (err) {
+    return mapGithubError(err, { 404: 'REPO_NOT_FOUND' });
+  }
+}
+
+export async function listIssueCommentReactions(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  commentId: number,
+): Promise<IssueReaction[]> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.reactions.listForIssueComment({
+      owner,
+      repo,
+      comment_id: commentId,
+    });
+
+    return data.map(r => ({
+      id: r.id,
+      content: r.content as ReactionContent,
+      userLogin: r.user?.login ?? '',
+      createdAt: r.created_at,
+    }));
+  } catch (err) {
+    return mapGithubError(err, { 404: 'NOT_FOUND' });
+  }
+}
+
 export async function createIssueReaction(
   accessToken: string,
   owner: string,
