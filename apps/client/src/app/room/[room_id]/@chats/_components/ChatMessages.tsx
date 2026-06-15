@@ -5,13 +5,20 @@ import { useChatHistory } from '../_hooks/useChatHistory';
 import { useChatSocket } from '../_hooks/useChatSocket';
 import { TabType } from '../_types';
 import { useSpaceStore } from '@/store/useSpaceStore';
-import type { ChatMessage, ChatReactionEvent } from '@/services/chats/model';
+import type {
+  ChatAttachment,
+  ChatMessage,
+  ChatReactionEvent,
+  PendingAttachment,
+} from '@/services/chats/model';
 import Image from 'next/image';
 
 interface ChatMessagesProps {
   tab: TabType;
   roomId: string;
-  onSendReady: (sendMessage: (content: string) => void) => void;
+  onSendReady: (
+    sendMessage: (content: string, attachments?: PendingAttachment[]) => void,
+  ) => void;
 }
 
 const EMOJI_OPTIONS = ['👍', '🔥', '❤️', '😂', '🙂'];
@@ -35,6 +42,37 @@ function applyReactionToList(
   return reactions
     .map(r => (r.emoji === event.emoji ? { ...r, count: r.count - 1 } : r))
     .filter(r => r.count > 0);
+}
+
+// 첨부 한 건 렌더 — 이미지는 인라인 썸네일, 그 외(PDF 등)는 파일 카드
+function AttachmentItem({ attachment }: { attachment: ChatAttachment }) {
+  const isImage = attachment.mime.startsWith('image/');
+
+  if (isImage) {
+    return (
+      <a href={attachment.url} target="_blank" rel="noopener noreferrer">
+        {/* presigned S3 URL 이라 next/image 대신 일반 img 사용 */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={attachment.url}
+          alt={attachment.name}
+          className="max-h-48 max-w-full rounded-xl border border-border object-cover"
+        />
+      </a>
+    );
+  }
+
+  return (
+    <a
+      href={attachment.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs text-foreground transition-colors hover:bg-slate-50"
+    >
+      <span className="text-base">📄</span>
+      <span className="max-w-[180px] truncate">{attachment.name}</span>
+    </a>
+  );
 }
 
 function MessageItem({
@@ -103,13 +141,25 @@ function MessageItem({
           <span className="text-[10px] text-slate-400">{time}</span>
         </div>
 
-        <div className="relative">
-          <div
-            onClick={() => setShowPicker(prev => !prev)}
-            className="cursor-pointer rounded-xl border border-border bg-surface px-3 py-2 text-xs leading-relaxed text-foreground transition-colors hover:bg-slate-50"
-          >
-            {msg.content}
+        {/* 첨부 (이미지/PDF 여러 개 가능) */}
+        {msg.attachments?.length > 0 && (
+          <div className="flex flex-col gap-1">
+            {msg.attachments.map((att, i) => (
+              <AttachmentItem key={i} attachment={att} />
+            ))}
           </div>
+        )}
+
+        <div className="relative">
+          {/* 텍스트가 있을 때만 말풍선 표시 (첨부만 있는 메시지는 생략) */}
+          {msg.content && (
+            <div
+              onClick={() => setShowPicker(prev => !prev)}
+              className="cursor-pointer rounded-xl border border-border bg-surface px-3 py-2 text-xs leading-relaxed text-foreground transition-colors hover:bg-slate-50"
+            >
+              {msg.content}
+            </div>
+          )}
 
           {showPicker && (
             <div className="absolute -top-10 left-12 z-10 flex gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
