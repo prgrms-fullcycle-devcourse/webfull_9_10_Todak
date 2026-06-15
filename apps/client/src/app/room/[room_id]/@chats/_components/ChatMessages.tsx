@@ -6,6 +6,7 @@ import { useChatSocket } from '../_hooks/useChatSocket';
 import { TabType } from '../_types';
 import { Avatar, Button, Popover } from '@heroui/react';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { useChatNotificationStore } from '@/store/useChatNotificationStore';
 import type {
   ChatAttachment,
   ChatMessage,
@@ -526,6 +527,9 @@ export default function ChatMessages({
   const [reactionOverrides, setReactionOverrides] = useState<
     Record<string, ChatMessage['reactions']>
   >({});
+  const notifyIncomingMessage = useChatNotificationStore(
+    state => state.notifyIncomingMessage,
+  );
 
   // tab 바뀔 때 소켓 메시지 초기화
   useEffect(() => {
@@ -552,17 +556,28 @@ export default function ChatMessages({
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
 
-  const handleMessage = useCallback((msg: ChatMessage) => {
-    setPendingMessages(prev =>
-      prev.filter(
-        pendingMessage => !isMatchingPendingMessage(pendingMessage, msg),
-      ),
-    );
-    setSocketMessages(prev => {
-      if (prev.some(prevMsg => prevMsg.id === msg.id)) return prev;
-      return [...prev, msg];
-    });
-  }, []);
+  const handleMessage = useCallback(
+    (msg: ChatMessage) => {
+      const authUser = getStoredAuthUser();
+      const isMine =
+        authUser !== null && msg.user.github_username === authUser.login;
+
+      if (!isMine) {
+        notifyIncomingMessage();
+      }
+
+      setPendingMessages(prev =>
+        prev.filter(
+          pendingMessage => !isMatchingPendingMessage(pendingMessage, msg),
+        ),
+      );
+      setSocketMessages(prev => {
+        if (prev.some(prevMsg => prevMsg.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+    },
+    [notifyIncomingMessage],
+  );
 
   useEffect(() => {
     const handleMeetingBoundary = (event: Event) => {
