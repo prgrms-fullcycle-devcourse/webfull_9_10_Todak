@@ -2,6 +2,7 @@
 
 import { Button } from '@heroui/react';
 import { useChatNotificationStore } from '@/store/useChatNotificationStore';
+import Image from 'next/image';
 
 const toggleChat = () => {
   document.getElementById('room-chat-toggle')?.click();
@@ -43,8 +44,17 @@ export default function ChatOpenButton() {
             부엉! 부엉!
           </span>
         )}
-        <span className="flex size-10 items-center justify-center rounded-full border-4 border-accent bg-surface text-xl shadow-surface">
-          🦉
+        <span className="flex size-10 items-center justify-center overflow-hidden rounded-full border-4 border-accent bg-surface shadow-surface">
+          <Image
+            src="/assets/todak-owl-logo.png"
+            alt=""
+            width={40}
+            height={40}
+            className={`size-full object-cover ${
+              hasUnreadChat ? 'chat-owl-flap' : ''
+            }`}
+            aria-hidden="true"
+          />
         </span>
         {hasUnreadChat && (
           <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-danger text-[10px] font-black text-danger-foreground ring-2 ring-white">

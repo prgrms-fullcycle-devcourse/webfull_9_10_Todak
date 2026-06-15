@@ -311,6 +311,11 @@
     border-left: 5px solid transparent;
   }
 
+  .chat-owl-flap {
+    transform-origin: 50% 58%;
+    animation: chat-owl-flap 320ms ease-in-out infinite;
+  }
+
   .todak-section-label {
     @apply text-[10px] font-bold tracking-wider text-gray-400 uppercase;
   }
@@ -481,6 +486,17 @@
   }
 }
 
+@keyframes chat-owl-flap {
+  0%,
+  100% {
+    transform: rotate(-3deg) scaleX(1) scaleY(1);
+  }
+
+  50% {
+    transform: rotate(4deg) scaleX(1.12) scaleY(0.9);
+  }
+}
+
 @keyframes chat-unread-glow {
   0%,
   100% {
@@ -529,6 +545,7 @@
   .chat-open-button-unread,
   .chat-open-button-unread::before,
   .chat-open-button-unread::after,
+  .chat-owl-flap,
   .chat-unread-speech-bubble {
     animation: none;
   }
