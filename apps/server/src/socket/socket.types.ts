@@ -243,6 +243,11 @@ export interface ServerToClientEvents {
     minutes_id: string;
     meeting_id?: string;
     status: 'failed';
+    /*
+     * 실패 사유 — 프론트가 구체 안내에 사용
+     * MINUTES_NO_CHAT_LOG: 회의 중 대화 없음 / MEETING_NOT_FOUND: 회의 없음 / GENERATION_ERROR: 그 외
+     */
+    reason: 'MINUTES_NO_CHAT_LOG' | 'MEETING_NOT_FOUND' | 'GENERATION_ERROR';
   }) => void;
   // 수동 생성 시 (AI 생성은 minutes:generated 가 담당)
   'minutes:created': (data: {

@@ -1,10 +1,13 @@
 import { Router } from 'express';
 
 import { requireAuth } from '../../middleware/auth.middleware.js';
-import {
-  aiGenerateLimiter,
-  aiRefineLimiter,
-} from '../../middleware/rateLimit.middleware.js';
+/*
+ * [임시] 팀원 테스트용 AI rate limit 해제 — 테스트 끝나면 아래 import + 사용처 주석 해제해 복구
+ * import {
+ *   aiGenerateLimiter,
+ *   aiRefineLimiter,
+ * } from '../../middleware/rateLimit.middleware.js';
+ */
 import { validate } from '../../middleware/validate.middleware.js';
 
 import { MinutesController } from './minutes.controller.js';
@@ -36,7 +39,10 @@ router
  */
 router.post(
   '/generate',
-  aiGenerateLimiter,
+  /*
+   * [임시] 팀원 테스트용 rate limit 해제 — 복구 시 주석 해제
+   * aiGenerateLimiter,
+   */
   validate(MinutesSchema.commonParams, 'params'),
   validate(MinutesSchema.generateAiMinutesBody, 'body'),
   controller.generateAiMinutes,
@@ -62,7 +68,10 @@ router
  */
 router.post(
   '/:minutesId/ai-refine',
-  aiRefineLimiter,
+  /*
+   * [임시] 팀원 테스트용 rate limit 해제 — 복구 시 주석 해제
+   * aiRefineLimiter,
+   */
   validate(MinutesSchema.detailParams, 'params'),
   validate(MinutesSchema.refineMinutesBody, 'body'),
   controller.refineMinutesWithAI,
