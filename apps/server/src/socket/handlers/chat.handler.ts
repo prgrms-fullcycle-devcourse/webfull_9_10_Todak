@@ -12,8 +12,8 @@ import {
   TypedSocket,
 } from '../socket.types.js';
 
-// chat:send 폭주 방지 — 유저당 10초에 10개 (초과 시 TOO_MANY_REQUESTS)
-const CHAT_RATE_LIMIT = 10;
+// chat:send 폭주 방지 — 유저당 10초에 5개 (초과 시 TOO_MANY_REQUESTS)
+const CHAT_RATE_LIMIT = 5;
 const CHAT_RATE_WINDOW_MS = 10_000;
 
 const ChatSendSchema = z
