@@ -1,6 +1,7 @@
 'use client';
 
 import { Link } from '@heroui/react';
+import Image from 'next/image';
 
 import { getGithubLoginUrl } from '@/lib/auth';
 
@@ -19,9 +20,14 @@ export default function HomeLeft({ isAuthenticated = false }: HomeLeftProps) {
   return (
     <div className="max-w-[460px]">
       <div className="mb-8 flex items-center gap-3">
-        <span className="flex size-9 items-center justify-center rounded-full bg-accent text-sm font-black text-accent-foreground">
-          토
-        </span>
+        <Image
+          alt="토닥윗미 부엉이 로고"
+          className="size-9 rounded-full object-cover"
+          height={36}
+          priority
+          src="/assets/todak-owl-logo.png"
+          width={36}
+        />
         <span className="text-lg font-black tracking-tight text-foreground">
           토닥윗미
         </span>
