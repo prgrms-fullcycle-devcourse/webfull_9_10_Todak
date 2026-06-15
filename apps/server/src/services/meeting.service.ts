@@ -1,6 +1,7 @@
 import { AppError } from '../errors/AppError.js';
 import { prisma } from '../lib/prisma.js';
 
+import { ChatPayload, createMeetingSystemChat } from './chat.service.js';
 import {
   assertPrivateRoomBelongsToRoom,
   assertRoomMember,
@@ -33,6 +34,7 @@ export interface StartMeetingResult {
   started_at: string;
   host_id: string;
   participants: string[];
+  system_chat: ChatPayload | null;
 }
 
 export interface EndMeetingResult {
@@ -40,6 +42,8 @@ export interface EndMeetingResult {
   status: string;
   ended_at: string;
   message_count: number;
+  private_room_id: string;
+  system_chat: ChatPayload | null;
 }
 
 interface MeetingWindow {
@@ -136,6 +140,7 @@ export async function startMeeting(
       started_at: ongoing.startedAt.toISOString(),
       host_id: ongoing.hostId,
       participants: withHost(chatterIds, ongoing.hostId),
+      system_chat: null,
     };
   }
 
@@ -146,6 +151,12 @@ export async function startMeeting(
   await prisma.meetingParticipant.create({
     data: { meetingId: meeting.id, userId },
   });
+  const systemChat = await createMeetingSystemChat(userId, {
+    roomId,
+    privateRoomId,
+    type: 'meeting_start',
+    content: '회의가 시작되었습니다.',
+  });
 
   return {
     id: meeting.id,
@@ -153,6 +164,7 @@ export async function startMeeting(
     started_at: meeting.startedAt.toISOString(),
     host_id: meeting.hostId,
     participants: [userId],
+    system_chat: systemChat,
   };
 }
 
@@ -186,6 +198,16 @@ export async function endMeeting(
     });
   }
 
+  const systemChat =
+    meeting.status === 'ongoing'
+      ? await createMeetingSystemChat(userId, {
+          roomId,
+          privateRoomId: meeting.privateRoomId,
+          type: 'meeting_end',
+          content: '회의가 종료되었습니다.',
+        })
+      : null;
+
   const messages = await prisma.chatMessage.findMany({
     where: meetingChatWhere({ ...meeting, endedAt }),
     select: { userId: true },
@@ -199,6 +221,8 @@ export async function endMeeting(
     status,
     ended_at: endedAt.toISOString(),
     message_count: messages.length,
+    private_room_id: meeting.privateRoomId,
+    system_chat: systemChat,
   };
 }
 

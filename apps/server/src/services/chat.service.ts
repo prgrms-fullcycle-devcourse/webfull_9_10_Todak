@@ -271,3 +271,26 @@ export async function createChat(
 
   return toPayload(saved, userId);
 }
+
+export async function createMeetingSystemChat(
+  userId: string,
+  input: {
+    roomId: string;
+    privateRoomId: string;
+    type: 'meeting_start' | 'meeting_end';
+    content: string;
+  },
+): Promise<ChatPayload> {
+  const saved = await prisma.chatMessage.create({
+    data: {
+      roomId: input.roomId,
+      privateRoomId: input.privateRoomId,
+      userId,
+      content: input.content,
+      type: input.type,
+    },
+    include: includeChat,
+  });
+
+  return toPayload(saved, userId);
+}

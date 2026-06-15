@@ -93,35 +93,36 @@ function MessageItem({
     minute: '2-digit',
     hour12: false,
   });
+  const systemTime = new Date(msg.created_at).toLocaleString('ko-KR', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 
   const displayContent =
     msg.type === 'meeting_start'
-      ? '🚨 회의가 시작되었습니다.'
+      ? '회의 시작'
       : msg.type === 'meeting_end'
-        ? '✋ 회의가 종료되었습니다.'
+        ? '회의 종료'
         : (msg.content ?? '');
 
   if (msg.type === 'meeting_start' || msg.type === 'meeting_end') {
     return (
-      <div className="flex items-start gap-2 px-1 py-2">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 overflow-hidden">
-          <Image
-            src={msg.user.avatar_url}
-            alt={msg.user.github_username}
-            width={28}
-            height={28}
-            className="h-full w-full object-cover rounded-full"
-          />
+      <div className="flex items-center gap-2 px-1 py-3">
+        <div className="h-px flex-1 bg-border" />
+        <div
+          className={`rounded-full border px-3 py-1.5 text-center text-[11px] font-bold shadow-sm ${
+            msg.type === 'meeting_start'
+              ? 'border-todak-coral-200 bg-todak-coral-50 text-todak-coral-500'
+              : 'border-slate-200 bg-slate-50 text-slate-500'
+          }`}
+        >
+          <span>{displayContent}</span>
+          <span className="ml-2 font-semibold opacity-70">{systemTime}</span>
         </div>
-        <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-          <div className="mb-0.5 flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400">시스템</span>
-            <span className="text-[10px] text-slate-300">{time}</span>
-          </div>
-          <p className="text-xs leading-relaxed text-slate-500">
-            {displayContent}
-          </p>
-        </div>
+        <div className="h-px flex-1 bg-border" />
       </div>
     );
   }
