@@ -2,11 +2,7 @@ import * as PIXI from 'pixi.js';
 import type { AnimalAssetPack } from '../_animals/types';
 import { type Player, CHAR_HEIGHT, CHAR_WIDTH } from './createPlayer';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
-import {
-  enterPrivateRoom,
-  leavePrivateRoom,
-  updateMemberStatus,
-} from '@/services/rooms/api';
+import { enterPrivateRoom, updateMemberStatus } from '@/services/rooms/api';
 import { getSocket } from '@/lib/socket';
 import { useSpaceStore } from '@/store/useSpaceStore';
 
@@ -236,21 +232,15 @@ export function setupMovement(
         useSpaceStore.getState().setCurrentPrivateRoomId(null);
         useSpaceStore.getState().setMyStatus('🔥 집중');
 
-        // 백그라운드 통신
-        leavePrivateRoom(roomId, roomToLeave)
-          .then(() => {
-            getSocket().emit('private-room:leave', {
-              roomId: roomId,
-              privateRoomId: roomToLeave,
-            });
+        getSocket().emit('private-room:leave', {
+          roomId: roomId,
+          privateRoomId: roomToLeave,
+        });
 
-            updateMemberStatus(roomId, 'focus').catch(err =>
-              console.error('❌ 백그라운드 집중 상태 DB 원복 실패:', err),
-            );
-          })
-          .catch(err => {
-            console.error(`❌ 백그라운드 퇴장 API 실패:`, err);
-          })
+        updateMemberStatus(roomId, 'focus')
+          .catch(err =>
+            console.error('❌ 백그라운드 집중 상태 DB 원복 실패:', err),
+          )
           .finally(() => {
             isProcessing = false;
           });

@@ -29,7 +29,10 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { loadMascotNpcAssets } from '../2d/_npcs/npcAssets';
 import { createMascotNpc, MascotNpcContainer } from '../2d/_npcs/createNpc';
-import { useNotifications } from '@/services/notifications/query';
+import {
+  notificationQueryKeys,
+  useNotifications,
+} from '@/services/notifications/query';
 import NotificationHistoryModal from './NotificationHistoryModal';
 import { openChatSafely } from '../../../@chats/_components/ChatOpenButton';
 import rawWallData from '@/app/room/[room_id]/@renderer/_constants/walls.json';
@@ -349,7 +352,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       const socket = getSocket();
 
-      socket.emit('room:join', { roomId });
+      socket.emit('room:join', roomId);
 
       socket.on('room:user-joined', () => {
         setTimeout(async () => {
@@ -517,6 +520,13 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         },
       );
 
+      // 실시간 새 알림 유입 시 React Query 장부 강제 갱신
+      socket.on('room:notification-received', () => {
+        queryClient.invalidateQueries({
+          queryKey: notificationQueryKeys.room(roomId),
+        });
+      });
+
       unsubscribeStatus = useSpaceStore.subscribe(
         state => state.myChar.status,
         newStatus => {
@@ -627,6 +637,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       getSocket().off('room:member-moved');
       getSocket().off('room:member-status-changed');
       getSocket().off('room:member-profile-changed');
+      getSocket().off('room:notification-received');
 
       // 리사이즈 이벤트 리스너 제거
       if (handleResize) {
