@@ -58,7 +58,7 @@ export default function LeaveRoomModal({
         return;
       }
 
-      setLeaveError('룸 나가기에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      setLeaveError('탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.');
     },
   });
 
@@ -93,7 +93,7 @@ export default function LeaveRoomModal({
                 LEAVE ROOM
               </p>
               <Modal.Heading className="text-[18px] font-black leading-tight text-foreground">
-                룸에서 나가시겠습니까?
+                프로젝트에서 탈퇴하시겠습니까?
               </Modal.Heading>
             </div>
             <Modal.CloseTrigger />
@@ -101,7 +101,7 @@ export default function LeaveRoomModal({
 
           <Modal.Body className="space-y-3 px-0">
             <p className="text-xs font-semibold leading-relaxed text-muted">
-              나간 후에는 룸 선택 및 생성 페이지로 이동합니다.
+              탈퇴 후에는 룸 선택 및 생성 페이지로 이동합니다.
             </p>
             {leaveError !== null && (
               <p
@@ -129,7 +129,7 @@ export default function LeaveRoomModal({
               onPress={handleLeave}
               type="button"
             >
-              {leaveRoomMutation.isPending ? '나가는 중...' : '나가기'}
+              {leaveRoomMutation.isPending ? '탈퇴 중...' : '탈퇴하기'}
             </Button>
           </Modal.Footer>
         </Modal.Dialog>

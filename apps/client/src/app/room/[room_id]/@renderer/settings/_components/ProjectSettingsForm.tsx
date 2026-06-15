@@ -13,16 +13,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 
+import LeaveRoomModal from '../../../@sidebar/_components/LeaveRoomModal';
+
 interface ProjectSettingsFormProps {
   myRoomInfo?: RoomProfile;
   room: RoomInfo;
   roomID: string;
+  userID: string;
 }
 
 export default function ProjectSettingsForm({
   myRoomInfo,
   room,
   roomID,
+  userID,
 }: ProjectSettingsFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -40,6 +44,7 @@ export default function ProjectSettingsForm({
   const [repoSuccessMessage, setRepoSuccessMessage] = useState<string | null>(
     null,
   );
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const repoLabel = currentRepoFullName ?? '연동된 깃허브 없음';
   const canEdit = myRoomInfo?.is_host === true;
 
@@ -387,6 +392,30 @@ export default function ProjectSettingsForm({
           </p>
         )}
       </section>
+
+      <section className="mt-6 border-t border-border pt-5">
+        <p className="text-xs font-black text-danger">프로젝트 탈퇴</p>
+        <p className="mt-1 text-[11px] font-bold leading-5 text-muted">
+          이 프로젝트에서 탈퇴하면 룸 선택 및 생성 페이지로 이동합니다.
+        </p>
+
+        <div className="mt-3 flex justify-end">
+          <Button
+            className="h-9 rounded-xl border border-red-200 bg-red-50 px-4 text-xs font-black text-danger shadow-sm transition-colors hover:bg-red-100"
+            onPress={() => setIsLeaveModalOpen(true)}
+            type="button"
+          >
+            탈퇴하기
+          </Button>
+        </div>
+      </section>
+
+      <LeaveRoomModal
+        isOpen={isLeaveModalOpen}
+        onOpenChange={setIsLeaveModalOpen}
+        roomID={roomID}
+        userID={userID}
+      />
     </section>
   );
 }

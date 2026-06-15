@@ -10,12 +10,14 @@ interface Props {
   myRoomInfo?: RoomProfile;
   room: RoomInfo;
   roomID: string;
+  userID: string;
 }
 
 export default function RoomSettingsDropdown({
   myRoomInfo,
   room,
   roomID,
+  userID,
 }: Props) {
   const router = useRouter();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -49,7 +51,31 @@ export default function RoomSettingsDropdown({
   };
 
   return (
-    <div className="flex shrink-0 justify-end pt-3">
+    <div className="flex shrink-0 items-center justify-between pt-3">
+      <Button
+        aria-label="프로젝트 허브로 이동"
+        className="flex size-9 min-w-9 items-center justify-center rounded-full border border-border bg-surface p-0 text-muted shadow-sm transition-colors hover:bg-surface-secondary hover:text-accent"
+        isIconOnly
+        onPress={() => router.push(`/${encodeURIComponent(userID)}/join`)}
+        type="button"
+        variant="ghost"
+      >
+        <svg
+          aria-hidden="true"
+          className="size-5"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <path
+            d="M14 5h3.2A1.8 1.8 0 0 1 19 6.8v10.4a1.8 1.8 0 0 1-1.8 1.8H14M9.5 8l-4 4 4 4M15 12H6"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+          />
+        </svg>
+      </Button>
+
       <Dropdown>
         <Dropdown.Trigger
           aria-label="룸 설정"
