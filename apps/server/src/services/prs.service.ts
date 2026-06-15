@@ -3,6 +3,7 @@ import type {
   GetPullRequestsQuery,
   MergePullRequestBody,
 } from '../api/rooms/prs/prs.schema.js';
+import { redis } from '../lib/redis.js';
 
 import {
   createPullRequestReview as createPullRequestReviewOnGithub,
@@ -11,6 +12,14 @@ import {
   mergePullRequest as mergePullRequestOnGithub,
 } from './github.service.js';
 import { getRoomRepoContext } from './room-repo-context.service.js';
+
+/*
+ * PR 목록은 매 요청 GitHub 라이브 호출이라 단기 TTL 캐시로 호출수·지연을 줄인다.
+ * 캐시는 레포+상태+페이지 단위(토큰 무관) — 같은 레포 PR 목록은 어느 멤버가 봐도 동일하므로
+ * 한 명의 조회가 다른 멤버의 캐시도 데워준다. merged/closed 는 동일하게 githubState='closed'
+ * 를 받아오므로 같은 캐시 엔트리를 공유한다(필터만 다름).
+ */
+const PR_LIST_CACHE_TTL_SEC = 30;
 
 // 룸(프로젝트) 레포의 PR 목록 조회
 export async function getPullRequests(
@@ -32,14 +41,28 @@ export async function getPullRequests(
   const githubState =
     state === 'open' ? 'open' : state === 'all' ? 'all' : 'closed';
 
-  const pulls = await listPullRequests(
-    accessToken,
-    owner,
-    repoName,
-    githubState,
-    page,
-    limit,
-  );
+  const cacheKey = `pr:list:${owner}/${repoName}:${githubState}:p${page}:l${limit}`;
+
+  let pulls: Awaited<ReturnType<typeof listPullRequests>>;
+  const cached = await redis.get(cacheKey);
+  if (cached !== null) {
+    pulls = JSON.parse(cached) as Awaited<ReturnType<typeof listPullRequests>>;
+  } else {
+    pulls = await listPullRequests(
+      accessToken,
+      owner,
+      repoName,
+      githubState,
+      page,
+      limit,
+    );
+    await redis.set(
+      cacheKey,
+      JSON.stringify(pulls),
+      'EX',
+      PR_LIST_CACHE_TTL_SEC,
+    );
+  }
 
   // has_more 는 GitHub 원본 페이지 기준(필터 전)으로 다음 페이지 존재 여부 신호
   const hasMore = pulls.length === limit;
