@@ -4,7 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { useChatHistory } from '../_hooks/useChatHistory';
 import { useChatSocket } from '../_hooks/useChatSocket';
 import { TabType } from '../_types';
-import { Popover } from '@heroui/react';
+import { Popover, PopoverArrow } from '@heroui/react';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import type {
   ChatAttachment,
@@ -45,20 +45,27 @@ type LocalChatMessage = ChatMessage & {
 function applyReactionToList(
   reactions: ChatMessage['reactions'],
   event: ChatReactionEvent,
+  isMine: boolean,
 ): ChatMessage['reactions'] {
   const exists = reactions.find(r => r.emoji === event.emoji);
 
   if (event.action === 'added') {
     if (exists) {
       return reactions.map(r =>
-        r.emoji === event.emoji ? { ...r, count: r.count + 1 } : r,
+        r.emoji === event.emoji
+          ? { ...r, count: r.count + 1, me: isMine ? true : r.me }
+          : r,
       );
     }
-    return [...reactions, { emoji: event.emoji, count: 1, me: true }];
+    return [...reactions, { emoji: event.emoji, count: 1, me: isMine }];
   }
 
   return reactions
-    .map(r => (r.emoji === event.emoji ? { ...r, count: r.count - 1 } : r))
+    .map(r =>
+      r.emoji === event.emoji
+        ? { ...r, count: r.count - 1, me: isMine ? false : r.me }
+        : r,
+    )
     .filter(r => r.count > 0);
 }
 
@@ -80,6 +87,19 @@ function isMatchingPendingMessage(
     pendingMessage.user.github_username === message.user.github_username &&
     Math.abs(receivedAt - sentAt) < 30_000
   );
+}
+
+function getReactionKey(
+  event: Pick<ChatReactionEvent, 'message_id' | 'emoji' | 'action'>,
+) {
+  return `${event.message_id}:${event.emoji}:${event.action}`;
+}
+
+function getInverseReactionEvent(event: ChatReactionEvent): ChatReactionEvent {
+  return {
+    ...event,
+    action: event.action === 'added' ? 'removed' : 'added',
+  };
 }
 
 // 첨부 한 건 렌더 — 이미지는 인라인 썸네일, 그 외(PDF 등)는 파일 카드
@@ -390,26 +410,54 @@ export default function ChatMessages({
     historyRef.current = history;
   }, [history]);
 
-  const handleReaction = useCallback((event: ChatReactionEvent) => {
-    setSocketMessages(prev =>
-      prev.map(msg => {
-        if (msg.id !== event.message_id) return msg;
-        return { ...msg, reactions: applyReactionToList(msg.reactions, event) };
-      }),
-    );
+  const applyReactionEvent = useCallback(
+    (event: ChatReactionEvent, isMine: boolean) => {
+      setSocketMessages(prev =>
+        prev.map(msg => {
+          if (msg.id !== event.message_id) return msg;
+          return {
+            ...msg,
+            reactions: applyReactionToList(msg.reactions, event, isMine),
+          };
+        }),
+      );
 
-    setReactionOverrides(prev => {
-      const targetMsg = historyRef.current?.find(
-        h => h.id === event.message_id,
-      ); // ← 여기
-      if (!targetMsg) return prev;
-      const currentReactions = prev[event.message_id] ?? targetMsg.reactions;
-      return {
-        ...prev,
-        [event.message_id]: applyReactionToList(currentReactions, event),
-      };
-    });
-  }, []);
+      setReactionOverrides(prev => {
+        const targetMsg = historyRef.current?.find(
+          h => h.id === event.message_id,
+        ); // ← 여기
+        if (!targetMsg) return prev;
+        const currentReactions = prev[event.message_id] ?? targetMsg.reactions;
+        return {
+          ...prev,
+          [event.message_id]: applyReactionToList(
+            currentReactions,
+            event,
+            isMine,
+          ),
+        };
+      });
+    },
+    [],
+  );
+
+  const pendingReactionKeysRef = useRef(new Set<string>());
+
+  const handleReaction = useCallback(
+    (event: ChatReactionEvent) => {
+      const authUser = getStoredAuthUser();
+      const isMine = authUser?.id === event.user.id;
+      const reactionKey = getReactionKey(event);
+
+      if (isMine && pendingReactionKeysRef.current.has(reactionKey)) {
+        pendingReactionKeysRef.current.delete(reactionKey);
+        return;
+      }
+
+      applyReactionEvent(event, isMine);
+    },
+    [applyReactionEvent],
+  );
 
   const { sendMessage: sendSocketMessage, sendReaction } = useChatSocket({
     roomId,
@@ -421,6 +469,44 @@ export default function ChatMessages({
   const handleRemoveLocalMessage = useCallback((messageId: string) => {
     setPendingMessages(prev => prev.filter(msg => msg.id !== messageId));
   }, []);
+
+  const handleReact = useCallback(
+    (messageId: string, emoji: string) => {
+      const authUser = getStoredAuthUser();
+      if (authUser === null) {
+        void sendReaction(messageId, emoji);
+        return;
+      }
+
+      const targetMessage = messages.find(msg => msg.id === messageId);
+      const currentReaction = targetMessage?.reactions.find(
+        reaction => reaction.emoji === emoji,
+      );
+      const action = currentReaction?.me === true ? 'removed' : 'added';
+      const optimisticEvent: ChatReactionEvent = {
+        message_id: messageId,
+        room_id: roomId,
+        private_room_id: privateRoomId,
+        emoji,
+        user: {
+          id: authUser.id,
+          github_username: authUser.login,
+          avatar_url: authUser.avatarUrl,
+        },
+        action,
+      };
+      const optimisticKey = getReactionKey(optimisticEvent);
+
+      pendingReactionKeysRef.current.add(optimisticKey);
+      applyReactionEvent(optimisticEvent, true);
+
+      void sendReaction(messageId, emoji).catch(() => {
+        pendingReactionKeysRef.current.delete(optimisticKey);
+        applyReactionEvent(getInverseReactionEvent(optimisticEvent), true);
+      });
+    },
+    [applyReactionEvent, messages, privateRoomId, roomId, sendReaction],
+  );
 
   const sendMessage = useCallback(
     async (content: string, attachments?: PendingAttachment[]) => {
@@ -527,7 +613,7 @@ export default function ChatMessages({
         <MessageItem
           key={msg.id}
           msg={msg}
-          onReact={sendReaction}
+          onReact={handleReact}
           onRemoveLocalMessage={handleRemoveLocalMessage}
         />
       ))}

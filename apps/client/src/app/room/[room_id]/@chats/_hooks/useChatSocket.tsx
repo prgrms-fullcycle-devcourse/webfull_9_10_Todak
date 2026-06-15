@@ -55,22 +55,32 @@ export function useChatSocket({
   );
 
   const sendReaction = useCallback(
-    (messageId: string, emoji: string) => {
-      const socket = getSocket();
-      socket.emit(
-        'chat:react',
-        {
-          roomId,
-          messageId,
-          emoji,
-          ...(privateRoomId ? { privateRoomId } : {}),
-        },
-        (ack: { ok: boolean; code?: string; message?: string }) => {
-          if (!ack.ok) {
-            console.error('리액션 실패:', ack.code, ack.message);
-          }
-        },
-      );
+    (messageId: string, emoji: string): Promise<ChatReactionEvent> => {
+      return new Promise((resolve, reject) => {
+        const socket = getSocket();
+        socket.emit(
+          'chat:react',
+          {
+            roomId,
+            messageId,
+            emoji,
+            ...(privateRoomId ? { privateRoomId } : {}),
+          },
+          (ack: {
+            ok: boolean;
+            reaction?: ChatReactionEvent;
+            code?: string;
+            message?: string;
+          }) => {
+            if (ack.ok && ack.reaction !== undefined) {
+              resolve(ack.reaction);
+              return;
+            }
+
+            reject(new Error(ack.code ?? 'CHAT_REACT_ERROR'));
+          },
+        );
+      });
     },
     [roomId, privateRoomId],
   );
