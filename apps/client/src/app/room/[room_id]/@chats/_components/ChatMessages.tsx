@@ -427,8 +427,8 @@ function MessageItem({
                   <div
                     className={`rounded-xl border px-3 py-2 text-xs leading-relaxed transition-colors ${
                       isFailed
-                        ? 'border-red-200 bg-red-50 text-red-500'
-                        : 'border-border bg-surface text-foreground opacity-60'
+                        ? 'border-red-200 bg-white text-red-500'
+                        : 'border-border bg-white text-foreground opacity-60'
                     }`}
                   >
                     {msg.content}
@@ -439,7 +439,7 @@ function MessageItem({
                     onOpenChange={setShowMessageMenu}
                   >
                     <Popover.Trigger>
-                      <div className="cursor-pointer select-text rounded-xl border border-border bg-surface px-3 py-2 text-left text-xs leading-relaxed text-foreground transition-colors hover:bg-slate-50">
+                      <div className="cursor-pointer select-text rounded-xl border border-border bg-white px-3 py-2 text-left text-xs leading-relaxed text-foreground transition-colors hover:bg-slate-50">
                         {msg.content}
                       </div>
                     </Popover.Trigger>
@@ -454,7 +454,7 @@ function MessageItem({
                     variant="ghost"
                     aria-label="실패한 메시지 삭제"
                     onClick={() => onRemoveLocalMessage(msg.id)}
-                    className="h-5 w-5 min-w-0 shrink-0 rounded-full bg-red-100 p-0 text-[11px] font-bold text-red-500 transition-colors hover:bg-red-200"
+                    className="h-5 w-5 min-w-0 shrink-0 rounded-lg bg-red-100 p-0 text-[11px] font-bold text-red-500 transition-colors hover:bg-red-200"
                   >
                     ×
                   </Button>
@@ -464,12 +464,6 @@ function MessageItem({
                 </span>
               </div>
             </div>
-          )}
-
-          {isFailed && (
-            <p className="mt-1 text-[10px] font-semibold text-red-400">
-              {msg.errorMessage ?? '전송 실패'}
-            </p>
           )}
         </div>
 
@@ -757,9 +751,7 @@ export default function ChatMessages({
                     ...msg,
                     localStatus: 'failed',
                     errorMessage:
-                      code === 'TOO_MANY_REQUESTS'
-                        ? '너무 빠르게 보냈어요'
-                        : '전송 실패',
+                      code === 'TOO_MANY_REQUESTS' ? '' : '전송 실패',
                   }
                 : msg,
             ),

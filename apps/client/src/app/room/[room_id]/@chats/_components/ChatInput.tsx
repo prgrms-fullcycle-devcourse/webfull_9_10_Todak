@@ -215,9 +215,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       void onSend(content, attachments).catch(err => {
         const code = err instanceof Error ? err.message : '';
         if (code === 'TOO_MANY_REQUESTS') {
-          setError(
-            '메시지를 너무 빠르게 보내고 있어요. 잠시 후 다시 시도해주세요.',
-          );
+          setError(null);
         } else {
           setError('메시지 전송에 실패했어요. 다시 시도해주세요.');
         }
@@ -285,7 +283,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                   size="sm"
                   variant="ghost"
                   aria-label="첨부 삭제"
-                  className="ml-0.5 h-4 w-4 min-w-0 rounded-full bg-slate-200 text-[10px] text-slate-600"
+                  className="ml-0.5 h-4 w-4 min-w-0 rounded-lg bg-slate-200 text-[10px] text-slate-600"
                 >
                   ✕
                 </Button>
