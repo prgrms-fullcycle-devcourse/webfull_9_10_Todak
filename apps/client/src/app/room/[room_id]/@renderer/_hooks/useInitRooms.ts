@@ -97,8 +97,13 @@ export function useInitRooms(roomId: string) {
           fetchedRooms = (response as { data: PrivateRoom[] }).data;
         }
 
+        // DB에서 리턴되는 배열 순서를 ID 기준으로 고정 정렬
+        const sortedRooms = [...fetchedRooms].sort((a, b) =>
+          a.id.localeCompare(b.id),
+        );
+
         const dynamicConfig = STATIC_ROOM_BOUNDS.map((bounds, idx) => {
-          const apiRoom = fetchedRooms[idx];
+          const apiRoom = sortedRooms[idx];
           return {
             id: apiRoom ? apiRoom.id : `empty-room-${idx}`,
             name: apiRoom ? apiRoom.name : `미지정 회의실`,
@@ -109,7 +114,7 @@ export function useInitRooms(roomId: string) {
         });
 
         window.DYNAMIC_ROOMS_CONFIG = dynamicConfig;
-        useSpaceStore.getState().setPrivateRooms(fetchedRooms);
+        useSpaceStore.getState().setPrivateRooms(sortedRooms);
         return true;
       } catch (error) {
         console.error('회의실 데이터 새로고침 실패:', error);

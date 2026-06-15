@@ -75,11 +75,20 @@ export function setupMovement(
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('keyup', handleKeyUp);
 
-  let currentRoomId: string | null = null;
+  let currentRoomId: string | null =
+    useSpaceStore.getState().currentPrivateRoomId;
   let isProcessing = false;
 
   let lastSentX = player.container.x;
   let lastSentY = player.container.y;
+
+  // 전역 스토어의 룸 상태가 변하면 로컬 변수 실시간 싱크업
+  const unsubscribeRoomState = useSpaceStore.subscribe(
+    state => state.currentPrivateRoomId,
+    id => {
+      currentRoomId = id;
+    },
+  );
 
   const ticker = (t: PIXI.Ticker) => {
     const textures = getTextures();
@@ -220,20 +229,28 @@ export function setupMovement(
       else if (currentRoomId !== null && newRoomId === null) {
         isProcessing = true;
         const roomToLeave = currentRoomId;
-        getSocket().emit('private-room:leave', {
-          roomId: roomId,
-          privateRoomId: roomToLeave,
-        });
 
+        // UI 낙관적 업데이트
+        currentRoomId = null;
+        darkOverlay.visible = false;
+        useSpaceStore.getState().setCurrentPrivateRoomId(null);
+        useSpaceStore.getState().setMyStatus('🔥 집중');
+
+        // 백그라운드 통신
         leavePrivateRoom(roomId, roomToLeave)
           .then(() => {
-            currentRoomId = null;
-            darkOverlay.visible = false;
-            useSpaceStore.getState().setCurrentPrivateRoomId(null);
-            useSpaceStore.getState().setMyStatus('🔥 집중');
-            updateMemberStatus(roomId, 'focus');
+            getSocket().emit('private-room:leave', {
+              roomId: roomId,
+              privateRoomId: roomToLeave,
+            });
+
+            updateMemberStatus(roomId, 'focus').catch(err =>
+              console.error('❌ 백그라운드 집중 상태 DB 원복 실패:', err),
+            );
           })
-          .catch(err => console.error(`HTTP 퇴장 API 실패:`, err))
+          .catch(err => {
+            console.error(`❌ 백그라운드 퇴장 API 실패:`, err);
+          })
           .finally(() => {
             isProcessing = false;
           });
@@ -248,5 +265,6 @@ export function setupMovement(
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('keyup', handleKeyUp);
     app.ticker.remove(ticker);
+    unsubscribeRoomState();
   };
 }
