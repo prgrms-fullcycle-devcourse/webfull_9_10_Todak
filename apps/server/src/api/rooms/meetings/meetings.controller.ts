@@ -53,12 +53,6 @@ export async function startMeetingHandler(
       meetingId: meeting.id,
       hostId: meeting.host_id,
     });
-    if (meeting.system_chat !== null) {
-      io.to(`private-room:${private_room_id}`).emit(
-        'chat:message',
-        meeting.system_chat,
-      );
-    }
     // is_meeting_active(false → true) 갱신을 다른 멤버 화면에 즉시 반영
     await broadcastPrivateRooms(io, roomId);
 
@@ -97,12 +91,6 @@ export async function endMeetingHandler(
 
     const io = getIO();
     io.to(roomId).emit('meeting:ended', { meetingId: meeting.id });
-    if (meeting.system_chat !== null) {
-      io.to(`private-room:${meeting.private_room_id}`).emit(
-        'chat:message',
-        meeting.system_chat,
-      );
-    }
     // is_meeting_active(true → false) 갱신을 다른 멤버 화면에 즉시 반영
     await broadcastPrivateRooms(io, roomId);
 

@@ -11,6 +11,7 @@ import type {
   ChatReactionEvent,
   PendingAttachment,
 } from '@/services/chats/model';
+import { getStoredAuthUser } from '@/lib/auth';
 import Image from 'next/image';
 
 interface ChatMessagesProps {
@@ -25,6 +26,14 @@ interface ChatMessagesProps {
 }
 
 const EMOJI_OPTIONS = ['👍', '🔥', '❤️', '😂', '🙂'];
+const MEETING_BOUNDARY_EVENT = 'todak:meeting-boundary';
+
+interface MeetingBoundaryEventDetail {
+  roomId: string;
+  privateRoomId: string | null;
+  type: 'meeting_start' | 'meeting_end';
+  createdAt: string;
+}
 
 // 헬퍼 함수
 function applyReactionToList(
@@ -228,6 +237,9 @@ export default function ChatMessages({
 
   const { data: history } = useChatHistory(roomId, privateRoomId, tab);
   const [socketMessages, setSocketMessages] = useState<ChatMessage[]>([]);
+  const [meetingBoundaryMessages, setMeetingBoundaryMessages] = useState<
+    ChatMessage[]
+  >([]);
   const [reactionOverrides, setReactionOverrides] = useState<
     Record<string, ChatMessage['reactions']>
   >({});
@@ -245,6 +257,9 @@ export default function ChatMessages({
       ...msg,
       reactions: reactionOverrides[msg.id] ?? msg.reactions,
     })),
+    ...meetingBoundaryMessages.filter(
+      msg => msg.private_room_id === privateRoomId,
+    ),
     ...socketMessages.filter(
       socketMsg => !(history ?? []).some(h => h.id === socketMsg.id),
     ),
@@ -256,6 +271,40 @@ export default function ChatMessages({
   const handleMessage = useCallback((msg: ChatMessage) => {
     setSocketMessages(prev => [...prev, msg]);
   }, []);
+
+  useEffect(() => {
+    const handleMeetingBoundary = (event: Event) => {
+      const { detail } = event as CustomEvent<MeetingBoundaryEventDetail>;
+      if (detail.roomId !== roomId) return;
+
+      const authUser = getStoredAuthUser();
+      const boundaryMessage: ChatMessage = {
+        id: `local-${detail.type}-${detail.createdAt}`,
+        room_id: detail.roomId,
+        private_room_id: detail.privateRoomId,
+        user: {
+          github_username: authUser?.login ?? 'system',
+          avatar_url: authUser?.avatarUrl ?? '',
+        },
+        content:
+          detail.type === 'meeting_start'
+            ? '회의가 시작되었습니다.'
+            : '회의가 종료되었습니다.',
+        type: detail.type,
+        created_at: detail.createdAt,
+        reactions: [],
+        attachments: [],
+      };
+
+      setMeetingBoundaryMessages(prev => [...prev, boundaryMessage]);
+    };
+
+    window.addEventListener(MEETING_BOUNDARY_EVENT, handleMeetingBoundary);
+
+    return () => {
+      window.removeEventListener(MEETING_BOUNDARY_EVENT, handleMeetingBoundary);
+    };
+  }, [roomId]);
 
   const historyRef = useRef(history);
   useEffect(() => {
