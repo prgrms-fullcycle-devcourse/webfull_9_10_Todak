@@ -2,6 +2,7 @@
 
 import { ReactNode, useEffect, useState } from 'react';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { useChatNotificationStore } from '@/store/useChatNotificationStore';
 import { getAuthToken } from '@/lib/auth';
 import { getSocket } from '@/lib/socket';
 import type { ChatMessage } from '@/services/chats/model';
@@ -20,11 +21,11 @@ export default function RoomMainContainer({
 }: RoomMainContainerProps) {
   const currentView = useSpaceStore(state => state.currentView);
   const myGithubUsername = useSpaceStore(state => state.myChar.githubUsername);
-  const setChatOpen = useSpaceStore(state => state.setChatOpen);
-  const incrementUnreadChatCount = useSpaceStore(
-    state => state.incrementUnreadChatCount,
+  const setChatOpen = useChatNotificationStore(state => state.setChatOpen);
+  const notifyIncomingMessage = useChatNotificationStore(
+    state => state.notifyIncomingMessage,
   );
-  const clearUnreadChatCount = useSpaceStore(
+  const clearUnreadChatCount = useChatNotificationStore(
     state => state.clearUnreadChatCount,
   );
   const isMeetingView = currentView === 'meeting';
@@ -36,12 +37,12 @@ export default function RoomMainContainer({
     chatState.view === currentView ? chatState.isOpen : isMeetingView;
 
   useEffect(() => {
-    setChatOpen(isChatVisible);
+    setChatOpen(isChatOpen);
 
-    if (isChatVisible) {
+    if (isChatOpen) {
       clearUnreadChatCount();
     }
-  }, [clearUnreadChatCount, isChatVisible, setChatOpen]);
+  }, [clearUnreadChatCount, isChatOpen, setChatOpen]);
 
   useEffect(() => {
     const token = getAuthToken();
@@ -57,8 +58,8 @@ export default function RoomMainContainer({
         myGithubUsername !== '' &&
         message.user.github_username === myGithubUsername;
 
-      if (isSameRoom && !isChatVisible && !isMyMessage) {
-        incrementUnreadChatCount();
+      if (isSameRoom && !isChatOpen && !isMyMessage) {
+        notifyIncomingMessage();
       }
     };
 
@@ -67,7 +68,7 @@ export default function RoomMainContainer({
     return () => {
       socket.off('chat:message', handleMessage);
     };
-  }, [incrementUnreadChatCount, isChatVisible, myGithubUsername, roomId]);
+  }, [isChatOpen, myGithubUsername, notifyIncomingMessage, roomId]);
 
   return (
     <main className="room-main-container">

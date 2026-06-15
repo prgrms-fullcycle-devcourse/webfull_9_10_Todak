@@ -49,11 +49,6 @@ interface SpaceState {
   // 전역 채팅 탭 상태 및 스위치 오퍼레이터
   activeChatTab: ChatTabType;
   setActiveChatTab: (tab: ChatTabType) => void;
-  isChatOpen: boolean;
-  setChatOpen: (open: boolean) => void;
-  unreadChatCount: number;
-  incrementUnreadChatCount: () => void;
-  clearUnreadChatCount: () => void;
 
   // 룸 맴버 상태와 액션
   members: RoomProfile[];
@@ -119,12 +114,6 @@ export const useSpaceStore = create<SpaceState>()(
 
     activeChatTab: 'all',
     setActiveChatTab: tab => set({ activeChatTab: tab }),
-    isChatOpen: false,
-    setChatOpen: open => set({ isChatOpen: open }),
-    unreadChatCount: 0,
-    incrementUnreadChatCount: () =>
-      set(state => ({ unreadChatCount: state.unreadChatCount + 1 })),
-    clearUnreadChatCount: () => set({ unreadChatCount: 0 }),
 
     // 룸 맴버 상태 초기값과 업데이트 액션
     members: [],

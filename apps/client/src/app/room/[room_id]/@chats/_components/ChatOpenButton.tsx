@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@heroui/react';
-import { useSpaceStore } from '@/store/useSpaceStore';
+import { useChatNotificationStore } from '@/store/useChatNotificationStore';
 
 const toggleChat = () => {
   document.getElementById('room-chat-toggle')?.click();
@@ -18,7 +18,9 @@ export const openChatSafely = () => {
 };
 
 export default function ChatOpenButton() {
-  const unreadChatCount = useSpaceStore(state => state.unreadChatCount);
+  const unreadChatCount = useChatNotificationStore(
+    state => state.unreadChatCount,
+  );
   const hasUnreadChat = unreadChatCount > 0;
 
   return (
