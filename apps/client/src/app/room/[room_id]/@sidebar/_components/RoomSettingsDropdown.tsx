@@ -80,9 +80,11 @@ export default function RoomSettingsDropdown({
       <Dropdown>
         <Dropdown.Trigger
           aria-label="룸 설정"
-          className="flex size-9 items-center justify-center rounded-full border border-border bg-surface text-base text-muted shadow-sm transition-colors hover:bg-surface-secondary hover:text-foreground"
+          className="flex size-9 items-center justify-center rounded-full border border-border bg-surface text-xl text-muted shadow-sm transition-colors hover:bg-surface-secondary hover:text-foreground"
         >
-          <span aria-hidden>⚙</span>
+          <span aria-hidden className="leading-none">
+            ⚙
+          </span>
         </Dropdown.Trigger>
         <Dropdown.Popover
           className="min-w-56 rounded-xl border border-border bg-surface p-1 shadow-todak-panel"
