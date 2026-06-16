@@ -65,16 +65,16 @@ export default function ModalTodoTabs({ userId, isMe }: ModalTodoTabsProps) {
       onSelectionChange={key => setActiveTab(key as 'team' | 'individual')}
       className="w-full gap-0"
     >
-      <div className="flex items-center justify-between border-b border-border/40 pb-3 gap-4">
-        <p className="text-xs font-black tracking-wider text-slate-400 shrink-0">
+      <div className="flex items-center justify-between gap-4 border-b border-border pb-3">
+        <p className="shrink-0 text-[12px] font-bold text-foreground">
           To-Do 목록
         </p>
 
         <Tabs.ListContainer className="min-w-0">
-          <Tabs.List className="overflow-hidden rounded-lg border border-border bg-surface p-0 text-xs font-black flex flex-nowrap w-max">
+          <Tabs.List className="flex w-max flex-nowrap overflow-hidden rounded-lg border border-border bg-white p-0 text-xs font-black">
             {MODAL_TAB_OPTIONS.map(option => (
               <Tabs.Tab
-                className="h-7 px-4 text-[11px] font-black text-slate-400 transition-colors data-[selected=true]:bg-slate-900 data-[selected=true]:text-white whitespace-nowrap rounded-lg"
+                className="h-7 whitespace-nowrap rounded-lg px-4 text-[11px] font-black text-muted transition-colors data-[selected=true]:bg-foreground data-[selected=true]:text-background"
                 key={`modal-todo-tabs-${option.id}`}
                 id={option.id}
               >
@@ -108,16 +108,16 @@ export default function ModalTodoTabs({ userId, isMe }: ModalTodoTabsProps) {
           )}
 
           {!isPending && !isError && currentTodos.length === 0 && (
-            <p className="text-xs font-bold text-slate-400 py-4 text-center border border-dashed border-slate-200 rounded-xl">
+            <p className="rounded-xl border border-dashed border-border py-4 text-center text-xs font-bold text-muted">
               표시할 할 일이 없습니다.
             </p>
           )}
 
           {!isPending && !isError && currentTodos.length > 0 && (
-            <div className="flex flex-col gap-2.5 max-h-55 overflow-y-auto pr-1">
+            <div className="max-h-55 flex flex-col gap-2.5 overflow-y-auto pr-1">
               {currentTodos.map(todo => (
                 <div
-                  className="flex items-center justify-between rounded-xl border border-border bg-slate-50/50 px-4 py-3 text-xs shadow-sm"
+                  className="flex items-center justify-between rounded-xl border border-border bg-surface-secondary px-4 py-3 text-xs"
                   key={todo.id}
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
@@ -128,7 +128,7 @@ export default function ModalTodoTabs({ userId, isMe }: ModalTodoTabsProps) {
                       {todo.title}
                     </span>
                   </div>
-                  <span className="ml-3 shrink-0 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-400">
+                  <span className="ml-3 shrink-0 rounded-md bg-white px-2 py-0.5 font-mono text-[10px] font-bold text-muted">
                     @{todo.assignee?.github_username ?? '미지정'}
                   </span>
                 </div>

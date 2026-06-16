@@ -22,7 +22,7 @@ export default function ReviewModal({ issues, onClose, onUpload }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-none">
       <div className="flex max-h-[80vh] w-[580px] flex-col rounded-2xl bg-white shadow-2xl">
         <div className="flex shrink-0 items-start justify-between border-b border-border px-6 py-4">
           <div>

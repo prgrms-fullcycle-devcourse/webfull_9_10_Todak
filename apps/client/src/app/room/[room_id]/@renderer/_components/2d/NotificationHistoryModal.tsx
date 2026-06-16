@@ -95,7 +95,7 @@ export default function NotificationHistoryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40 backdrop-blur-none">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2">
