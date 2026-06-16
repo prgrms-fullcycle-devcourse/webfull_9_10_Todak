@@ -12,6 +12,7 @@ import { Accordion, Button, Chip } from '@heroui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import PullRequestModal, {
   type PullRequestModalData,
@@ -307,22 +308,87 @@ function PullRequestItem({
   onSelect: (pullRequest: PullRequestModalData) => void;
   pullRequest: PullRequestModalData;
 }) {
+  const statusLabel = getPullRequestStatusLabel(pullRequest);
+  const [tooltipRect, setTooltipRect] = useState<{
+    left: number;
+    top: number;
+    width: number;
+  } | null>(null);
+  const showTooltip = (target: HTMLDivElement) => {
+    const rect = target.getBoundingClientRect();
+    const width = Math.min(260, Math.max(rect.width - 16, 180));
+
+    setTooltipRect({
+      left: Math.min(rect.left + 8, window.innerWidth - width - 12),
+      top: rect.bottom + 4,
+      width,
+    });
+  };
+  const tooltip =
+    tooltipRect !== null && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            className="pointer-events-none fixed z-50 rounded-lg border border-border bg-white px-3 py-2 text-left shadow-xl"
+            id={`pull-request-tooltip-${pullRequest.id}`}
+            role="tooltip"
+            style={{
+              left: tooltipRect.left,
+              top: tooltipRect.top,
+              width: tooltipRect.width,
+            }}
+          >
+            <p className="line-clamp-2 text-[11px] font-black leading-4 text-foreground">
+              {pullRequest.title}
+            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-muted">
+              <span className="rounded-full bg-surface-secondary px-2 py-0.5 text-[9px] font-black text-accent">
+                {statusLabel}
+              </span>
+              <span>@{pullRequest.author}</span>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
-    <Button
-      className="group grid h-auto min-h-8 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-surface-secondary px-2.5 py-1.5 text-left shadow-none transition-colors hover:bg-surface-tertiary"
-      onClick={() => onSelect(pullRequest)}
-      type="button"
-      variant="ghost"
+    <div
+      className="relative"
+      onBlur={() => setTooltipRect(null)}
+      onFocus={event => showTooltip(event.currentTarget)}
+      onMouseEnter={event => showTooltip(event.currentTarget)}
+      onMouseLeave={() => setTooltipRect(null)}
     >
-      <span className="font-todak-mono text-[10px] font-black text-accent">
-        #{pullRequest.id}
-      </span>
-      <h3 className="truncate text-[10px] font-black text-foreground">
-        {pullRequest.title}
-      </h3>
-      <time className="font-todak-mono text-[8px] font-black text-muted">
-        {pullRequest.updatedAt}
-      </time>
-    </Button>
+      <Button
+        aria-describedby={`pull-request-tooltip-${pullRequest.id}`}
+        className="grid h-auto min-h-8 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-surface-secondary px-2.5 py-1.5 text-left shadow-none transition-colors hover:bg-surface-tertiary"
+        onClick={() => onSelect(pullRequest)}
+        type="button"
+        variant="ghost"
+      >
+        <span className="font-todak-mono text-[10px] font-black text-accent">
+          #{pullRequest.id}
+        </span>
+        <h3 className="truncate text-[10px] font-black text-foreground">
+          {pullRequest.title}
+        </h3>
+        <time className="font-todak-mono text-[8px] font-black text-muted">
+          {pullRequest.updatedAt}
+        </time>
+      </Button>
+      {tooltip}
+    </div>
   );
+}
+
+function getPullRequestStatusLabel(pullRequest: PullRequestModalData) {
+  if (pullRequest.isMerged) {
+    return 'MERGED';
+  }
+
+  if (pullRequest.isDraft) {
+    return 'DRAFT';
+  }
+
+  return pullRequest.state.toUpperCase();
 }
