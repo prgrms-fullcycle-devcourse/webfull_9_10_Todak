@@ -271,3 +271,32 @@ export async function createChat(
 
   return toPayload(saved, userId);
 }
+
+/*
+ * 회의 시작/종료 시점을 채팅 로그에 시스템 메시지로 남긴다 (meeting.service 에서 호출).
+ * - 멤버/세션 검증은 호출 측(startMeeting/endMeeting)에서 이미 끝났으므로 생략한다.
+ * - content 는 로그 가독성을 위해 채워 두지만, 클라이언트는 type 으로 고정 문구를 렌더한다.
+ * - type 이 'text' 가 아니라 회의록 추출(meetingChatWhere) 대상에서는 자연히 제외된다.
+ */
+export async function createMeetingSystemMessage(input: {
+  roomId: string;
+  privateRoomId: string;
+  userId: string;
+  type: 'meeting_start' | 'meeting_end';
+}): Promise<ChatPayload> {
+  const saved = await prisma.chatMessage.create({
+    data: {
+      roomId: input.roomId,
+      privateRoomId: input.privateRoomId,
+      userId: input.userId,
+      content:
+        input.type === 'meeting_start'
+          ? '회의가 시작되었습니다.'
+          : '회의가 종료되었습니다.',
+      type: input.type,
+    },
+    include: includeChat,
+  });
+
+  return toPayload(saved, input.userId);
+}
