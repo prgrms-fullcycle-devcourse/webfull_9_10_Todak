@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Modal, Input, Button } from '@heroui/react';
+import { Modal, Input, Button, Chip } from '@heroui/react';
 import Image from 'next/image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
@@ -40,6 +40,13 @@ const ROLE_OPTIONS = [
   { key: 'design', label: 'Design' },
   { key: 'pm', label: 'PM' },
 ];
+
+const ROLE_LABELS: Record<string, string> = {
+  frontend: 'Frontend',
+  backend: 'Backend',
+  design: 'Designer',
+  pm: 'PM',
+};
 
 interface RoomMembersResponse {
   members: RoomProfile[];
@@ -96,7 +103,7 @@ export default function CharacterDetailModal() {
 
   return (
     <Modal isOpen={isCharacterModalOpen}>
-      <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4">
+      <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-none">
         <div className="absolute inset-0" onClick={closeCharacterModal} />
 
         <div className="relative bg-white rounded-[26px] border border-slate-100 shadow-xl max-w-115 w-full px-5 py-5 max-h-[95vh] overflow-y-auto pointer-events-auto mx-auto my-auto focus:outline-none z-10">
@@ -218,6 +225,11 @@ function ModalFormContent({
     mutation.mutate(profileUpdateBody);
   };
 
+  const handleOpenProfileSettings = () => {
+    closeCharacterModal();
+    router.push(`/room/${encodeURIComponent(roomID)}/settings#profile`);
+  };
+
   return (
     <>
       <Modal.Header className="pt-3 pb-3 px-0">
@@ -227,62 +239,75 @@ function ModalFormContent({
       </Modal.Header>
 
       <Modal.Body className="flex flex-col gap-6 px-0 max-w-110">
-        <div className="relative rounded-[22px] border border-slate-100 bg-slate-50/60 p-5 shadow-sm">
-          {isMe && !isEditing && (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="absolute top-4 right-5 text-[11px] font-extrabold text-slate-400 hover:text-slate-800 transition-colors bg-white px-2 py-1 rounded-md border border-slate-200/60 shadow-sm"
-            >
-              ⚙️ 수정
-            </button>
-          )}
-
-          <div className="flex gap-4 items-start">
-            <div className="w-20 h-20 rounded-2xl bg-white border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm p-1">
+        <section className="overflow-hidden rounded-xl border border-border bg-white">
+          <header className="flex items-center justify-between gap-3 border-b border-border bg-surface-secondary px-4 py-3">
+            <p className="text-[12px] font-bold text-foreground">
+              Profile info
+            </p>
+            {isMe && !isEditing && (
+              <Button
+                className="h-8 rounded-lg border border-border bg-white px-3 text-[11px] font-bold text-muted hover:text-foreground"
+                onPress={handleOpenProfileSettings}
+                type="button"
+              >
+                ⚙️ 수정
+              </Button>
+            )}
+          </header>
+          <div className="flex items-start gap-4 px-4 py-4">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-secondary p-1">
               <Image
                 src={AVATAR_MAP[editAvatar]?.src || '/assets/rabbit_front.webp'}
                 alt={`${editNickname} 아바타`}
                 width={80}
                 height={80}
-                className="w-full h-full object-contain"
+                className="h-full w-full object-contain"
                 priority
               />
             </div>
 
-            <div className="flex-1 min-w-0 flex flex-col gap-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
               {!isEditing ? (
                 <>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[15px] font-black text-slate-800 truncate">
+                  <div className="mb-0.5 flex items-center gap-2">
+                    <span className="truncate text-[15px] font-black text-slate-800">
                       {member.nickname}
                     </span>
-                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-slate-200/80 text-slate-600 shrink-0">
+                    <span className="shrink-0 rounded-full bg-surface-secondary px-2.5 py-1 text-[11px] font-bold text-muted">
                       {STATUS_MAP[liveStatus ?? ''] || liveStatus}
                     </span>
                   </div>
-                  <p className="text-[11px] font-bold text-slate-400 tracking-tight">
+                  <p className="text-[11px] font-bold tracking-tight text-muted">
                     GitHub:{' '}
                     <span className="font-mono text-slate-600">
                       @{member.github_username}
                     </span>
                   </p>
-                  <p className="text-[11px] font-bold text-slate-400 tracking-tight">
-                    파트:{' '}
-                    <span className="text-indigo-600 font-extrabold">
-                      {(member.roles ?? []).join(', ').toUpperCase()}
-                    </span>
-                  </p>
-                  <p className="text-[11px] font-bold text-slate-400 tracking-tight">
+                  <div className="flex flex-wrap items-center gap-1 pt-1">
+                    {(member.roles?.length ? member.roles : ['Role']).map(
+                      role => (
+                        <Chip
+                          className="h-5 rounded-md bg-accent/10 px-1.5 font-todak-mono text-[8px] font-black text-accent"
+                          key={role}
+                          size="sm"
+                          variant="soft"
+                        >
+                          {ROLE_LABELS[role] ?? role}
+                        </Chip>
+                      ),
+                    )}
+                  </div>
+                  <p className="text-[11px] font-bold tracking-tight text-muted">
                     상세 역할:{' '}
-                    <span className="text-slate-700 font-extrabold">
+                    <span className="font-extrabold text-slate-700">
                       {member.detailed_role}
                     </span>
                   </p>
                 </>
               ) : (
-                <div className="flex flex-col gap-3.5 w-full pt-1">
-                  <div className="w-full flex flex-col gap-1">
-                    <label className="text-[10px] font-black text-slate-400">
+                <div className="flex w-full flex-col gap-3.5 pt-1">
+                  <div className="flex w-full flex-col gap-1">
+                    <label className="text-[10px] font-black text-muted">
                       닉네임
                     </label>
                     <Input
@@ -290,13 +315,13 @@ function ModalFormContent({
                       aria-label="닉네임"
                       value={editNickname}
                       onChange={e => setEditNickname(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl h-10 text-xs font-bold focus-within:border-slate-800"
+                      className="h-10 w-full rounded-xl border border-border bg-white text-xs font-bold focus-within:border-foreground"
                     />
                   </div>
 
-                  <div className="w-full flex flex-col gap-1">
+                  <div className="flex w-full flex-col gap-1">
                     <label
-                      className="text-[10px] font-black text-slate-400"
+                      className="text-[10px] font-black text-muted"
                       htmlFor="modal-avatar"
                     >
                       아바타
@@ -304,7 +329,7 @@ function ModalFormContent({
                     <div className="relative">
                       <select
                         id="modal-avatar"
-                        className="w-full h-10 appearance-none rounded-xl border border-slate-200 bg-white px-3.5 py-0 pr-10 text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-800"
+                        className="h-10 w-full appearance-none rounded-xl border border-border bg-white px-3.5 py-0 pr-10 text-xs font-bold text-slate-800 focus:border-foreground focus:outline-none"
                         onChange={e =>
                           setEditAvatar(e.target.value as AnimalType)
                         }
@@ -325,9 +350,9 @@ function ModalFormContent({
                     </div>
                   </div>
 
-                  <div className="w-full flex flex-col gap-1">
+                  <div className="flex w-full flex-col gap-1">
                     <label
-                      className="text-[10px] font-black text-slate-400"
+                      className="text-[10px] font-black text-muted"
                       htmlFor="modal-role"
                     >
                       파트
@@ -335,7 +360,7 @@ function ModalFormContent({
                     <div className="relative">
                       <select
                         id="modal-role"
-                        className="w-full h-10 appearance-none rounded-xl border border-slate-200 bg-white px-3.5 py-0 pr-10 text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-800"
+                        className="h-10 w-full appearance-none rounded-xl border border-border bg-white px-3.5 py-0 pr-10 text-xs font-bold text-slate-800 focus:border-foreground focus:outline-none"
                         onChange={e => {
                           const selectedKey = e.target.value;
                           setEditRole(selectedKey);
@@ -370,9 +395,9 @@ function ModalFormContent({
                     </div>
                   </div>
 
-                  <div className="w-full flex flex-col gap-1">
+                  <div className="flex w-full flex-col gap-1">
                     <label
-                      className="text-[10px] font-black text-slate-400"
+                      className="text-[10px] font-black text-muted"
                       htmlFor="modal-detail-job"
                     >
                       세부 직군
@@ -380,7 +405,7 @@ function ModalFormContent({
                     <div className="relative">
                       <select
                         id="modal-detail-job"
-                        className="w-full h-10 appearance-none rounded-xl border border-slate-200 bg-white px-3.5 py-0 pr-10 text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-800"
+                        className="h-10 w-full appearance-none rounded-xl border border-border bg-white px-3.5 py-0 pr-10 text-xs font-bold text-slate-800 focus:border-foreground focus:outline-none"
                         onChange={e => setEditDetailedRole(e.target.value)}
                         value={editDetailedRole}
                       >
@@ -404,10 +429,10 @@ function ModalFormContent({
           </div>
 
           {isEditing && (
-            <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end gap-2">
+            <div className="mt-4 flex justify-end gap-2 border-t border-border px-4 py-3">
               <Button
                 size="sm"
-                className="bg-slate-100 text-slate-500 font-bold text-[11px] rounded-lg px-3 h-7"
+                className="h-8 rounded-lg border border-border bg-white px-3 text-[11px] font-bold text-foreground"
                 onPress={() => setIsEditing(false)}
               >
                 취소
@@ -415,18 +440,18 @@ function ModalFormContent({
               <Button
                 size="sm"
                 isDisabled={mutation.isPending}
-                className="bg-slate-900 text-white font-black text-[11px] rounded-lg px-3 h-7 shadow-sm hover:bg-slate-800 disabled:opacity-50"
+                className="h-8 rounded-lg bg-foreground px-3 text-[11px] font-bold text-background disabled:opacity-50"
                 onPress={handleProfileSave}
               >
                 {mutation.isPending ? '저장 중...' : '저장하기'}
               </Button>
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="w-full">
+        <section className="rounded-xl border border-border bg-white px-4 py-3">
           <ModalTodoTabs userId={member.id} isMe={isMe} />
-        </div>
+        </section>
 
         <div className="flex flex-col items-center pt-0.5">
           <p className="text-[10px] font-semibold text-slate-400 tracking-tight">

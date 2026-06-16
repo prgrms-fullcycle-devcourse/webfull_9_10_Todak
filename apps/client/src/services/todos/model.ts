@@ -20,6 +20,15 @@ export interface Todo {
   reactions?: TodoReaction[];
 }
 
+export interface TodoItem {
+  title: string;
+  body?: string | null;
+  labels: string[];
+  assignee_id?: string | null;
+  minutes_id?: string | null;
+  create_issue: boolean;
+}
+
 export interface TodosResponse {
   todos: Todo[];
 }
@@ -171,3 +180,25 @@ export interface TodoReactionResponse {
 }
 
 export type TodoMutationDeleteResponse = null;
+
+// ai 생성 아이템
+export interface ApiTodo {
+  id: string;
+  room_id: string;
+  title: string;
+  body: string | null;
+  labels: string[];
+  github_issue_number: number | null;
+  is_done: boolean;
+  minutes_id: string | null;
+  assignee_id: string | null;
+  created_at: string;
+}
+
+export interface CreateTodosRequest {
+  todos: TodoItem[];
+}
+
+export interface CreateTodosResponse {
+  todos: ApiTodo[];
+}

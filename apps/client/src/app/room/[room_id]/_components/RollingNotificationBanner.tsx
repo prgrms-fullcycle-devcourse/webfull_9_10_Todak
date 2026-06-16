@@ -1,8 +1,9 @@
 'use client';
 
 import type {
-  NotificationsResponse,
   RoomNotification,
+  SocketPrPayload,
+  SocketReviewPayload,
 } from '@/services/notifications/model';
 import {
   notificationQueryKeys,
@@ -56,31 +57,49 @@ export default function RollingNotificationBanner() {
 
     const socket = getSocket();
 
-    const roomNotificationEvent = `notification:created`;
+    // 싱글톤 소켓 버그 방지 기명 핸들러 정의
+    const handleNotificationCreated = (incomingData: RoomNotification) => {
+      if (incomingData.room_id !== roomID) return;
 
-    // 서버에서 새 알림 발송 시 실행될 콜백 핸들러
-    const handleNewNotification = (newNotification: RoomNotification) => {
-      queryClient.setQueryData<NotificationsResponse>(
-        notificationQueryKeys.room(roomID),
-        oldData => {
-          if (!oldData) return { notifications: [newNotification] };
-          const updatedList = [newNotification, ...oldData.notifications].slice(
-            0,
-            5,
-          );
-          return { notifications: updatedList };
-        },
-      );
-
+      queryClient.invalidateQueries({
+        queryKey: notificationQueryKeys.room(roomID),
+      });
       setActiveIndex(0);
     };
 
-    // 실시간 이벤트 구독 시작
-    socket.on(roomNotificationEvent, handleNewNotification);
+    // PR 오픈/머지 룸 공용 핸들러
+    const handlePrRoomEvent = (incomingData: SocketPrPayload) => {
+      if (incomingData.roomId !== roomID) return;
 
-    // 언마운트 시 해당 룸 전용 채널만 정확하게 클린업 오프(off) 처리
+      // 소켓 신호 감지 시 즉시 변경
+      queryClient.invalidateQueries({
+        queryKey: notificationQueryKeys.room(roomID),
+      });
+      setActiveIndex(0);
+    };
+
+    // PR 리뷰 룸 공용 핸들러
+    const handleReviewRoomEvent = (incomingData: SocketReviewPayload) => {
+      if (incomingData.roomId !== roomID) return;
+
+      queryClient.invalidateQueries({
+        queryKey: notificationQueryKeys.room(roomID),
+      });
+      setActiveIndex(0);
+    };
+
+    // 통합 주파수 수신 대기 모드 ON
+    socket.on('notification:created', handleNotificationCreated);
+    socket.on('pr:opened', handlePrRoomEvent);
+    socket.on('pr:merged', handlePrRoomEvent);
+    socket.on('pr:reviewed', handleReviewRoomEvent);
+
     return () => {
-      socket.off(roomNotificationEvent, handleNewNotification);
+      // 리스너 클린업
+      socket.off('notification:created', handleNotificationCreated);
+      socket.off('pr:opened', handlePrRoomEvent);
+      socket.off('pr:merged', handlePrRoomEvent);
+      socket.off('pr:reviewed', handleReviewRoomEvent);
     };
   }, [roomID, queryClient]);
 

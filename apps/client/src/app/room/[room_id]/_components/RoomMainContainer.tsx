@@ -1,7 +1,8 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { useChatNotificationStore } from '@/store/useChatNotificationStore';
 import ChatOpenButton from '../@chats/_components/ChatOpenButton';
 
 interface RoomMainContainerProps {
@@ -14,16 +15,38 @@ export default function RoomMainContainer({
   chats,
 }: RoomMainContainerProps) {
   const currentView = useSpaceStore(state => state.currentView);
+  const setChatOpen = useChatNotificationStore(state => state.setChatOpen);
+  const clearUnreadChatCount = useChatNotificationStore(
+    state => state.clearUnreadChatCount,
+  );
   const isMeetingView = currentView === 'meeting';
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatState, setChatState] = useState({
+    view: currentView,
+    isOpen: false,
+  });
+  const isChatOpen =
+    chatState.view === currentView ? chatState.isOpen : isMeetingView;
+
+  useEffect(() => {
+    setChatOpen(isChatOpen);
+
+    if (isChatOpen) {
+      clearUnreadChatCount();
+    }
+  }, [clearUnreadChatCount, isChatOpen, setChatOpen]);
 
   return (
     <main className="room-main-container">
       <input
-        checked={isMeetingView || isChatOpen}
+        checked={isChatOpen}
         className="peer/chat sr-only"
         id="room-chat-toggle"
-        onChange={event => setIsChatOpen(event.target.checked)}
+        onChange={event =>
+          setChatState({
+            view: currentView,
+            isOpen: event.target.checked,
+          })
+        }
         type="checkbox"
       />
       <ChatOpenButton />

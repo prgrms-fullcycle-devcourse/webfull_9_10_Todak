@@ -22,6 +22,7 @@ export default function RoomSettingsDropdown({
   const router = useRouter();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const repoLabel = room.repo?.full_name ?? '연동된 깃허브 없음';
+  const isHost = myRoomInfo?.is_host === true;
 
   useEffect(() => {
     if (toastMessage === null) {
@@ -79,9 +80,11 @@ export default function RoomSettingsDropdown({
       <Dropdown>
         <Dropdown.Trigger
           aria-label="룸 설정"
-          className="flex size-9 items-center justify-center rounded-full border border-border bg-surface text-base text-muted shadow-sm transition-colors hover:bg-surface-secondary hover:text-foreground"
+          className="flex size-9 items-center justify-center rounded-full border border-border bg-surface text-xl text-muted shadow-sm transition-colors hover:bg-surface-secondary hover:text-foreground"
         >
-          <span aria-hidden>⚙</span>
+          <span aria-hidden className="leading-none">
+            ⚙
+          </span>
         </Dropdown.Trigger>
         <Dropdown.Popover
           className="min-w-56 rounded-xl border border-border bg-surface p-1 shadow-todak-panel"
@@ -89,7 +92,7 @@ export default function RoomSettingsDropdown({
         >
           <div className="space-y-2 border-b border-border px-2.5 py-2.5">
             <MenuLabel label="룸 이름" value={room.name} />
-            <MenuLabel label="연동된 깃허브" value={repoLabel} />
+            {isHost && <MenuLabel label="연동된 깃허브" value={repoLabel} />}
             <div className="min-w-0">
               <span className="block text-[10px] font-black text-muted">
                 초대코드

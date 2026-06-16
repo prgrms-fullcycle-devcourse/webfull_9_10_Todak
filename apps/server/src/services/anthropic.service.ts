@@ -68,8 +68,9 @@ export async function reviewCode(
   return content.text;
 }
 
+// 회의록 생성에 필요한 작성자 필드는 githubUsername 뿐이라, accessToken 등 민감 컬럼은 조회하지 않는다.
 type ChatMessageWithUser = Prisma.ChatMessageGetPayload<{
-  include: { user: true };
+  include: { user: { select: { githubUsername: true } } };
 }>;
 
 interface MinutesActionItem {
@@ -124,6 +125,8 @@ export async function generateMinutesSummary(
       '할 일'과 '담당자'(누가 무엇을 하기로 했는지)는 오직 action_items 필드로만 반환하세요.
       회의록 본문(content_md)에는 할 일·담당자를 나열하는 목록·체크리스트·요약 표
       (예: '결정 사항 요약' 표에 담당/할 일 칼럼)를 절대 넣지 마세요. 본문에 할 일 할당을 중복하지 마세요.
+      또한 '회의 정보' 같은 메타데이터 헤더(일시·진행자·참석자)를 content_md 에 절대 만들지 마세요.
+      그 정보는 시스템이 별도로 채우므로, content_md 는 논의 사항과 결정 사항만 담아야 합니다.
       본문의 결정 사항은 표가 아니라 서술형 문장으로 적으세요.
       액션 아이템의 담당자(assignee_github_username)는, 대화에서 그 일을 누가 하기로
       명확히 정해진 경우에만 제공된 멤버 명단의 github_username 중에서 지정하세요.
@@ -144,7 +147,7 @@ export async function generateMinutesSummary(
             content_md: {
               type: 'string',
               description:
-                '회의의 논의 사항과 결정 사항을 일목요연하게 정리한 마크다운 본문. 단, 할 일·담당자를 나열하는 목록이나 요약 표(담당/할 일 칼럼 등)는 넣지 마세요 — 그건 action_items 의 역할입니다. 결정 사항은 서술형 문장으로만 작성합니다.',
+                '회의의 논의 사항과 결정 사항을 일목요연하게 정리한 마크다운 본문. 단, 할 일·담당자를 나열하는 목록이나 요약 표(담당/할 일 칼럼 등)는 넣지 마세요 — 그건 action_items 의 역할입니다. 일시·진행자·참석자 등 회의 메타데이터 헤더도 넣지 마세요 — 시스템이 별도로 처리합니다. 결정 사항은 서술형 문장으로만 작성합니다.',
             },
             action_items: {
               type: 'array',

@@ -28,4 +28,5 @@ export type JobName =
   | 'github-sync'
   | 'notification'
   | 'minutes-generation'
-  | 'chat-cleanup';
+  | 'chat-cleanup'
+  | 'minutes-sweep';

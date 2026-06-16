@@ -1,6 +1,5 @@
 import { Todo } from '@/services/todos/model';
 import Item from './Item';
-import TodoDetailModal from './TodoDetailModal';
 
 export interface TodoListProps {
   isError: boolean;
@@ -8,6 +7,8 @@ export interface TodoListProps {
   todos: Todo[];
 }
 export default function TodoList({ isError, isPending, todos }: TodoListProps) {
+  const openTodos = todos.filter(todo => !todo.is_done);
+
   if (isPending) {
     return (
       <p className="rounded-xl border border-border bg-surface-secondary px-4 py-3 text-xs font-black text-muted">
@@ -24,7 +25,7 @@ export default function TodoList({ isError, isPending, todos }: TodoListProps) {
     );
   }
 
-  if (todos.length === 0) {
+  if (openTodos.length === 0) {
     return (
       <p className="rounded-xl border border-border bg-surface-secondary px-4 py-3 text-xs font-black text-muted">
         표시할 할 일이 없습니다.
@@ -34,10 +35,9 @@ export default function TodoList({ isError, isPending, todos }: TodoListProps) {
 
   return (
     <div className="grid max-h-[104px] grid-cols-2 gap-3 overflow-y-auto pr-1">
-      {todos.map(todo => (
+      {openTodos.map(todo => (
         <Item key={todo.id} {...todo} />
       ))}
-      <TodoDetailModal />
     </div>
   );
 }
