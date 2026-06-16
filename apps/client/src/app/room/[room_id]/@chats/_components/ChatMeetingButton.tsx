@@ -35,6 +35,7 @@ export default function ChatMeetingButton({
   const isMeetingStartedByAnotherMember =
     meetingStatus === 'ended' && isCurrentPrivateRoomMeetingActive;
   const isDisabled = isLoading || isMeetingStartedByAnotherMember;
+  const setCurrentMinutesId = useSpaceStore(state => state.setCurrentMinutesId);
 
   const handleClick = async () => {
     if (isDisabled) return;
@@ -57,7 +58,12 @@ export default function ChatMeetingButton({
         const endedAt = new Date(endedMeeting.ended_at);
         const title = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
 
-        await generateMinutes(roomId, currentMeetingId, title);
+        const newMinutes = await generateMinutes(
+          roomId,
+          currentMeetingId,
+          title,
+        );
+        setCurrentMinutesId(newMinutes.id);
 
         setCurrentMeetingId(null);
         onToggle();

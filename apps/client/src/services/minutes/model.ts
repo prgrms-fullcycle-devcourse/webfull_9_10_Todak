@@ -86,3 +86,41 @@ export interface UpdateMinutesResponse {
   linked_issue_numbers: number[];
   updated_at: string;
 }
+
+// model.ts에 추가
+export interface MinutesGeneratedEvent {
+  room_id: string;
+  minutes_id: string;
+  meeting_id: string;
+  title: string;
+  action_items: ActionItem[];
+  status: 'draft';
+}
+
+export interface MinutesGenerationFailedEvent {
+  room_id: string;
+  minutes_id: string;
+  meeting_id?: string;
+  status: 'failed';
+  reason: 'MINUTES_NO_CHAT_LOG' | 'MEETING_NOT_FOUND' | 'GENERATION_ERROR';
+}
+
+export interface MinutesUpdatedEvent {
+  minutes_id: string;
+}
+
+export interface MinutesLockEvent {
+  minutes_id: string;
+  user_id: string;
+}
+
+// AI 회의록 다듬기
+export interface RefineMinutesRequest {
+  refine_type: 'SHORTEN' | 'BULLET' | 'CUSTOM';
+  custom_message?: string;
+}
+
+export interface RefineMinutesResponse {
+  id: string;
+  refined_content_md: string;
+}
