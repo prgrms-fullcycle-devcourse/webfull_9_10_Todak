@@ -3,6 +3,7 @@
 import ChatCloseButton from './ChatCloseButton';
 import { TabType } from '../_types';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { useSpaceStore } from '@/store/useSpaceStore';
 
 interface ChatHeaderProps {
   meetingStatus: 'ongoing' | 'ended' | 'cancelled';
