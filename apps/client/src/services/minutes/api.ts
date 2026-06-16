@@ -3,6 +3,8 @@ import {
   EndMeeting,
   Minute,
   MinuteDetail,
+  RefineMinutesRequest,
+  RefineMinutesResponse,
   MinutesList,
   StartMeeting,
   UpdateMinutesRequest,
@@ -75,3 +77,14 @@ export const updateMinutes = async (
 ) => {
   return apiClient.patch(`/rooms/${roomId}/minutes/${minutesId}`, data);
 };
+
+export async function refineMinutes(
+  roomId: string,
+  minutesId: string,
+  data: RefineMinutesRequest,
+): Promise<RefineMinutesResponse> {
+  return apiClient.post<RefineMinutesResponse>(
+    `/rooms/${roomId}/minutes/${minutesId}/ai-refine`,
+    data,
+  );
+}

@@ -52,6 +52,35 @@ jobs:
       - name: Test
         run: pnpm test
 
+  # ── 통합테스트: 임베디드 Postgres에 실제로 붙어 API 검증 ──
+  integration:
+    name: integration test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # app import 시 generated prisma client 가 필요
+      - name: Generate Prisma client
+        run: pnpm --filter todak-server exec prisma generate
+
+      # embedded-postgres 가 linux-x64 바이너리로 임시 PG 를 띄우고,
+      # globalSetup 이 prisma db push 로 스키마를 반영한 뒤 테스트를 돈다.
+      - name: Integration test
+        run: pnpm test:integration
+
   # ── 실제 빌드 검증 (typecheck가 못 잡는 빌드 에러까지) ──
   build:
     name: build (server + client)

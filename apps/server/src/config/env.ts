@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config({ override: true });
+dotenv.config({ override: true, path: process.env.DOTENV_CONFIG_PATH });
 
 const EnvSchema = z.object({
   NODE_ENV: z

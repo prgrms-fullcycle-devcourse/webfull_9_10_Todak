@@ -5,6 +5,7 @@ import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
 import { enterPrivateRoom, updateMemberStatus } from '@/services/rooms/api';
 import { getSocket } from '@/lib/socket';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { endMeeting, generateMinutes } from '@/services/minutes/api';
 
 const SPEED = 6;
 
@@ -196,9 +197,17 @@ export function setupMovement(
               privateRoomId: newRoomId,
             });
             currentRoomId = newRoomId;
-            useSpaceStore.getState().setMyStatus('💬 회의중');
-            useSpaceStore.getState().setCurrentPrivateRoomId(newRoomId);
+
+            const store = useSpaceStore.getState();
+            store.setMyStatus('💬 회의중');
+            store.setCurrentPrivateRoomId(newRoomId);
             updateMemberStatus(roomId, 'meeting');
+
+            // 회의 종료된 회의실 입장 시, 잔여 미팅 ID 초기화
+            const targetRoom = store.privateRooms.find(r => r.id === newRoomId);
+            if (targetRoom && !targetRoom.is_meeting_active) {
+              store.setCurrentMeetingId(null);
+            }
           })
           .catch(err => console.error(`입장 실패:`, err))
           .finally(() => {
@@ -226,24 +235,78 @@ export function setupMovement(
         isProcessing = true;
         const roomToLeave = currentRoomId;
 
-        // UI 낙관적 업데이트
-        currentRoomId = null;
-        darkOverlay.visible = false;
-        useSpaceStore.getState().setCurrentPrivateRoomId(null);
-        useSpaceStore.getState().setMyStatus('🔥 집중');
+        // ID 타입을 String으로 강제 형변환하여 나 자신을 확실하게 제외
+        const myId = useSpaceStore.getState().myChar.id;
+        const otherMembersInMeeting = useSpaceStore
+          .getState()
+          .members.filter(
+            m =>
+              String(m.id) !== String(myId) &&
+              (m.status === 'meeting' || m.status === '💬 회의중'),
+          );
 
-        getSocket().emit('private-room:leave', {
-          roomId: roomId,
-          privateRoomId: roomToLeave,
-        });
+        const isLastPerson = otherMembersInMeeting.length === 0;
 
-        updateMemberStatus(roomId, 'focus')
-          .catch(err =>
-            console.error('❌ 백그라운드 집중 상태 DB 원복 실패:', err),
-          )
-          .finally(() => {
-            isProcessing = false;
+        // 현재 프라이빗 룸 회의 상태
+        const privateRooms = useSpaceStore.getState().privateRooms;
+        const currentRoomRecord = privateRooms.find(r => r.id === roomToLeave);
+
+        // 백엔드 명부 장부상 active 또는 내 로컬 미팅 세션 ID가 존재할 때만 회의 중으로 확정
+        const isMeetingOngoing =
+          currentRoomRecord?.is_meeting_active === true ||
+          useSpaceStore.getState().currentMeetingId !== null;
+
+        // 비동기 회의 종료 및 퇴장 프로세스 통합 처리 함수
+        const executeLeaveProcedure = async (shouldEndMeeting: boolean) => {
+          currentRoomId = null;
+          darkOverlay.visible = false;
+          useSpaceStore.getState().setCurrentPrivateRoomId(null);
+          useSpaceStore.getState().setMyStatus('🔥 집중');
+
+          getSocket().emit('private-room:leave', {
+            roomId: roomId,
+            privateRoomId: roomToLeave,
           });
+
+          // 마지막 사람이고 회의 종료 동의 시에만 종료 API 체인 가동
+          if (isLastPerson && shouldEndMeeting && isMeetingOngoing) {
+            const currentMeetingId = useSpaceStore.getState().currentMeetingId;
+
+            if (currentMeetingId) {
+              try {
+                const endedMeeting = await endMeeting(roomId, currentMeetingId);
+                const endedAt = new Date(endedMeeting.ended_at);
+                const minutesTitle = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
+
+                await generateMinutes(roomId, currentMeetingId, minutesTitle);
+                useSpaceStore.getState().setCurrentMeetingId(null);
+                useSpaceStore.getState().setCurrentView?.('meeting');
+              } catch (apiError) {
+                console.error('❌ 퇴장 중 회의 자동 종료 처리 실패:', apiError);
+              }
+            }
+          }
+
+          updateMemberStatus(roomId, 'focus')
+            .catch(err => console.error('❌ 상태 DB 원복 실패:', err))
+            .finally(() => {
+              isProcessing = false;
+            });
+        };
+
+        // 마지막 퇴장자이면서 "실제로 회의가 진행 중일 때만" 팝업 호출
+        if (isLastPerson && isMeetingOngoing) {
+          Object.keys(keys).forEach(key => {
+            keys[key] = false;
+          });
+
+          // zustand 스토어를 통한 리액트 모달 오픈
+          useSpaceStore.getState().openExitModal(confirmEnd => {
+            executeLeaveProcedure(confirmEnd);
+          });
+        } else {
+          executeLeaveProcedure(false);
+        }
       }
     }
   };

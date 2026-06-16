@@ -6,6 +6,7 @@ import RendererView from './_components/meeting/RendererView';
 import BottomInfoContainer from '../_components/BottomInfoContainer';
 import CharacterDetailModal from './_components/2d/CharacterDetailModal';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import ExitConfirmModal from './_components/meeting/ExitConfirmModal';
 
 export default function RendererPage({
   params,
@@ -30,6 +31,7 @@ export default function RendererPage({
       <RendererView roomId={room_id} />
       {!isMeetingView && <BottomInfoContainer />}
       <CharacterDetailModal />
+      <ExitConfirmModal />
     </div>
   );
 }

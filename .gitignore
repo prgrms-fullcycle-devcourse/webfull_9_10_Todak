@@ -45,3 +45,6 @@ skills-lock.json
 dependency-graph.svg
 dependency-graph.dot
 dependency-graph.html
+
+# 통합테스트용 임베디드 Postgres 데이터 디렉터리
+.pg-data/

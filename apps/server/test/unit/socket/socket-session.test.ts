@@ -4,7 +4,7 @@ import {
   claimActiveSession,
   clearAllActiveSessions,
   releaseActiveSession,
-} from '../src/socket/socket-session.js';
+} from '@/socket/socket-session.js';
 
 describe('socket-session', () => {
   beforeEach(() => {
