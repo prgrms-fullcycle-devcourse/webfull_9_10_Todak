@@ -247,16 +247,16 @@ export function setupMovement(
 
         const isLastPerson = otherMembersInMeeting.length === 0;
 
-        // 🟢 [버그 해결 조건식] 현재 내 프라이빗 룸의 회의 상태 장부를 정확히 스캔합니다.
+        // 현재 프라이빗 룸 회의 상태
         const privateRooms = useSpaceStore.getState().privateRooms;
         const currentRoomRecord = privateRooms.find(r => r.id === roomToLeave);
 
-        // 백엔드 명부 장부상 active 이거나 내 로컬 미팅 세션 ID가 존재할 때만 회의 중으로 확정
+        // 백엔드 명부 장부상 active 또는 내 로컬 미팅 세션 ID가 존재할 때만 회의 중으로 확정
         const isMeetingOngoing =
           currentRoomRecord?.is_meeting_active === true ||
           useSpaceStore.getState().currentMeetingId !== null;
 
-        // 🟢 비동기 회의 종료 및 퇴장 프로세스 통합 처리 함수
+        // 비동기 회의 종료 및 퇴장 프로세스 통합 처리 함수
         const executeLeaveProcedure = async (shouldEndMeeting: boolean) => {
           currentRoomId = null;
           darkOverlay.visible = false;
@@ -268,7 +268,7 @@ export function setupMovement(
             privateRoomId: roomToLeave,
           });
 
-          // 🟢 마지막 사람이고 회의 종료 동의 시에만 종료 API 체인 가동
+          // 마지막 사람이고 회의 종료 동의 시에만 종료 API 체인 가동
           if (isLastPerson && shouldEndMeeting && isMeetingOngoing) {
             const currentMeetingId = useSpaceStore.getState().currentMeetingId;
 
@@ -294,19 +294,17 @@ export function setupMovement(
             });
         };
 
-        // 🟢 [수정] 마지막 퇴장자이면서 "실제로 회의가 진행 중일 때만" 컨펌 팝업 표출!
+        // 마지막 퇴장자이면서 "실제로 회의가 진행 중일 때만" 팝업 호출
         if (isLastPerson && isMeetingOngoing) {
           Object.keys(keys).forEach(key => {
             keys[key] = false;
           });
 
-          const confirmEnd = window.confirm(
-            '당신이 마지막 퇴장자입니다. 진행 중인 회의를 완전히 종료하고 AI 요약본을 생성하시겠습니까?',
-          );
-
-          executeLeaveProcedure(confirmEnd);
+          // zustand 스토어를 통한 리액트 모달 오픈
+          useSpaceStore.getState().openExitModal(confirmEnd => {
+            executeLeaveProcedure(confirmEnd);
+          });
         } else {
-          // 회의가 안 켜졌거나 다른 팀원이 남아있다면 바로 패스
           executeLeaveProcedure(false);
         }
       }
