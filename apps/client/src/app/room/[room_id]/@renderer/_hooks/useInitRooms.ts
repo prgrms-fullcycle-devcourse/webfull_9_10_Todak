@@ -171,9 +171,6 @@ export function useInitRooms(roomId: string) {
       'room:member-status-changed',
       (data: { userId: string; status: string }) => {
         const hangulStatus = STATUS_TO_LABEL_MAP[data.status] || data.status;
-        console.log(
-          `[소켓] 👤 유저(${data.userId})님의 상태가 [${hangulStatus}]로 변경됨`,
-        );
 
         const authUser = getStoredAuthUser();
 
