@@ -14,8 +14,6 @@ interface Props {
   roomId: string;
 }
 
-const MEETING_BOUNDARY_EVENT = 'todak:meeting-boundary';
-
 export default function ChatMeetingButton({
   meetingStatus,
   onMeetingStatusChange,
@@ -53,33 +51,11 @@ export default function ChatMeetingButton({
         // 회의 시작
         const meeting = await startMeeting(roomId, currentPrivateRoomId!);
         setCurrentMeetingId(meeting.id);
-        setCurrentMeetingHostId(meeting.host_id);
-        onMeetingStatusChange(true);
-        window.dispatchEvent(
-          new CustomEvent(MEETING_BOUNDARY_EVENT, {
-            detail: {
-              roomId,
-              privateRoomId: currentPrivateRoomId,
-              type: 'meeting_start',
-              createdAt: meeting.started_at,
-            },
-          }),
-        );
+        onToggle();
       } else {
         // 회의 종료
         if (!currentMeetingId) return;
-        const meetingIdToEnd = currentMeetingId;
-        const endedMeeting = await endMeeting(roomId, meetingIdToEnd);
-        window.dispatchEvent(
-          new CustomEvent(MEETING_BOUNDARY_EVENT, {
-            detail: {
-              roomId,
-              privateRoomId: currentPrivateRoomId,
-              type: 'meeting_end',
-              createdAt: endedMeeting.ended_at,
-            },
-          }),
-        );
+        const endedMeeting = await endMeeting(roomId, currentMeetingId);
 
         // AI 회의록 자동 생성 요청
         // ended_at으로 제목 생성

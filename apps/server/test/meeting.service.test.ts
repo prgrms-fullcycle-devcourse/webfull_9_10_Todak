@@ -153,6 +153,7 @@ describe('startMeeting', () => {
       started_at: '2026-05-18T14:02:00.000Z',
       host_id: HOST_ID,
       participants: [HOST_ID],
+      created: true,
     });
   });
 
@@ -183,6 +184,8 @@ describe('startMeeting', () => {
     expect(result.host_id).toBe(HOST_ID);
     // 참여자 = 채팅한 사람 ∪ host. host(user-host)는 이미 목록에 있으니 중복 안 됨
     expect(result.participants).toEqual(['user-a', HOST_ID]);
+    // 멱등 반환이므로 created=false (컨트롤러가 시작 시스템 메시지를 중복 생성하지 않도록)
+    expect(result.created).toBe(false);
   });
 });
 
@@ -239,6 +242,8 @@ describe('endMeeting', () => {
     });
     expect(result.status).toBe('ended');
     expect(result.message_count).toBe(3); // 채팅 메시지 "총 개수"(사람 수 아님)
+    // 진행 중 → 종료로 실제 전환됐으므로 ended=true (컨트롤러가 종료 시스템 메시지를 남김)
+    expect(result.ended).toBe(true);
   });
 
   it('이미 종료된 회의면 update 하지 않고 기존 status/ended_at 유지 (멱등)', async () => {
@@ -264,6 +269,8 @@ describe('endMeeting', () => {
     expect(result.status).toBe('ended');
     // 기존 종료 시각을 그대로 유지(새 시각으로 안 덮음)
     expect(result.ended_at).toBe(endedAt.toISOString());
+    // 이미 종료된 회의 재호출이므로 ended=false (종료 시스템 메시지 중복 생성 방지)
+    expect(result.ended).toBe(false);
   });
 });
 

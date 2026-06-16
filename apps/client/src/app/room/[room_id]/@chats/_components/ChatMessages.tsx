@@ -28,15 +28,7 @@ interface ChatMessagesProps {
 }
 
 const EMOJI_OPTIONS = ['👍', '🔥', '❤️', '😂', '🙂'];
-const MEETING_BOUNDARY_EVENT = 'todak:meeting-boundary';
 const STICKY_SCROLL_THRESHOLD = 48;
-
-interface MeetingBoundaryEventDetail {
-  roomId: string;
-  privateRoomId: string | null;
-  type: 'meeting_start' | 'meeting_end';
-  createdAt: string;
-}
 
 type LocalChatMessage = ChatMessage & {
   localStatus?: 'sending' | 'failed';
@@ -521,9 +513,6 @@ export default function ChatMessages({
   const [pendingMessages, setPendingMessages] = useState<LocalChatMessage[]>(
     [],
   );
-  const [meetingBoundaryMessages, setMeetingBoundaryMessages] = useState<
-    ChatMessage[]
-  >([]);
   const [reactionOverrides, setReactionOverrides] = useState<
     Record<string, ChatMessage['reactions']>
   >({});
@@ -544,9 +533,6 @@ export default function ChatMessages({
       ...msg,
       reactions: reactionOverrides[msg.id] ?? msg.reactions,
     })),
-    ...meetingBoundaryMessages.filter(
-      msg => msg.private_room_id === privateRoomId,
-    ),
     ...pendingMessages.filter(msg => msg.private_room_id === privateRoomId),
     ...socketMessages.filter(
       socketMsg => !(history ?? []).some(h => h.id === socketMsg.id),
@@ -578,40 +564,6 @@ export default function ChatMessages({
     },
     [notifyIncomingMessage],
   );
-
-  useEffect(() => {
-    const handleMeetingBoundary = (event: Event) => {
-      const { detail } = event as CustomEvent<MeetingBoundaryEventDetail>;
-      if (detail.roomId !== roomId) return;
-
-      const authUser = getStoredAuthUser();
-      const boundaryMessage: ChatMessage = {
-        id: `local-${detail.type}-${detail.createdAt}`,
-        room_id: detail.roomId,
-        private_room_id: detail.privateRoomId,
-        user: {
-          github_username: authUser?.login ?? 'system',
-          avatar_url: authUser?.avatarUrl ?? '',
-        },
-        content:
-          detail.type === 'meeting_start'
-            ? '회의가 시작되었습니다.'
-            : '회의가 종료되었습니다.',
-        type: detail.type,
-        created_at: detail.createdAt,
-        reactions: [],
-        attachments: [],
-      };
-
-      setMeetingBoundaryMessages(prev => [...prev, boundaryMessage]);
-    };
-
-    window.addEventListener(MEETING_BOUNDARY_EVENT, handleMeetingBoundary);
-
-    return () => {
-      window.removeEventListener(MEETING_BOUNDARY_EVENT, handleMeetingBoundary);
-    };
-  }, [roomId]);
 
   const historyRef = useRef(history);
   useEffect(() => {
