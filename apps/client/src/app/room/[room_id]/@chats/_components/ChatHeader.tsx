@@ -2,15 +2,27 @@
 
 import ChatCloseButton from './ChatCloseButton';
 import { TabType } from '../_types';
+import { useSpaceStore } from '@/store/useSpaceStore';
 
 interface ChatHeaderProps {
   meetingStatus: 'ongoing' | 'ended' | 'cancelled';
   tab: TabType;
 }
 
-export default function ChatHeader({ meetingStatus, tab }: ChatHeaderProps) {
+export default function ChatHeader({ tab }: ChatHeaderProps) {
   const title = tab === 'all' ? '전체 채팅' : '회의실 B';
   const icon = tab === 'all' ? '🌐' : '🔒';
+
+  // 소켓 리스너(`RoomSocketListener`)가 갱신해 주는 스토어 감시
+  const currentPrivateRoomId = useSpaceStore(
+    state => state.currentPrivateRoomId,
+  );
+  const privateRooms = useSpaceStore(state => state.privateRooms);
+
+  const currentPrivateRoom = privateRooms.find(
+    room => room.id === currentPrivateRoomId,
+  );
+  const isMeetingOngoing = currentPrivateRoom?.is_meeting_active ?? false;
 
   return (
     <div className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4">
@@ -19,12 +31,12 @@ export default function ChatHeader({ meetingStatus, tab }: ChatHeaderProps) {
         <p className="text-sm font-black text-foreground">{title}</p>
         <span
           className={`rounded-full ml-21 px-2 py-0.5 text-[10px] font-bold ${
-            meetingStatus === 'ongoing'
+            isMeetingOngoing
               ? 'bg-red-100 text-red-500'
               : 'bg-slate-100 text-slate-400'
           }`}
         >
-          {meetingStatus === 'ongoing' ? '🔴 회의 진행 중' : '회의 대기 중'}
+          {isMeetingOngoing ? '🔴 회의 진행 중' : '회의 대기 중'}
         </span>
       </div>
       <ChatCloseButton />
