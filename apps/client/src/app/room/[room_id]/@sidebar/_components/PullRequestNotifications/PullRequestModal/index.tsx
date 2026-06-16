@@ -255,7 +255,6 @@ export default function PullRequestModal({
                       hasApproved,
                       isDraft,
                       isMerged,
-                      isMyPullRequest,
                     })}
                   </p>
                 </SidebarMeta>
@@ -456,12 +455,10 @@ function getReviewStatus({
   hasApproved,
   isDraft,
   isMerged,
-  isMyPullRequest,
 }: {
   hasApproved: boolean;
   isDraft: boolean;
   isMerged: boolean;
-  isMyPullRequest: boolean;
 }) {
   if (isMerged) {
     return '머지됨';
@@ -471,7 +468,7 @@ function getReviewStatus({
     return 'Draft';
   }
 
-  if (isMyPullRequest || hasApproved) {
+  if (hasApproved) {
     return '승인됨';
   }
 
