@@ -19,6 +19,7 @@ import {
   clearActivePrivateRoomSessions,
   enterPrivateRoom,
   getPrivateRooms,
+  getPrivateRoomsForUser,
   leavePrivateRoom,
 } from '@/services/private-room.service.js';
 
@@ -26,6 +27,7 @@ import {
 vi.mock('@/lib/prisma.js', () => ({
   prisma: {
     room: { findUnique: vi.fn() },
+    roomMember: { findFirst: vi.fn() },
     privateRoom: { findUnique: vi.fn(), findMany: vi.fn() },
     privateRoomSession: {
       findFirst: vi.fn(),
@@ -52,9 +54,16 @@ async function expectAppError(promise: Promise<unknown>, code: string) {
   await expect(promise).rejects.toMatchObject({ code });
 }
 
+// "이 유저가 룸 멤버다"라는 가정을 세팅하는 헬퍼 (assertRoomMember 통과용)
+function asMember() {
+  db.roomMember.findFirst.mockResolvedValue({ id: 'member-1' });
+}
+
 // 매 테스트 전에 가짜 함수들의 호출기록/주입값 초기화 (테스트 간 간섭 방지)
+// 기본은 "멤버"로 두고, 비멤버 케이스만 개별 테스트에서 null 로 덮어쓴다.
 beforeEach(() => {
   vi.clearAllMocks();
+  asMember();
 });
 
 describe('getPrivateRooms', () => {
@@ -117,7 +126,40 @@ describe('getPrivateRooms', () => {
   });
 });
 
+describe('getPrivateRoomsForUser', () => {
+  it('룸 멤버가 아니면 ROOM_NOT_FOUND (타 룸 명단 열람 차단)', async () => {
+    db.roomMember.findFirst.mockResolvedValue(null); // 비멤버
+
+    await expectAppError(
+      getPrivateRoomsForUser(ROOM_ID, USER_ID),
+      'ROOM_NOT_FOUND',
+    );
+    // 멤버십에서 막혔으므로 실제 프라이빗 룸 조회까지 가지 않는다
+    expect(db.privateRoom.findMany).not.toHaveBeenCalled();
+  });
+
+  it('룸 멤버면 프라이빗 룸 목록을 반환', async () => {
+    db.room.findUnique.mockResolvedValue({ id: ROOM_ID });
+    db.privateRoom.findMany.mockResolvedValue([]);
+
+    const result = await getPrivateRoomsForUser(ROOM_ID, USER_ID);
+
+    expect(result).toEqual([]);
+  });
+});
+
 describe('enterPrivateRoom', () => {
+  it('룸 멤버가 아니면 ROOM_NOT_FOUND (비멤버 입장 차단)', async () => {
+    db.roomMember.findFirst.mockResolvedValue(null); // 비멤버
+
+    await expectAppError(
+      enterPrivateRoom(ROOM_ID, PRIVATE_ROOM_ID, USER_ID),
+      'ROOM_NOT_FOUND',
+    );
+    // 멤버십에서 막혔으므로 세션 생성까지 가지 않는다
+    expect(db.privateRoomSession.create).not.toHaveBeenCalled();
+  });
+
   it('프라이빗 룸이 없으면 PRIVATE_ROOM_NOT_FOUND', async () => {
     db.privateRoom.findUnique.mockResolvedValue(null); // 그런 프라이빗 룸 없음
 
@@ -208,6 +250,18 @@ describe('enterPrivateRoom', () => {
 });
 
 describe('leavePrivateRoom', () => {
+  it('룸 멤버가 아니면 ROOM_NOT_FOUND (비멤버의 회의 강제 취소 차단)', async () => {
+    db.roomMember.findFirst.mockResolvedValue(null); // 비멤버
+
+    await expectAppError(
+      leavePrivateRoom(ROOM_ID, PRIVATE_ROOM_ID, USER_ID),
+      'ROOM_NOT_FOUND',
+    );
+    // 멤버십에서 막혔으므로 퇴장/회의취소까지 가지 않는다
+    expect(db.privateRoomSession.update).not.toHaveBeenCalled();
+    expect(db.meeting.updateMany).not.toHaveBeenCalled();
+  });
+
   it('열린 세션이 없으면 NOT_IN_PRIVATE_ROOM', async () => {
     db.privateRoom.findUnique.mockResolvedValue({
       id: PRIVATE_ROOM_ID,

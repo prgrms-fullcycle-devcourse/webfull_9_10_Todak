@@ -1,6 +1,9 @@
 import { AppError } from '@/errors/AppError.js';
 import { prisma } from '@/lib/prisma.js';
-import { assertPrivateRoomBelongsToRoom } from '@/services/room-guards.js';
+import {
+  assertPrivateRoomBelongsToRoom,
+  assertRoomMember,
+} from '@/services/room-guards.js';
 
 export interface PrivateRoomParticipant {
   user_id: string;
@@ -32,9 +35,27 @@ export interface LeavePrivateRoomResult {
 const PRIVATE_ROOMS_PER_ROOM = 2;
 
 /**
+ * 룸 멤버용 진입점: 멤버십을 검증한 뒤 프라이빗 룸 정보를 반환합니다.
+ * (API 컨트롤러에서 호출 — 비멤버의 타 룸 명단 열람 차단)
+ *
+ * 검증 없는 getPrivateRooms 는 요청 주체가 없는 내부 broadcast 전용이며,
+ * 외부 요청 경로에서는 반드시 이 함수를 사용해야 한다.
+ */
+export async function getPrivateRoomsForUser(
+  roomId: string,
+  userId: string,
+): Promise<PrivateRoomInfo[]> {
+  await assertRoomMember(roomId, userId);
+  return getPrivateRooms(roomId);
+}
+
+/**
  * 해당 룸(:roomId)에 속한 private-room 정보와
  * 현재 입장 중인 참여자 목록을 반환합니다.
  * (leftAt === null → 현재 입장 중)
+ *
+ * ⚠️ 멤버십 검증을 하지 않는다. 특정 요청 주체가 없는 socket broadcast 내부 호출 전용.
+ * 외부(API) 요청은 getPrivateRoomsForUser 를 사용할 것.
  */
 export async function getPrivateRooms(
   roomId: string,
@@ -99,6 +120,7 @@ export async function enterPrivateRoom(
   privateRoomId: string,
   userId: string,
 ): Promise<EnterPrivateRoomResult> {
+  await assertRoomMember(roomId, userId);
   await assertPrivateRoomBelongsToRoom(roomId, privateRoomId);
 
   // 이미 입장 중인 세션 확인
@@ -151,6 +173,7 @@ export async function leavePrivateRoom(
 ): Promise<LeavePrivateRoomResult> {
   const now = new Date();
 
+  await assertRoomMember(roomId, userId);
   await assertPrivateRoomBelongsToRoom(roomId, privateRoomId);
 
   // 현재 입장 중 세션 확인
