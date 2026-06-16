@@ -21,6 +21,7 @@ import { getIO } from '../../socket/index.js';
 import { addJob } from '../queues/index.js';
 
 import { classifyMinutesFailReason } from './minutes-fail-reason.js';
+import { buildMeetingInfoHeader } from './minutes-header.js';
 
 const connection = redis;
 
@@ -49,6 +50,7 @@ export const minutesGenerationWorker = new Worker(
 
     const meeting = await prisma.meeting.findUnique({
       where: { id: meetingId },
+      include: { host: { select: { githubUsername: true } } },
     });
 
     if (
@@ -103,7 +105,7 @@ export const minutesGenerationWorker = new Worker(
     // Anthropic 서비스 함수 호출하여 제목/본문/액션 아이템 추출
     const {
       title: aiTitle,
-      contentMd,
+      contentMd: aiContentMd,
       actionItems,
     } = await generateMinutesSummary(
       chatMessages,
@@ -112,6 +114,33 @@ export const minutesGenerationWorker = new Worker(
         nickname: m.nickname,
       })),
     );
+
+    /*
+     * '회의 정보' 헤더는 AI 추측이 아니라 DB 사실로 채운다(진행자/일시/참석자).
+     * 표시명은 룸 nickname 우선(없으면 githubUsername). 진행자는 룸을 떠났어도
+     * host 의 githubUsername 으로 폴백한다. (참석자 중 룸을 떠난 사람은 명단에서 생략)
+     */
+    const displayNameByUserId = new Map(
+      members.map(m => [
+        m.user.id,
+        m.nickname !== null && m.nickname !== ''
+          ? m.nickname
+          : m.user.githubUsername,
+      ]),
+    );
+    const participantIds = await getMeetingParticipantIds(meetingId);
+    const hostName =
+      displayNameByUserId.get(meeting.hostId) ?? meeting.host.githubUsername;
+    const attendeeNames = participantIds
+      .map(id => displayNameByUserId.get(id))
+      .filter((name): name is string => name !== undefined);
+
+    // 백엔드가 만든 사실 헤더 + AI 가 만든 논의/결정 본문
+    const contentMd = `${buildMeetingInfoHeader(
+      startTime,
+      hostName,
+      attendeeNames,
+    )}\n\n${aiContentMd}`;
 
     // AI 가 지목한 담당자 github_username → 룸 멤버 User 로 매핑(없으면 null)
     const resolvedActionItems = resolveActionItemAssignees(
@@ -152,8 +181,8 @@ export const minutesGenerationWorker = new Worker(
 
     /*
      * 알림(영속): 회의 참여자에게만(룸 전체 X). 생성 요청 작성자는 제외.
+     * participantIds 는 위 헤더 조립에서 이미 조회됨(재사용).
      */
-    const participantIds = await getMeetingParticipantIds(meetingId);
     await createNotifications(
       participantIds.filter(id => id !== updatedMinutes.authorId),
       {
