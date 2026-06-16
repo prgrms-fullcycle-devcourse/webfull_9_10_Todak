@@ -380,3 +380,117 @@ describe('getPullRequests - 캐싱', () => {
     expect(res.pull_requests[0].number).toBe(7);
   });
 });
+
+describe('getPullRequests - merged/closed 누적 페이지네이션', () => {
+  // merged 여부만 다른 최소 가짜 closed PR
+  const mkPull = (number: number, merged: boolean) => ({
+    number,
+    title: `pr-${number}`,
+    state: 'closed',
+    draft: false,
+    merged_at: merged ? '2026-06-10T00:00:00.000Z' : null,
+    user: { login: 'u', avatar_url: null },
+    head: { ref: 'h' },
+    base: { ref: 'develop' },
+    assignees: [],
+    labels: [],
+    created_at: '2026-06-10T00:00:00.000Z',
+    updated_at: '2026-06-10T00:00:00.000Z',
+    html_url: `https://github.com/owner/repo/pull/${number}`,
+  });
+
+  // GitHub closed 페이지(1-indexed)별 응답을 주입한다 (캐시는 미스)
+  const mockClosedPages = (
+    pages: Record<number, ReturnType<typeof mkPull>[]>,
+  ) => {
+    r.get.mockResolvedValue(null);
+    ghList.mockImplementation(
+      (
+        _token: string,
+        _owner: string,
+        _repo: string,
+        _state: string,
+        page: number,
+      ) => Promise.resolve(pages[page] ?? []),
+    );
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.roomMember.findFirst.mockResolvedValue({ id: 'membership-1' });
+    db.room.findUnique.mockResolvedValue({
+      id: ROOM_ID,
+      repos: [{ id: 'repo-1', fullName: 'owner/repo' }],
+    });
+    db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
+  });
+
+  it('merged: closed 여러 페이지를 누적해 정확히 limit 개를 채운다 (+ has_more)', async () => {
+    // closed p1 = [merged, unmerged], p2 = [merged, merged] → merged 만 3개
+    mockClosedPages({
+      1: [mkPull(1, true), mkPull(2, false)],
+      2: [mkPull(3, true), mkPull(4, true)],
+    });
+
+    const res = await getPullRequests(USER_ID, ROOM_ID, {
+      state: 'merged',
+      page: 1,
+      limit: 2,
+    });
+
+    // 필터 후 [1,3] 두 개로 채워짐 (짧은 페이지 아님)
+    expect(res.pull_requests.map(p => p.number)).toEqual([1, 3]);
+    // 세 번째 merged(4)가 남아 다음 페이지 존재
+    expect(res.pagination.has_more).toBe(true);
+  });
+
+  it('merged: GitHub 가 소진되면 has_more=false', async () => {
+    // closed p1 = [merged, unmerged], p2 = [merged] (limit 미만 → 마지막 페이지)
+    mockClosedPages({
+      1: [mkPull(1, true), mkPull(2, false)],
+      2: [mkPull(3, true)],
+    });
+
+    const res = await getPullRequests(USER_ID, ROOM_ID, {
+      state: 'merged',
+      page: 1,
+      limit: 2,
+    });
+
+    expect(res.pull_requests.map(p => p.number)).toEqual([1, 3]);
+    expect(res.pagination.has_more).toBe(false);
+  });
+
+  it('closed(미머지): merged_at=null 만 추려 반환', async () => {
+    mockClosedPages({
+      1: [mkPull(1, true), mkPull(2, false)],
+      2: [mkPull(3, false)],
+    });
+
+    const res = await getPullRequests(USER_ID, ROOM_ID, {
+      state: 'closed',
+      page: 1,
+      limit: 2,
+    });
+
+    expect(res.pull_requests.map(p => p.number)).toEqual([2, 3]);
+    expect(res.pagination.has_more).toBe(false);
+  });
+
+  it('스캔 상한(10페이지)에 걸리면 빈 결과라도 has_more=true 로 멈춘다', async () => {
+    // 모든 closed 가 unmerged → state=merged 는 영원히 0개. 안전 상한에서 중단돼야 함
+    r.get.mockResolvedValue(null);
+    ghList.mockResolvedValue([mkPull(1, false), mkPull(2, false)]); // 항상 가득 찬 페이지
+
+    const res = await getPullRequests(USER_ID, ROOM_ID, {
+      state: 'merged',
+      page: 1,
+      limit: 2,
+    });
+
+    expect(res.pull_requests).toEqual([]);
+    expect(res.pagination.has_more).toBe(true);
+    // 무한 루프 방지: 최대 10개 GitHub 페이지만 훑는다
+    expect(ghList).toHaveBeenCalledTimes(10);
+  });
+});
