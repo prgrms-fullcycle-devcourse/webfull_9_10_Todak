@@ -73,6 +73,7 @@ export default function MeetingBoard() {
     await updateMinutes(roomId, currentMinutesId, {
       content_md: content,
       action_items: actionItems,
+      status: 'confirmed',
     });
     // 저장 완료 후 dirty 해제 → 이후 서버 업데이트 다시 수신 가능
     isDirtyRef.current = false;
