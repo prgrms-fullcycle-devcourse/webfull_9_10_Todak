@@ -12,6 +12,7 @@ import {
   deleteExpiredPrivateRoomChats,
   PRIVATE_ROOM_CHAT_RETENTION_DAYS,
 } from '../../services/chat-cleanup.service.js';
+import { MinutesService } from '../../services/minutes.service.js';
 import {
   createNotifications,
   getMeetingParticipantIds,
@@ -264,7 +265,53 @@ chatCleanupWorker.on('failed', (job, err) => {
   console.error(`[Worker] chat-cleanup job ${job?.id} failed:`, err.message);
 });
 
-const workers = [aiReviewWorker, minutesGenerationWorker, chatCleanupWorker];
+/*
+ * stuck-generating sweeper: 워커 크래시·재배포 등으로 'generating' 상태가 영구히 남은
+ * 회의록을 주기적으로 failed 로 정리한다. in-process failed 핸들러가 닿지 못한 경우
+ * (프로세스 사망)의 안전망. 정리된 건은 일반 생성 실패와 동일하게
+ * 소켓(reason=GENERATION_ERROR) + 작성자 알림을 보낸다.
+ */
+const minutesService = new MinutesService();
+
+export const minutesSweepWorker = new Worker(
+  'minutes-sweep',
+  async () => {
+    const swept = await minutesService.sweepStuckGeneratingMinutes();
+
+    for (const m of swept) {
+      getIO()
+        .to(m.roomId)
+        .emit('minutes:generation-failed', {
+          room_id: m.roomId,
+          minutes_id: m.id,
+          meeting_id: m.meetingId ?? undefined,
+          status: 'failed',
+          reason: 'GENERATION_ERROR',
+        });
+
+      await createNotifications([m.authorId], {
+        roomId: m.roomId,
+        type: 'minutes_generation_failed',
+        message: '회의록 생성에 실패했습니다. 다시 시도해주세요.',
+        link: `/room/${m.roomId}`,
+      });
+    }
+
+    return { swept: swept.length };
+  },
+  { connection },
+);
+
+minutesSweepWorker.on('failed', (job, err) => {
+  console.error(`[Worker] minutes-sweep job ${job?.id} failed:`, err.message);
+});
+
+const workers = [
+  aiReviewWorker,
+  minutesGenerationWorker,
+  chatCleanupWorker,
+  minutesSweepWorker,
+];
 
 /*
  * 그레이스풀 셧다운 시 호출한다.
@@ -282,6 +329,17 @@ export async function startWorkers() {
     {},
     {
       repeat: { pattern: '0 0 * * *', tz: 'Asia/Seoul' },
+      removeOnComplete: true,
+      removeOnFail: 100,
+    },
+  );
+
+  // 5분마다 죽은 'generating' 회의록 정리 반복 잡 등록 (동일 설정이면 BullMQ가 중복 방지)
+  await addJob(
+    'minutes-sweep',
+    {},
+    {
+      repeat: { pattern: '*/5 * * * *' },
       removeOnComplete: true,
       removeOnFail: 100,
     },

@@ -34,6 +34,7 @@ export const queues: Record<JobName, Queue> = {
     defaultJobOptions: retryJobOptions,
   }),
   'chat-cleanup': new Queue('chat-cleanup', { connection }),
+  'minutes-sweep': new Queue('minutes-sweep', { connection }),
 };
 
 export async function addJob<T>(name: JobName, data: T, opts?: object) {
