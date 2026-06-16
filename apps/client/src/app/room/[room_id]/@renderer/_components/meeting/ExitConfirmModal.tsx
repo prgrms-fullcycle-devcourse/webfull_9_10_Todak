@@ -36,7 +36,7 @@ export default function ExitConfirmModal() {
             <br />
             진행 중인 회의를 완전히 종료하고
             <br />
-            <span className="font-bold text-foreground">AI 요약 회의록</span>을
+            <span className="font-bold text-foreground">AI 회의록</span>을
             생성하시겠습니까?
           </p>
         </div>
