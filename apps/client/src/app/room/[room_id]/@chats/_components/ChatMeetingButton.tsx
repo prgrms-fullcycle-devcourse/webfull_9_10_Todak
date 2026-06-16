@@ -36,6 +36,7 @@ export default function ChatMeetingButton({ onToggle, roomId }: Props) {
   // 방은 회의 중(`true`)인데, 내 로컬 메모리에 미팅 세션 ID(`currentMeetingId`)가 없다면 다른 사람이 켠 걸로 판정
   const isMeetingStartedByAnotherMember = isMeetingOngoing && !currentMeetingId;
   const isDisabled = isLoading || isMeetingStartedByAnotherMember;
+  const setCurrentMinutesId = useSpaceStore(state => state.setCurrentMinutesId);
 
   const handleClick = async () => {
     if (isDisabled) return;
@@ -58,7 +59,12 @@ export default function ChatMeetingButton({ onToggle, roomId }: Props) {
         const endedAt = new Date(endedMeeting.ended_at);
         const title = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
 
-        await generateMinutes(roomId, currentMeetingId, title);
+        const newMinutes = await generateMinutes(
+          roomId,
+          currentMeetingId,
+          title,
+        );
+        setCurrentMinutesId(newMinutes.id);
 
         setCurrentMeetingId(null);
         onToggle();

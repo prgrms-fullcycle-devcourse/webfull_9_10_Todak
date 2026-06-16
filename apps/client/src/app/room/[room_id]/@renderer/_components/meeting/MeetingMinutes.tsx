@@ -1,15 +1,18 @@
 'use client';
 
 import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import { Button, Tabs } from '@heroui/react';
 import dynamic from 'next/dynamic';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import { MinuteDetail } from '@/services/minutes/model';
+import { refineMinutes } from '@/services/minutes/api';
 
 interface MeetingMinutesProps {
   minutes: MinuteDetail | undefined;
   isLoading: boolean;
   content: string;
+  generationError: string | null;
   onContentChange: (content: string) => void;
   onSave: () => void;
 }
@@ -24,22 +27,69 @@ export default function MeetingMinutes({
   minutes,
   isLoading,
   content,
+  generationError,
   onContentChange,
   onSave,
 }: MeetingMinutesProps) {
+  const params = useParams();
+  const roomId = params.room_id as string;
   const currentMinutesId = useSpaceStore(state => state.currentMinutesId);
+
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(
     'idle',
   );
+  const [refineStatus, setRefineStatus] = useState<'idle' | 'loading'>('idle');
+  const [refineError, setRefineError] = useState<string | null>(null);
 
   const handleSaveClick = async () => {
     setSaveStatus('saving');
     await onSave();
     setSaveStatus('saved');
     setTimeout(() => setSaveStatus('idle'), 2000);
+  };
+
+  // AI 다듬기 공통 핸들러
+  const handleRefine = async (
+    refine_type: 'SHORTEN' | 'BULLET' | 'CUSTOM',
+    custom_message?: string,
+  ) => {
+    if (!currentMinutesId || !roomId) return;
+    if (refineStatus === 'loading') return;
+
+    setRefineStatus('loading');
+    setRefineError(null);
+
+    try {
+      const result = await refineMinutes(roomId, currentMinutesId, {
+        refine_type,
+        custom_message,
+      });
+      // DB 저장 안 함 → 로컬만 업데이트, 유저가 저장 버튼으로 확정
+      onContentChange(result.refined_content_md);
+      setShowCustomInput(false);
+      setCustomPrompt('');
+    } catch (e: unknown) {
+      const code = (e as { response?: { data?: { code?: string } } })?.response
+        ?.data?.code;
+      if (code === 'MINUTES_GENERATING') {
+        setRefineError(
+          'AI가 회의록을 생성 중입니다. 완료 후 다시 시도해주세요',
+        );
+      } else if (code === 'TOO_MANY_REQUESTS') {
+        setRefineError(
+          'AI 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요',
+        );
+      } else if (code === 'MINUTES_NO_CONTENT') {
+        setRefineError('회의록 내용이 없습니다');
+      } else {
+        setRefineError('AI 다듬기에 실패했습니다. 다시 시도해주세요');
+      }
+    } finally {
+      setRefineStatus('idle');
+    }
   };
 
   // 회의록 없을 때
@@ -51,22 +101,30 @@ export default function MeetingMinutes({
     );
   }
 
-  // 로딩 중이거나 AI 생성 중일 때
+  // 로딩 중 / AI 생성 중 / 서버 데이터 준비 전
   if (isLoading || minutes?.status === 'generating') {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-todak-coral-500 border-t-transparent" />
-        <p className="text-xs text-slate-400">
-          AI가 회의록을 생성하고 있어요...
-        </p>
-        <p className="text-[10px] text-slate-300">
-          완료되면 실시간으로 알림이 전송됩니다
-        </p>
+        {generationError ? (
+          <>
+            <span className="text-2xl">⚠️</span>
+            <p className="text-xs text-red-400">{generationError}</p>
+          </>
+        ) : (
+          <>
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-todak-coral-500 border-t-transparent" />
+            <p className="text-xs text-slate-400">
+              AI가 회의록을 생성하고 있어요...
+            </p>
+            <p className="text-[10px] text-slate-300">
+              완료되면 실시간으로 알림이 전송됩니다
+            </p>
+          </>
+        )}
       </div>
     );
   }
 
-  // 날짜 포맷
   const createdDate = minutes
     ? new Date(minutes.created_at)
         .toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })
@@ -156,15 +214,19 @@ export default function MeetingMinutes({
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
-            className="rounded-xl border border-border bg-surface px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            onClick={() => handleRefine('SHORTEN')}
+            isDisabled={refineStatus === 'loading'}
+            className="rounded-xl border border-border bg-surface px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
           >
-            ✂️ 더 짧게
+            {refineStatus === 'loading' ? '⏳' : '✂️'} 더 짧게
           </Button>
           <Button
             variant="ghost"
-            className="rounded-xl border border-border bg-surface px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            onClick={() => handleRefine('BULLET')}
+            isDisabled={refineStatus === 'loading'}
+            className="rounded-xl border border-border bg-surface px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
           >
-            📋 개조식으로
+            {refineStatus === 'loading' ? '⏳' : '📋'} 개조식으로
           </Button>
           <Button
             variant="ghost"
@@ -178,19 +240,35 @@ export default function MeetingMinutes({
           </span>
         </div>
 
+        {/* AI 다듬기 에러 */}
+        {refineError && (
+          <p className="mt-1.5 text-[10px] text-red-400">{refineError}</p>
+        )}
+
+        {/* 커스텀 입력 */}
         {showCustomInput && (
           <div className="mt-2 flex items-center gap-2">
             <input
               value={customPrompt}
               onChange={e => setCustomPrompt(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && customPrompt.trim()) {
+                  handleRefine('CUSTOM', customPrompt.trim());
+                }
+              }}
               placeholder="AI에게 요청할 내용을 입력하세요..."
               className="flex-1 rounded-xl border border-border bg-surface px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:border-todak-coral-500 focus:outline-none"
             />
             <Button
               variant="ghost"
-              className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:bg-accent-hover"
+              onClick={() => {
+                if (customPrompt.trim())
+                  handleRefine('CUSTOM', customPrompt.trim());
+              }}
+              isDisabled={!customPrompt.trim() || refineStatus === 'loading'}
+              className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50"
             >
-              요청
+              {refineStatus === 'loading' ? '처리 중...' : '요청'}
             </Button>
           </div>
         )}
