@@ -6,6 +6,7 @@ import { useChatSocket } from '../_hooks/useChatSocket';
 import { TabType } from '../_types';
 import { Avatar, Button, Popover } from '@heroui/react';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { useChatNotificationStore } from '@/store/useChatNotificationStore';
 import type {
   ChatAttachment,
   ChatMessage,
@@ -27,15 +28,7 @@ interface ChatMessagesProps {
 }
 
 const EMOJI_OPTIONS = ['👍', '🔥', '❤️', '😂', '🙂'];
-const MEETING_BOUNDARY_EVENT = 'todak:meeting-boundary';
 const STICKY_SCROLL_THRESHOLD = 48;
-
-interface MeetingBoundaryEventDetail {
-  roomId: string;
-  privateRoomId: string | null;
-  type: 'meeting_start' | 'meeting_end';
-  createdAt: string;
-}
 
 type LocalChatMessage = ChatMessage & {
   localStatus?: 'sending' | 'failed';
@@ -520,12 +513,12 @@ export default function ChatMessages({
   const [pendingMessages, setPendingMessages] = useState<LocalChatMessage[]>(
     [],
   );
-  const [meetingBoundaryMessages, setMeetingBoundaryMessages] = useState<
-    ChatMessage[]
-  >([]);
   const [reactionOverrides, setReactionOverrides] = useState<
     Record<string, ChatMessage['reactions']>
   >({});
+  const notifyIncomingMessage = useChatNotificationStore(
+    state => state.notifyIncomingMessage,
+  );
 
   // tab 바뀔 때 소켓 메시지 초기화
   useEffect(() => {
@@ -540,9 +533,6 @@ export default function ChatMessages({
       ...msg,
       reactions: reactionOverrides[msg.id] ?? msg.reactions,
     })),
-    ...meetingBoundaryMessages.filter(
-      msg => msg.private_room_id === privateRoomId,
-    ),
     ...pendingMessages.filter(msg => msg.private_room_id === privateRoomId),
     ...socketMessages.filter(
       socketMsg => !(history ?? []).some(h => h.id === socketMsg.id),
@@ -552,51 +542,28 @@ export default function ChatMessages({
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
 
-  const handleMessage = useCallback((msg: ChatMessage) => {
-    setPendingMessages(prev =>
-      prev.filter(
-        pendingMessage => !isMatchingPendingMessage(pendingMessage, msg),
-      ),
-    );
-    setSocketMessages(prev => {
-      if (prev.some(prevMsg => prevMsg.id === msg.id)) return prev;
-      return [...prev, msg];
-    });
-  }, []);
-
-  useEffect(() => {
-    const handleMeetingBoundary = (event: Event) => {
-      const { detail } = event as CustomEvent<MeetingBoundaryEventDetail>;
-      if (detail.roomId !== roomId) return;
-
+  const handleMessage = useCallback(
+    (msg: ChatMessage) => {
       const authUser = getStoredAuthUser();
-      const boundaryMessage: ChatMessage = {
-        id: `local-${detail.type}-${detail.createdAt}`,
-        room_id: detail.roomId,
-        private_room_id: detail.privateRoomId,
-        user: {
-          github_username: authUser?.login ?? 'system',
-          avatar_url: authUser?.avatarUrl ?? '',
-        },
-        content:
-          detail.type === 'meeting_start'
-            ? '회의가 시작되었습니다.'
-            : '회의가 종료되었습니다.',
-        type: detail.type,
-        created_at: detail.createdAt,
-        reactions: [],
-        attachments: [],
-      };
+      const isMine =
+        authUser !== null && msg.user.github_username === authUser.login;
 
-      setMeetingBoundaryMessages(prev => [...prev, boundaryMessage]);
-    };
+      if (!isMine) {
+        notifyIncomingMessage();
+      }
 
-    window.addEventListener(MEETING_BOUNDARY_EVENT, handleMeetingBoundary);
-
-    return () => {
-      window.removeEventListener(MEETING_BOUNDARY_EVENT, handleMeetingBoundary);
-    };
-  }, [roomId]);
+      setPendingMessages(prev =>
+        prev.filter(
+          pendingMessage => !isMatchingPendingMessage(pendingMessage, msg),
+        ),
+      );
+      setSocketMessages(prev => {
+        if (prev.some(prevMsg => prevMsg.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+    },
+    [notifyIncomingMessage],
+  );
 
   const historyRef = useRef(history);
   useEffect(() => {

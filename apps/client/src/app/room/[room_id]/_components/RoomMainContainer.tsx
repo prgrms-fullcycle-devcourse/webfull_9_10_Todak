@@ -1,7 +1,8 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { useChatNotificationStore } from '@/store/useChatNotificationStore';
 import ChatOpenButton from '../@chats/_components/ChatOpenButton';
 
 interface RoomMainContainerProps {
@@ -14,6 +15,10 @@ export default function RoomMainContainer({
   chats,
 }: RoomMainContainerProps) {
   const currentView = useSpaceStore(state => state.currentView);
+  const setChatOpen = useChatNotificationStore(state => state.setChatOpen);
+  const clearUnreadChatCount = useChatNotificationStore(
+    state => state.clearUnreadChatCount,
+  );
   const isMeetingView = currentView === 'meeting';
   const [chatState, setChatState] = useState({
     view: currentView,
@@ -21,6 +26,14 @@ export default function RoomMainContainer({
   });
   const isChatOpen =
     chatState.view === currentView ? chatState.isOpen : isMeetingView;
+
+  useEffect(() => {
+    setChatOpen(isChatOpen);
+
+    if (isChatOpen) {
+      clearUnreadChatCount();
+    }
+  }, [clearUnreadChatCount, isChatOpen, setChatOpen]);
 
   return (
     <main className="room-main-container">
