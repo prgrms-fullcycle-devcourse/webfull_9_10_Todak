@@ -384,6 +384,29 @@ export async function getPullRequest(
   }
 }
 
+// PR 의 제출된 리뷰 목록 (리뷰어 + 상태 APPROVED/CHANGES_REQUESTED/COMMENTED/DISMISSED)
+export async function listPullRequestReviews(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  pullNumber: number,
+) {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.pulls.listReviews({
+      owner,
+      repo,
+      pull_number: pullNumber,
+      per_page: 100,
+    });
+
+    return data;
+  } catch (err) {
+    mapGithubError(err, { 404: 'PR_NOT_FOUND' });
+  }
+}
+
 export async function listPullRequests(
   accessToken: string,
   owner: string,
