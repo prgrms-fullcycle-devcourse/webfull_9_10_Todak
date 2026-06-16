@@ -225,6 +225,11 @@ function ModalFormContent({
     mutation.mutate(profileUpdateBody);
   };
 
+  const handleOpenProfileSettings = () => {
+    closeCharacterModal();
+    router.push(`/room/${encodeURIComponent(roomID)}/settings#profile`);
+  };
+
   return (
     <>
       <Modal.Header className="pt-3 pb-3 px-0">
@@ -242,7 +247,7 @@ function ModalFormContent({
             {isMe && !isEditing && (
               <Button
                 className="h-8 rounded-lg border border-border bg-white px-3 text-[11px] font-bold text-muted hover:text-foreground"
-                onPress={() => setIsEditing(true)}
+                onPress={handleOpenProfileSettings}
                 type="button"
               >
                 ⚙️ 수정
