@@ -167,7 +167,11 @@ export default function ProfileEditModal({
   };
 
   return (
-    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+    <Modal.Backdrop
+      className="bg-slate-900/40 backdrop-blur-none"
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <Modal.Container>
         <Modal.Dialog className="w-full max-w-[520px] rounded-[26px] border border-border/80 bg-surface px-5 py-5 shadow-todak-panel">
           <form noValidate onSubmit={handleSubmit}>

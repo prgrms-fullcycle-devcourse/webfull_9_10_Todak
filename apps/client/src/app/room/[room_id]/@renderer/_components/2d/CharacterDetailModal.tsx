@@ -96,7 +96,7 @@ export default function CharacterDetailModal() {
 
   return (
     <Modal isOpen={isCharacterModalOpen}>
-      <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4">
+      <div className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-900/40 p-4">
         <div className="absolute inset-0" onClick={closeCharacterModal} />
 
         <div className="relative bg-white rounded-[26px] border border-slate-100 shadow-xl max-w-115 w-full px-5 py-5 max-h-[95vh] overflow-y-auto pointer-events-auto mx-auto my-auto focus:outline-none z-10">

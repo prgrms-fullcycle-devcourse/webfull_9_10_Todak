@@ -67,7 +67,7 @@ export default function ModalTodoTabs({ userId, isMe }: ModalTodoTabsProps) {
     >
       <div className="flex items-center justify-between border-b border-border/40 pb-3 gap-4">
         <p className="text-xs font-black tracking-wider text-slate-400 shrink-0">
-          TO-DO TASK 목록
+          To-Do 목록
         </p>
 
         <Tabs.ListContainer className="min-w-0">

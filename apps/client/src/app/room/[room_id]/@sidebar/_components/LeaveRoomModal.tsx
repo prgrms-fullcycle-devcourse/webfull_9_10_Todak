@@ -84,7 +84,11 @@ export default function LeaveRoomModal({
   };
 
   return (
-    <Modal.Backdrop isOpen={isOpen} onOpenChange={handleOpenChange}>
+    <Modal.Backdrop
+      className="bg-slate-900/40 backdrop-blur-none"
+      isOpen={isOpen}
+      onOpenChange={handleOpenChange}
+    >
       <Modal.Container>
         <Modal.Dialog className="w-full max-w-[380px] rounded-[26px] border border-border/80 bg-surface px-5 py-5 shadow-todak-panel">
           <Modal.Header className="flex items-start justify-between gap-4 px-0 pb-3 pt-0">

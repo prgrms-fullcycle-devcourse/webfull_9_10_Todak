@@ -142,7 +142,11 @@ export default function PullRequestModal({
   };
 
   const modal = (
-    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
+    <Modal.Backdrop
+      className="bg-slate-900/40 backdrop-blur-none"
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <Modal.Container>
         <Modal.Dialog className="flex max-h-[92vh] w-[calc(100vw-32px)] max-w-[1040px] flex-col overflow-hidden rounded-[24px] border border-border/80 bg-surface shadow-todak-panel">
           <Modal.Header className="flex items-start justify-between gap-5 border-b border-border px-5 py-5 sm:px-7">
