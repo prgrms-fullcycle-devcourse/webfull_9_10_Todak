@@ -10,7 +10,6 @@ interface ChatHeaderProps {
 }
 
 export default function ChatHeader({ tab }: ChatHeaderProps) {
-  const title = tab === 'all' ? '전체 채팅' : '회의실 B';
   const icon = tab === 'all' ? '🌐' : '🔒';
 
   // 소켓 리스너(`RoomSocketListener`)가 갱신해 주는 스토어 감시
@@ -23,6 +22,9 @@ export default function ChatHeader({ tab }: ChatHeaderProps) {
     room => room.id === currentPrivateRoomId,
   );
   const isMeetingOngoing = currentPrivateRoom?.is_meeting_active ?? false;
+
+  const title =
+    tab === 'all' ? '전체 채팅' : (currentPrivateRoom?.name ?? '회의실 채팅');
 
   return (
     <div className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4">
