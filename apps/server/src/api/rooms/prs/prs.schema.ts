@@ -116,6 +116,20 @@ export const PullRequestDetailResponseSchema = registry.register(
         }),
       }),
     ),
+    reviewers: z.array(
+      z.object({
+        github_username: z.string().openapi({ example: 'tkdgh7063' }),
+        avatar_url: z.string().nullable().openapi({
+          example: 'https://avatars.githubusercontent.com/u/1?v=4',
+        }),
+        // APPROVED | CHANGES_REQUESTED | COMMENTED | DISMISSED
+        state: z.string().openapi({ example: 'APPROVED' }),
+        submitted_at: z
+          .string()
+          .nullable()
+          .openapi({ example: '2026-06-08T00:00:00.000Z' }),
+      }),
+    ),
     labels: z
       .array(z.string())
       .openapi({ example: ['enhancement', 'backend'] }),

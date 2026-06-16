@@ -10,6 +10,7 @@ import { redis } from '@/lib/redis.js';
 import {
   createPullRequestReview as ghCreateReview,
   getPullRequest,
+  listPullRequestReviews as ghListReviews,
   listPullRequests as ghListPullRequests,
   mergePullRequest as ghMergePullRequest,
 } from '@/services/github.service.js';
@@ -31,6 +32,7 @@ vi.mock('@/lib/prisma.js', () => ({
 vi.mock('@/services/github.service.js', () => ({
   getPullRequest: vi.fn(),
   listPullRequests: vi.fn(),
+  listPullRequestReviews: vi.fn(),
   mergePullRequest: vi.fn(),
   createPullRequestReview: vi.fn(),
 }));
@@ -49,6 +51,8 @@ const ghMerge = ghMergePullRequest as any;
 const ghReview = ghCreateReview as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ghList = ghListPullRequests as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ghReviews = ghListReviews as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const r = redis as any;
 
@@ -90,6 +94,8 @@ describe('getPullRequestDetail', () => {
     });
     db.user.findUnique.mockResolvedValue({ accessToken: 'gh-token' });
     gh.mockResolvedValue(fakePr);
+    // 기본: 리뷰 없음 (리뷰어 테스트에서 개별 주입)
+    ghReviews.mockResolvedValue([]);
   });
 
   it('정상: GitHub PR 을 응답 형식으로 매핑한다', async () => {
@@ -111,6 +117,7 @@ describe('getPullRequestDetail', () => {
       assignees: [
         { github_username: 'reviewer', avatar_url: 'https://avatar/2' },
       ],
+      reviewers: [],
       labels: ['backend', 'enhancement'],
       changes: {
         additions: 120,
@@ -123,6 +130,50 @@ describe('getPullRequestDetail', () => {
       merged_at: null,
       html_url: 'https://github.com/owner/repo/pull/42',
     });
+  });
+
+  it('리뷰어별 최신 리뷰 1건만 reviewers 로 반환한다', async () => {
+    // alice: COMMENTED → APPROVED (최신 APPROVED 유지), bob: CHANGES_REQUESTED
+    ghReviews.mockResolvedValue([
+      {
+        user: { login: 'alice', avatar_url: 'https://avatar/a' },
+        state: 'COMMENTED',
+        submitted_at: '2026-06-08T00:00:00.000Z',
+      },
+      {
+        user: { login: 'bob', avatar_url: 'https://avatar/b' },
+        state: 'CHANGES_REQUESTED',
+        submitted_at: '2026-06-08T01:00:00.000Z',
+      },
+      {
+        user: { login: 'alice', avatar_url: 'https://avatar/a' },
+        state: 'APPROVED',
+        submitted_at: '2026-06-08T02:00:00.000Z',
+      },
+    ]);
+
+    const result = await getPullRequestDetail(USER_ID, ROOM_ID, PULL_NUMBER);
+
+    expect(ghListReviews).toHaveBeenCalledWith(
+      'gh-token',
+      'owner',
+      'repo',
+      PULL_NUMBER,
+    );
+    expect(result.reviewers).toEqual([
+      {
+        github_username: 'alice',
+        avatar_url: 'https://avatar/a',
+        state: 'APPROVED',
+        submitted_at: '2026-06-08T02:00:00.000Z',
+      },
+      {
+        github_username: 'bob',
+        avatar_url: 'https://avatar/b',
+        state: 'CHANGES_REQUESTED',
+        submitted_at: '2026-06-08T01:00:00.000Z',
+      },
+    ]);
   });
 
   it('merged_at 이 있으면 is_merged=true', async () => {
