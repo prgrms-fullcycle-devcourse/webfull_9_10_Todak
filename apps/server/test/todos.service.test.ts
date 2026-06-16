@@ -40,6 +40,10 @@ import {
   updateLabelForRepo,
 } from '@/services/github.service.js';
 import {
+  createNotifications,
+  getRoomMemberIds,
+} from '@/services/notifications.service.js';
+import {
   createTodoComment,
   createTodoLabel,
   createTodoReaction,
@@ -99,6 +103,12 @@ vi.mock('@/services/github.service.js', () => ({
   createLabelForRepo: vi.fn(),
   updateLabelForRepo: vi.fn(),
   deleteLabelForRepo: vi.fn(),
+}));
+
+// 알림(영속/소켓)은 best-effort 부수효과라 가짜로 대체 — 호출 인자만 관찰
+vi.mock('@/services/notifications.service.js', () => ({
+  createNotifications: vi.fn(),
+  getRoomMemberIds: vi.fn(),
 }));
 
 // 타입 에러 없이 .mockResolvedValue 등을 쓰기 위해 any 로 느슨하게 캐스팅
@@ -256,6 +266,53 @@ describe('createTodos', () => {
       }),
     );
     expect(result[0].github_issue_number).toBe(42);
+
+    // new_issue 알림: 담당자(assignee-1)에게만, 생성자(user-1) 제외
+    expect(createNotifications).toHaveBeenCalledTimes(1);
+    expect(createNotifications).toHaveBeenCalledWith(
+      ['assignee-1'],
+      expect.objectContaining({
+        roomId: ROOM_ID,
+        type: 'new_issue',
+        link: 'https://github.com/jiyun/todak/issues/42',
+      }),
+    );
+    // 담당자가 지정돼 룸 전체 조회는 하지 않는다
+    expect(getRoomMemberIds).not.toHaveBeenCalled();
+  });
+
+  it('담당자 없는 새 이슈는 룸 전체에 알림(생성자 제외)', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.room.findUnique.mockResolvedValue({
+      id: ROOM_ID,
+      repos: [{ fullName: 'jiyun/todak' }],
+    });
+    db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
+    vi.mocked(createIssue).mockResolvedValue(7);
+    db.todo.create.mockResolvedValue({
+      id: TODO_ID,
+      roomId: ROOM_ID,
+      title: '문서 정리',
+      body: null,
+      labels: [],
+      assigneeId: null,
+      minutesId: null,
+      githubIssueNumber: 7,
+      isDone: false,
+      createdAt: new Date('2026-05-18T14:02:00.000Z'),
+    });
+    vi.mocked(getRoomMemberIds).mockResolvedValue([USER_ID, 'member-2']);
+
+    await createTodos(USER_ID, ROOM_ID, {
+      todos: [{ ...baseTodo, create_issue: true, assignee_id: undefined }],
+    });
+
+    // 담당자 없으면 룸 전체에서 생성자(user-1)만 빼고 알림
+    expect(getRoomMemberIds).toHaveBeenCalledWith(ROOM_ID);
+    expect(createNotifications).toHaveBeenCalledWith(
+      ['member-2'],
+      expect.objectContaining({ type: 'new_issue' }),
+    );
   });
 
   it('레이스(P2002): 웹훅이 만든 Todo 를 update 로 보강(화해)한다', async () => {
