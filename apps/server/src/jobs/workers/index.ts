@@ -77,7 +77,8 @@ export const minutesGenerationWorker = new Worker(
           lte: endTime,
         },
       },
-      include: { user: true },
+      // 작성자는 githubUsername 만 사용 — accessToken 등 민감 컬럼 미조회
+      include: { user: { select: { githubUsername: true } } },
       orderBy: { createdAt: 'asc' },
     });
 
