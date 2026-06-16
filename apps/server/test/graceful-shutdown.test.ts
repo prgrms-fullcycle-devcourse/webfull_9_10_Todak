@@ -85,9 +85,9 @@ beforeEach(() => {
 
 describe('closeWorkers', () => {
   it('등록된 모든 워커의 close() 를 정확히 한 번씩 호출한다', async () => {
-    // Arrange: 모듈 로드 시 ai-review / minutes-generation / chat-cleanup
-    //          3개의 Worker 가 생성되어 workerInstances 에 쌓여 있다
-    expect(h.workerInstances.length).toBe(3);
+    // Arrange: 모듈 로드 시 ai-review / minutes-generation / chat-cleanup /
+    //          minutes-sweep 4개의 Worker 가 생성되어 workerInstances 에 쌓여 있다
+    expect(h.workerInstances.length).toBe(4);
 
     // Act
     await closeWorkers();
