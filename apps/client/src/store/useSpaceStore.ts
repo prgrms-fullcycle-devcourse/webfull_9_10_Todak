@@ -65,6 +65,12 @@ interface SpaceState {
   // 내 캐릭터 위치 기억용
   lastPosition: { x: number; y: number } | null;
   setLastPosition: (x: number, y: number) => void;
+
+  // 커스텀 퇴장 모달 상태
+  isExitModalOpen: boolean;
+  exitModalCallback: ((confirm: boolean) => void) | null;
+  openExitModal: (callback: (confirm: boolean) => void) => void;
+  closeExitModal: () => void;
 }
 
 export const useSpaceStore = create<SpaceState>()(
@@ -130,5 +136,13 @@ export const useSpaceStore = create<SpaceState>()(
     // 캐릭터 스폰 장소 및 초기값
     lastPosition: null,
     setLastPosition: (x, y) => set({ lastPosition: { x, y } }),
+
+    // 커스텀 퇴장 상태 초기값
+    isExitModalOpen: false,
+    exitModalCallback: null,
+    openExitModal: callback =>
+      set({ isExitModalOpen: true, exitModalCallback: callback }),
+    closeExitModal: () =>
+      set({ isExitModalOpen: false, exitModalCallback: null }),
   })),
 );
