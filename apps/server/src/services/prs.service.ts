@@ -8,6 +8,7 @@ import { redis } from '../lib/redis.js';
 import {
   createPullRequestReview as createPullRequestReviewOnGithub,
   getPullRequest,
+  listPullRequestReviews,
   listPullRequests,
   mergePullRequest as mergePullRequestOnGithub,
 } from './github.service.js';
@@ -187,6 +188,43 @@ export async function getPullRequestDetail(
 
   const pr = await getPullRequest(accessToken, owner, repoName, pullNumber);
 
+  const reviews = await listPullRequestReviews(
+    accessToken,
+    owner,
+    repoName,
+    pullNumber,
+  );
+
+  /*
+   * 한 리뷰어가 여러 번 리뷰할 수 있으므로, 리뷰어별 최신 1건만 남겨 현재 상태를 보여준다.
+   * (submitted_at 이 가장 늦은 리뷰 기준)
+   */
+  const toTime = (value: string | null | undefined): number =>
+    typeof value === 'string' ? Date.parse(value) : 0;
+
+  const latestByReviewer = new Map<string, (typeof reviews)[number]>();
+  for (const review of reviews) {
+    const login = review.user?.login;
+    if (login === undefined || login === null) {
+      continue;
+    }
+
+    const prev = latestByReviewer.get(login);
+    if (
+      prev === undefined ||
+      toTime(review.submitted_at) >= toTime(prev.submitted_at)
+    ) {
+      latestByReviewer.set(login, review);
+    }
+  }
+
+  const reviewers = [...latestByReviewer.values()].map(review => ({
+    github_username: review.user!.login,
+    avatar_url: review.user?.avatar_url ?? null,
+    state: review.state,
+    submitted_at: review.submitted_at ?? null,
+  }));
+
   return {
     number: pr.number,
     title: pr.title,
@@ -210,6 +248,7 @@ export async function getPullRequestDetail(
         github_username: assignee.login,
         avatar_url: assignee.avatar_url,
       })) ?? [],
+    reviewers,
     labels: pr.labels.map(label => label.name),
     changes: {
       additions: pr.additions,
