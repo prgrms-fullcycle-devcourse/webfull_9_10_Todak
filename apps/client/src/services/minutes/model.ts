@@ -4,6 +4,7 @@ export interface Minute {
   type: string;
   status: string;
   author: Author;
+  participant_names?: string[];
   linked_issue_numbers: number[];
   created_at: string;
   updated_at: string;

@@ -3,12 +3,28 @@ import {
   EndMeeting,
   Minute,
   MinuteDetail,
+  MinutesList,
   StartMeeting,
   UpdateMinutesRequest,
 } from './model';
 
 export async function fetchMeetingLogs(roomID: string) {
   return apiClient.get<Minute[]>(`/rooms/${roomID}/meetings`);
+}
+
+export function fetchRecentMeetingMinutes(
+  roomId: string,
+  { limit = 5, page = 1 }: { limit?: number; page?: number } = {},
+) {
+  const searchParams = new URLSearchParams({
+    type: 'meeting',
+    page: String(page),
+    limit: String(limit),
+  });
+
+  return apiClient.get<MinutesList>(
+    `/rooms/${roomId}/minutes?${searchParams.toString()}`,
+  );
 }
 
 export function fetchMinutes(

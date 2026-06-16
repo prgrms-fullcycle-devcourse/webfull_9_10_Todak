@@ -37,6 +37,7 @@ export default function MeetingBoard() {
     await updateMinutes(roomId, currentMinutesId, {
       content_md: displayContent,
       action_items: displayActionItems,
+      status: 'confirmed',
     });
   };
 

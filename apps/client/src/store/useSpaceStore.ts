@@ -61,6 +61,8 @@ interface SpaceState {
   // AI 생성 회의록 id
   currentMinutesId: string | null;
   setCurrentMinutesId: (id: string | null) => void;
+  meetingMinutesUpdateSeq: number;
+  notifyMeetingMinutesUpdated: () => void;
 
   // 내 캐릭터 위치 기억용
   lastPosition: { x: number; y: number } | null;
@@ -126,6 +128,11 @@ export const useSpaceStore = create<SpaceState>()(
     // AI 생성 회의록 id 초기값
     currentMinutesId: null,
     setCurrentMinutesId: id => set({ currentMinutesId: id }),
+    meetingMinutesUpdateSeq: 0,
+    notifyMeetingMinutesUpdated: () =>
+      set(state => ({
+        meetingMinutesUpdateSeq: state.meetingMinutesUpdateSeq + 1,
+      })),
 
     // 캐릭터 스폰 장소 및 초기값
     lastPosition: null,
