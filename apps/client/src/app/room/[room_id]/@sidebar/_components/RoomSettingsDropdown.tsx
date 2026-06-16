@@ -92,7 +92,7 @@ export default function RoomSettingsDropdown({
         >
           <div className="space-y-2 border-b border-border px-2.5 py-2.5">
             <MenuLabel label="룸 이름" value={room.name} />
-            {isHost && <MenuLabel label="연동된 깃허브" value={repoLabel} />}
+            <MenuLabel label="연동된 깃허브" value={repoLabel} />
             <div className="min-w-0">
               <span className="block text-[10px] font-black text-muted">
                 초대코드
