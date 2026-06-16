@@ -889,49 +889,51 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
                       >
                         <span>Labels</span>
                       </Dropdown.Trigger>
-                      <Dropdown.Popover
-                        className="w-[280px] rounded-xl border border-border bg-white p-3 shadow-xl"
-                        placement="bottom end"
-                      >
-                        <LabelDropdown
-                          availableLabels={availableLabels}
-                          canEdit={canEdit}
-                          createLabelMutationPending={
-                            createLabelMutation.isPending
-                          }
-                          deleteLabelMutationPending={
-                            deleteLabelMutation.isPending
-                          }
-                          editingLabelName={editingLabelName}
-                          labelEditColor={labelEditColor}
-                          labelEditName={labelEditName}
-                          labelsPending={labelsQuery.isPending}
-                          newLabelColor={newLabelColor}
-                          newLabelName={newLabelName}
-                          onCreateLabel={() => createLabelMutation.mutate()}
-                          onDeleteLabel={labelName =>
-                            setDeleteConfirmation({
-                              name: labelName,
-                              type: 'label',
-                            })
-                          }
-                          onEditLabel={label => {
-                            setEditingLabelName(label.name);
-                            setLabelEditName(label.name);
-                            setLabelEditColor(label.color);
-                          }}
-                          onCommitLabelEdit={handleCommitLabelEdit}
-                          onLabelEditColorChange={setLabelEditColor}
-                          onLabelEditNameChange={setLabelEditName}
-                          onNewLabelColorChange={setNewLabelColor}
-                          onNewLabelNameChange={setNewLabelName}
-                          onToggleLabel={handleToggleLabel}
-                          selectedLabels={selectedLabels}
-                          updateLabelMutationPending={
-                            updateLabelMutation.isPending
-                          }
-                        />
-                      </Dropdown.Popover>
+                      {deleteConfirmation === null && (
+                        <Dropdown.Popover
+                          className="w-[280px] rounded-xl border border-border bg-white p-3 shadow-xl"
+                          placement="bottom end"
+                        >
+                          <LabelDropdown
+                            availableLabels={availableLabels}
+                            canEdit={canEdit}
+                            createLabelMutationPending={
+                              createLabelMutation.isPending
+                            }
+                            deleteLabelMutationPending={
+                              deleteLabelMutation.isPending
+                            }
+                            editingLabelName={editingLabelName}
+                            labelEditColor={labelEditColor}
+                            labelEditName={labelEditName}
+                            labelsPending={labelsQuery.isPending}
+                            newLabelColor={newLabelColor}
+                            newLabelName={newLabelName}
+                            onCreateLabel={() => createLabelMutation.mutate()}
+                            onDeleteLabel={labelName =>
+                              setDeleteConfirmation({
+                                name: labelName,
+                                type: 'label',
+                              })
+                            }
+                            onEditLabel={label => {
+                              setEditingLabelName(label.name);
+                              setLabelEditName(label.name);
+                              setLabelEditColor(label.color);
+                            }}
+                            onCommitLabelEdit={handleCommitLabelEdit}
+                            onLabelEditColorChange={setLabelEditColor}
+                            onLabelEditNameChange={setLabelEditName}
+                            onNewLabelColorChange={setNewLabelColor}
+                            onNewLabelNameChange={setNewLabelName}
+                            onToggleLabel={handleToggleLabel}
+                            selectedLabels={selectedLabels}
+                            updateLabelMutationPending={
+                              updateLabelMutation.isPending
+                            }
+                          />
+                        </Dropdown.Popover>
+                      )}
                     </Dropdown>
                     <LabelChips labels={selectedLabels} />
                   </section>
@@ -1047,7 +1049,7 @@ function DeleteConfirmationModal({
 }) {
   return (
     <Modal.Backdrop
-      className="bg-slate-900/40 backdrop-blur-none"
+      className="z-[10000] bg-slate-900/40 backdrop-blur-none"
       isOpen={isOpen}
       onOpenChange={nextOpen => {
         if (!nextOpen && !isDeleting) {
