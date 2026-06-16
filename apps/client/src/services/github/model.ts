@@ -35,6 +35,11 @@ export interface PullRequestUser {
   avatar_url: string | null;
 }
 
+export interface PullRequestReviewer extends PullRequestUser {
+  state: string;
+  submitted_at: string | null;
+}
+
 export interface RoomPullRequest {
   number: number;
   title: string;
@@ -57,6 +62,7 @@ export interface RoomPullRequest {
 export interface RoomPullRequestDetail extends RoomPullRequest {
   body: string | null;
   mergeable: boolean | null;
+  reviewers: PullRequestReviewer[];
   changes: {
     additions: number;
     deletions: number;
