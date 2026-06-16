@@ -1,7 +1,8 @@
 'use client';
 
-import { Link } from '@heroui/react';
+import { Button } from '@heroui/react';
 import Image from 'next/image';
+import { useState } from 'react';
 
 import { getGithubLoginUrl } from '@/lib/auth';
 
@@ -12,11 +13,27 @@ function GithubIcon() {
     </svg>
   );
 }
+
+function SpinnerIcon() {
+  return (
+    <span
+      aria-hidden="true"
+      className="size-5 animate-spin rounded-full border-2 border-background/35 border-t-background"
+    />
+  );
+}
 interface HomeLeftProps {
   isAuthenticated?: boolean;
 }
 
 export default function HomeLeft({ isAuthenticated = false }: HomeLeftProps) {
+  const [isGithubLoginLoading, setIsGithubLoginLoading] = useState(false);
+
+  const handleGithubLogin = () => {
+    setIsGithubLoginLoading(true);
+    window.location.assign(getGithubLoginUrl());
+  };
+
   return (
     <div className="max-w-[460px]">
       <div className="mb-8 flex items-center gap-3">
@@ -53,14 +70,18 @@ export default function HomeLeft({ isAuthenticated = false }: HomeLeftProps) {
       </p>
 
       {!isAuthenticated && (
-        <Link
+        <Button
           aria-label="GitHub 계정으로 로그인"
           className="mt-10 inline-flex h-auto min-w-0 items-center gap-2 rounded-xl bg-foreground px-8 py-4 text-sm font-black text-background shadow-todak-soft"
-          href={getGithubLoginUrl()}
+          isDisabled={isGithubLoginLoading}
+          onPress={handleGithubLogin}
+          type="button"
         >
-          <GithubIcon />
-          GitHub 계정으로 시작하기
-        </Link>
+          {isGithubLoginLoading ? <SpinnerIcon /> : <GithubIcon />}
+          {isGithubLoginLoading
+            ? 'GitHub로 이동 중'
+            : 'GitHub 계정으로 시작하기'}
+        </Button>
       )}
     </div>
   );

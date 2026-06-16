@@ -68,8 +68,9 @@ export async function reviewCode(
   return content.text;
 }
 
+// 회의록 생성에 필요한 작성자 필드는 githubUsername 뿐이라, accessToken 등 민감 컬럼은 조회하지 않는다.
 type ChatMessageWithUser = Prisma.ChatMessageGetPayload<{
-  include: { user: true };
+  include: { user: { select: { githubUsername: true } } };
 }>;
 
 interface MinutesActionItem {

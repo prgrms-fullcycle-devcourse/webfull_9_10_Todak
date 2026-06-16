@@ -28,6 +28,10 @@ import {
   updateIssueComment,
   updateLabelForRepo,
 } from './github.service.js';
+import {
+  createNotifications,
+  getRoomMemberIds,
+} from './notifications.service.js';
 
 type TodoWithAssignee = {
   id: string;
@@ -298,6 +302,17 @@ export async function createTodos(
     const createdTodos: Array<Awaited<ReturnType<typeof prisma.todo.create>>> =
       [];
 
+    /*
+     * 앱이 "실제로 행을 만든"(create 성공) 이슈 Todo 만 new_issue 알림 대상으로 모은다.
+     * P2002 화해(웹훅이 먼저 만든 경우)는 웹훅 경로가 이미 알림을 쐈으므로 제외 →
+     * 앱이 이기든 웹훅이 이기든 행을 만든 쪽만 쏴 정확히 1건(중복/누락 없음).
+     */
+    const issuedTodosToNotify: Array<{
+      assigneeId: string | null;
+      title: string;
+      issueNumber: number;
+    }> = [];
+
     for (const [index, todo] of todos.entries()) {
       const data = {
         roomId,
@@ -312,14 +327,23 @@ export async function createTodos(
       };
 
       try {
-        createdTodos.push(await prisma.todo.create({ data }));
+        const created = await prisma.todo.create({ data });
+        createdTodos.push(created);
+
+        if (created.githubIssueNumber !== null) {
+          issuedTodosToNotify.push({
+            assigneeId: created.assigneeId,
+            title: created.title,
+            issueNumber: created.githubIssueNumber,
+          });
+        }
       } catch (createError) {
         if (
           isUniqueConstraintError(createError) &&
           data.githubIssueNumber !== null &&
           data.repoId !== null
         ) {
-          // 웹훅 echo 가 이미 같은 이슈의 Todo 를 생성함 → 앱 값으로 보강(화해)
+          // 웹훅 echo 가 이미 같은 이슈의 Todo 를 생성함 → 앱 값으로 보강(화해), 알림은 웹훅이 담당
           createdTodos.push(
             await prisma.todo.update({
               where: {
@@ -340,6 +364,30 @@ export async function createTodos(
         } else {
           throw createError;
         }
+      }
+    }
+
+    /*
+     * 알림(영속, best-effort): 앱이 발행한 새 이슈에 대해 new_issue 알림.
+     * 담당자가 있으면 담당자에게만, 없으면 룸 전체. 생성자(본인)는 제외.
+     * (담당자=본인이면 0명이 정상)
+     */
+    if (issuedTodosToNotify.length > 0) {
+      const roomMemberIds = issuedTodosToNotify.some(t => t.assigneeId === null)
+        ? await getRoomMemberIds(roomId)
+        : [];
+
+      for (const t of issuedTodosToNotify) {
+        const targets = t.assigneeId !== null ? [t.assigneeId] : roomMemberIds;
+        await createNotifications(
+          targets.filter(id => id !== userId),
+          {
+            roomId,
+            type: 'new_issue',
+            message: `새 이슈: ${t.title}`,
+            link: `https://github.com/${repoOwner}/${repoName}/issues/${t.issueNumber}`,
+          },
+        );
       }
     }
 

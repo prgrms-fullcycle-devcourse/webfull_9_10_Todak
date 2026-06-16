@@ -9,7 +9,7 @@ interface Props {
 
 export default function CompleteModal({ issues, onClose }: Props) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-none">
       <div className="w-[520px] rounded-2xl bg-white p-8 shadow-2xl">
         <div className="mb-4 flex justify-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-green-400 bg-green-50">

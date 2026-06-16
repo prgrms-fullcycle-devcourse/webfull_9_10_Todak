@@ -1,6 +1,8 @@
 import { apiClient } from '@/lib/api';
 import type {
   CreateTodoLabelPayload,
+  CreateTodosRequest,
+  CreateTodosResponse,
   TodoCommentPayload,
   TodoCommentResponse,
   TodoCommentsResponse,
@@ -60,6 +62,10 @@ export async function fetchTodos(
       ...extraParams,
     },
   });
+}
+
+export async function createTodos(roomID: string, body: CreateTodosRequest) {
+  return apiClient.post<CreateTodosResponse>(`rooms/${roomID}/todos`, body);
 }
 
 export async function fetchMyTodos(roomID: string) {

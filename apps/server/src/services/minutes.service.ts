@@ -27,6 +27,13 @@ const REFINE_INSTRUCTIONS: Record<'SHORTEN' | 'BULLET', string> = {
     '전체 내용을 글머리 기호(bullet points) 위주의 개조식으로 정리해줘. 장황한 문장은 짧은 항목으로 변환해.',
 };
 
+/*
+ * 워커 프로세스가 생성 중 비정상 종료(크래시/재배포)되면 status='generating' 회의록이
+ * 영구히 남아 사용자가 무한 로딩에 빠진다. updatedAt 이 이 시간을 넘긴 generating 은
+ * 죽은 잡으로 보고 sweeper 가 failed 로 정리한다. (정상 생성은 보통 1분 내 완료)
+ */
+const STUCK_GENERATING_THRESHOLD_MS = 10 * 60 * 1000;
+
 export class MinutesService {
   // 호출자가 해당 룸의 멤버인지 검증 (멤버가 아니면 룸 존재 여부를 숨기기 위해 ROOM_NOT_FOUND)
   private async assertRoomMember(roomId: string, userId: string) {
@@ -476,5 +483,37 @@ export class MinutesService {
       id: minutes.id,
       refined_content_md: refinedContentMd,
     };
+  }
+
+  /*
+   * 죽은 'generating' 회의록(워커 크래시 등으로 영구히 남은 건)을 failed 로 정리하고
+   * 정리된 목록을 반환한다. updateMany 의 status/updatedAt 가드로, 조회와 갱신 사이에
+   * 워커가 정상 완료(draft)한 건은 건드리지 않는다.
+   * (소켓/알림은 반환 목록으로 호출측 워커가 처리)
+   */
+  public async sweepStuckGeneratingMinutes() {
+    const threshold = new Date(Date.now() - STUCK_GENERATING_THRESHOLD_MS);
+
+    const stuck = await prisma.minutes.findMany({
+      where: { status: 'generating', updatedAt: { lt: threshold } },
+      select: { id: true, roomId: true, meetingId: true, authorId: true },
+    });
+
+    if (stuck.length === 0) {
+      return [];
+    }
+
+    const { count } = await prisma.minutes.updateMany({
+      where: {
+        id: { in: stuck.map(m => m.id) },
+        status: 'generating',
+        updatedAt: { lt: threshold },
+      },
+      data: { status: 'failed' },
+    });
+
+    console.log(`[Sweeper] stuck generating minutes → failed: ${count}`);
+
+    return stuck;
   }
 }

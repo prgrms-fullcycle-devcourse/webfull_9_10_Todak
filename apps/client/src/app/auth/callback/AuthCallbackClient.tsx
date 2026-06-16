@@ -1,7 +1,8 @@
 'use client';
 
+import { Button } from '@heroui/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   clearAuthToken,
@@ -16,6 +17,7 @@ interface AuthCallbackClientProps {
 
 export default function AuthCallbackClient({ token }: AuthCallbackClientProps) {
   const router = useRouter();
+  const [isGithubLoginLoading, setIsGithubLoginLoading] = useState(false);
   const authResult = useMemo(() => {
     if (token === null || token === '') {
       return {
@@ -54,6 +56,11 @@ export default function AuthCallbackClient({ token }: AuthCallbackClientProps) {
     router.replace(`/${encodeURIComponent(authResult.user.id)}/join`);
   }, [authResult, router, token]);
 
+  const handleGithubLogin = () => {
+    setIsGithubLoginLoading(true);
+    window.location.assign(getGithubLoginUrl());
+  };
+
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-5 text-foreground">
       <section className="w-full max-w-[360px] rounded-[26px] border border-border/80 bg-surface px-7 py-8 text-center shadow-todak-panel">
@@ -66,12 +73,22 @@ export default function AuthCallbackClient({ token }: AuthCallbackClientProps) {
         </p>
 
         {authResult.status === 'error' ? (
-          <a
+          <Button
             className="mt-6 inline-flex h-10 items-center justify-center rounded-xl bg-foreground px-5 text-xs font-black text-background shadow-todak-soft"
-            href={getGithubLoginUrl()}
+            isDisabled={isGithubLoginLoading}
+            onPress={handleGithubLogin}
+            type="button"
           >
-            GitHub 계정으로 다시 시작하기
-          </a>
+            {isGithubLoginLoading && (
+              <span
+                aria-hidden="true"
+                className="size-4 animate-spin rounded-full border-2 border-background/35 border-t-background"
+              />
+            )}
+            {isGithubLoginLoading
+              ? 'GitHub로 이동 중'
+              : 'GitHub 계정으로 다시 시작하기'}
+          </Button>
         ) : (
           <div
             aria-label="로그인 처리 중"
