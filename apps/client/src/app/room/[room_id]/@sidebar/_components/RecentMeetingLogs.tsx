@@ -7,7 +7,7 @@ import { useSpaceStore } from '@/store/useSpaceStore';
 
 import { Accordion, Button, Chip } from '@heroui/react';
 import { useParams } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Props {
   meetingLogs: MinutesList;
@@ -25,7 +25,6 @@ export default function RecentMeetingLogs({ meetingLogs }: Props) {
   const [hasMeetingLogUpdate, setHasMeetingLogUpdate] = useState(false);
   const [isMeetingLogsExpanded, setIsMeetingLogsExpanded] = useState(false);
   const isMeetingLogsExpandedRef = useRef(isMeetingLogsExpanded);
-  const meetingLogsSignatureRef = useRef<string | null>(null);
   const {
     data: recentMeetingMinutes,
     fetchNextPage,
@@ -40,34 +39,10 @@ export default function RecentMeetingLogs({ meetingLogs }: Props) {
   const visibleMeetingLogs =
     recentMeetingMinutes?.pages.flatMap(page => page.minutes) ??
     meetingLogs.minutes;
-  const meetingLogsSignature = useMemo(
-    () =>
-      visibleMeetingLogs
-        .map(log => `${log.id}:${log.status}:${log.updated_at}`)
-        .join('|'),
-    [visibleMeetingLogs],
-  );
 
   useEffect(() => {
     isMeetingLogsExpandedRef.current = isMeetingLogsExpanded;
   }, [isMeetingLogsExpanded]);
-
-  useEffect(() => {
-    if (meetingLogsSignatureRef.current === null) {
-      meetingLogsSignatureRef.current = meetingLogsSignature;
-      return;
-    }
-
-    if (meetingLogsSignatureRef.current === meetingLogsSignature) {
-      return;
-    }
-
-    meetingLogsSignatureRef.current = meetingLogsSignature;
-
-    if (!isMeetingLogsExpandedRef.current) {
-      setHasMeetingLogUpdate(true);
-    }
-  }, [meetingLogsSignature]);
 
   useEffect(() => {
     if (meetingMinutesUpdateSeq === 0) {
