@@ -33,6 +33,7 @@ export interface StartMeetingResult {
   started_at: string;
   host_id: string;
   participants: string[];
+  created: boolean;
 }
 
 export interface EndMeetingResult {
@@ -40,6 +41,8 @@ export interface EndMeetingResult {
   status: string;
   ended_at: string;
   message_count: number;
+  private_room_id: string;
+  ended: boolean;
 }
 
 interface MeetingWindow {
@@ -136,6 +139,7 @@ export async function startMeeting(
       started_at: ongoing.startedAt.toISOString(),
       host_id: ongoing.hostId,
       participants: withHost(chatterIds, ongoing.hostId),
+      created: false,
     };
   }
 
@@ -153,6 +157,7 @@ export async function startMeeting(
     started_at: meeting.startedAt.toISOString(),
     host_id: meeting.hostId,
     participants: [userId],
+    created: true,
   };
 }
 
@@ -199,6 +204,8 @@ export async function endMeeting(
     status,
     ended_at: endedAt.toISOString(),
     message_count: messages.length,
+    private_room_id: meeting.privateRoomId,
+    ended: meeting.status === 'ongoing',
   };
 }
 
