@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@heroui/react';
 import type { ActionItem } from '@/services/minutes/model';
+import { RoomProfile } from '@/services/rooms/model';
+import { createTodos } from '@/services/todos/api';
 
 const LABEL_OPTIONS = ['feat', 'bug', 'docs', 'refactor', 'enhancement'];
 
@@ -10,12 +12,26 @@ interface Props {
   issues: ActionItem[];
   onClose: () => void;
   onUpload: (editedIssues: ActionItem[]) => void;
+  members: RoomProfile[];
+  minutesId: string | null;
+  roomId: string;
 }
 
-export default function ReviewModal({ issues, onClose, onUpload }: Props) {
+export default function ReviewModal({
+  issues,
+  onClose,
+  onUpload,
+  members,
+  minutesId,
+  roomId,
+}: Props) {
   const [editedIssues, setEditedIssues] = useState<ActionItem[]>(issues);
 
-  const updateIssue = (idx: number, field: keyof ActionItem, value: string) => {
+  const updateIssue = <K extends keyof ActionItem>(
+    idx: number,
+    field: K,
+    value: ActionItem[K],
+  ) => {
     setEditedIssues(prev =>
       prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item)),
     );
@@ -80,11 +96,29 @@ export default function ReviewModal({ issues, onClose, onUpload }: Props) {
                   <label className="mb-1 block text-[10px] font-bold text-slate-500">
                     👤 담당 배정 (Assignee)
                   </label>
-                  <input
-                    value={issue.assignee?.github_username ?? '미배정'}
-                    readOnly
-                    className="w-full rounded-lg border border-border bg-slate-50 px-3 py-2 text-xs text-slate-500"
-                  />
+                  <select
+                    value={issue.assignee?.id ?? ''}
+                    onChange={e => {
+                      const member = members.find(m => m.id === e.target.value);
+                      const assignee = member
+                        ? {
+                            id: member.id,
+                            github_username: member.github_username,
+                            avatar_url: member.avatar_url ?? '', // ⭐ 핵심
+                          }
+                        : null;
+
+                      updateIssue(idx, 'assignee', assignee);
+                    }}
+                    className="w-full rounded-lg border border-border px-3 py-2 text-xs text-slate-700 focus:border-todak-coral-500 focus:outline-none"
+                  >
+                    <option value="">미배정</option>
+                    {members.map(m => (
+                      <option key={m.id} value={m.id}>
+                        @{m.github_username}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="mb-1 block text-[10px] font-bold text-slate-500">
@@ -92,7 +126,7 @@ export default function ReviewModal({ issues, onClose, onUpload }: Props) {
                   </label>
                   <select
                     value={issue.labels[0] ?? ''}
-                    onChange={e => updateIssue(idx, 'labels', e.target.value)}
+                    onChange={e => updateIssue(idx, 'labels', [e.target.value])}
                     className="w-full rounded-lg border border-border px-3 py-2 text-xs text-slate-700 focus:border-todak-coral-500 focus:outline-none"
                   >
                     {LABEL_OPTIONS.map(l => (
@@ -132,7 +166,29 @@ export default function ReviewModal({ issues, onClose, onUpload }: Props) {
             </Button>
             <Button
               variant="ghost"
-              onClick={() => onUpload(editedIssues)}
+              onClick={async () => {
+                try {
+                  const todos = editedIssues.map(issue => ({
+                    title: issue.title,
+                    ...(issue.body ? { body: issue.body } : {}),
+                    labels: issue.labels,
+                    create_issue: true,
+                    // assignee_id, minutes_id 둘 다 제거
+                  }));
+                  console.log('members:', members);
+
+                  console.log(
+                    '🔥 최종 요청:',
+                    JSON.stringify({ todos }, null, 2),
+                  );
+
+                  await createTodos(roomId, { todos });
+
+                  onUpload(editedIssues);
+                } catch (e) {
+                  console.error('❌ API 에러:', e);
+                }
+              }}
               className="rounded-xl bg-todak-coral-500 px-4 py-2 text-xs font-bold text-white hover:bg-todak-coral-600"
             >
               github 업로드
