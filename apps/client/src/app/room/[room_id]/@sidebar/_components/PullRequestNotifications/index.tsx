@@ -51,25 +51,32 @@ export default function PullRequestNotifications({
   const isPullRequestExpandedRef = useRef(isPullRequestExpanded);
   const pullRequestListSignatureRef = useRef<string | null>(null);
   const isModalOpen = selectedPullRequest !== null;
-  const pullRequests = useMemo(
+  const visibleRoomPullRequests = useMemo(
     () =>
-      (pullRequestsResponse?.pull_requests ?? []).map(pullRequest =>
-        mapPullRequestToModalData(pullRequest),
+      (pullRequestsResponse?.pull_requests ?? []).filter(
+        pullRequest => pullRequest.state.toLowerCase() !== 'closed',
       ),
     [pullRequestsResponse?.pull_requests],
+  );
+  const pullRequests = useMemo(
+    () =>
+      visibleRoomPullRequests.map(pullRequest =>
+        mapPullRequestToModalData(pullRequest),
+      ),
+    [visibleRoomPullRequests],
   );
   const pullRequestListSignature = useMemo(() => {
     if (!pullRequestsResponse) {
       return null;
     }
 
-    return pullRequestsResponse.pull_requests
+    return visibleRoomPullRequests
       .map(
         pullRequest =>
           `${pullRequest.number}:${pullRequest.state}:${pullRequest.is_merged}:${pullRequest.updated_at}`,
       )
       .join('|');
-  }, [pullRequestsResponse]);
+  }, [pullRequestsResponse, visibleRoomPullRequests]);
 
   useEffect(() => {
     isPullRequestExpandedRef.current = isPullRequestExpanded;
