@@ -4,6 +4,7 @@ import { useState } from 'react';
 import CompleteModal from './CompleteModal';
 import ReviewModal from './ReviewModal';
 import { ActionItem } from '@/services/minutes/model';
+import { useSpaceStore } from '@/store/useSpaceStore';
 
 interface IssueHubProps {
   actionItems: ActionItem[];
@@ -20,9 +21,11 @@ export default function IssueHub({
   onSave,
   onActionItemsChange,
 }: IssueHubProps) {
+  const members = useSpaceStore(state => state.members);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [modal, setModal] = useState<'none' | 'review' | 'complete'>('none');
-
+  const [completedIssues, setCompletedIssues] = useState<ActionItem[]>([]);
+  const setCurrentView = useSpaceStore(state => state.setCurrentView);
   const toggleSelect = (idx: number) => {
     setSelected(prev => {
       const next = new Set(prev);
@@ -143,16 +146,24 @@ export default function IssueHub({
         <ReviewModal
           issues={selectedItems}
           onClose={() => setModal('none')}
-          onUpload={editedIssues => {
+          onUpload={async editedIssues => {
+            await onSave();
             onActionItemsChange(editedIssues);
+            setCompletedIssues(editedIssues);
             setModal('complete');
           }}
+          members={members}
+          minutesId={minutesId}
+          roomId={roomId}
         />
       )}
       {modal === 'complete' && (
         <CompleteModal
-          issues={selectedItems}
-          onClose={() => setModal('none')}
+          issues={completedIssues}
+          onClose={() => {
+            setModal('none');
+            setCurrentView('2d'); // 2D 타운으로 전환
+          }}
         />
       )}
     </div>
