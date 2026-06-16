@@ -19,3 +19,24 @@ export interface RoomNotification {
 export interface NotificationsResponse {
   notifications: RoomNotification[];
 }
+
+// PR 소켓 타입 정의
+export interface SocketPrPayload {
+  roomId: string;
+  pull_request: {
+    number: number;
+    title: string;
+    state: string;
+    merged: boolean;
+    url: string | null;
+  };
+}
+
+export interface SocketReviewPayload {
+  roomId: string;
+  review: {
+    pull_number: number;
+    state: string;
+    url: string | null;
+  };
+}

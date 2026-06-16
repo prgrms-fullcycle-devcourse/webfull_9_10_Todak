@@ -349,7 +349,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       const socket = getSocket();
 
-      socket.emit('room:join', { roomId });
+      socket.emit('room:join', roomId);
 
       socket.on('room:user-joined', () => {
         setTimeout(async () => {
@@ -692,8 +692,10 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
           window.clearTimeout(npcTimeoutRef.current);
         }
 
+        const formattedMessage = `${latestNotification.message}`;
+
         // NPC 말풍선
-        npcRef.current.say(latestNotification.message);
+        npcRef.current.say(formattedMessage);
         npcTimeoutRef.current = window.setTimeout(() => {
           if (npcRef.current) {
             npcRef.current.say('');
