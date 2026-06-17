@@ -12,7 +12,7 @@ import {
 } from '@/services/notifications/query';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/providers/SocketProvider';
 import { useQueryClient } from '@tanstack/react-query';
 
 function getNotificationLabel(type: RoomNotification['type']) {
@@ -43,6 +43,7 @@ export default function RollingNotificationBanner() {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const queryClient = useQueryClient();
+  const { socket } = useSocket();
 
   const { data, isError, isPending } = useNotifications(roomID);
 
@@ -55,8 +56,6 @@ export default function RollingNotificationBanner() {
   // 실시간 알림 소켓 리스너
   useEffect(() => {
     if (!roomID) return;
-
-    const socket = getSocket();
 
     // 싱글톤 소켓 버그 방지 기명 핸들러 정의
     const handleNotificationCreated = (incomingData: RoomNotification) => {
@@ -113,7 +112,7 @@ export default function RollingNotificationBanner() {
       socket.off('pr:reviewed', handleReviewRoomEvent);
       socket.off('issue:created', handleIssueRoomEvent);
     };
-  }, [roomID, queryClient]);
+  }, [roomID, queryClient, socket]);
 
   useEffect(() => {
     if (notifications.length <= 1) {

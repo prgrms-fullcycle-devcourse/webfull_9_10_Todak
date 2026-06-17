@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/providers/SocketProvider';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import { PrivateRoom } from '@/services/rooms/model';
 import { useQueryClient } from '@tanstack/react-query';
@@ -16,10 +16,10 @@ interface Props {
 
 export default function MettingSocketListener({ roomId }: Props) {
   const queryClient = useQueryClient();
+  const { socket } = useSocket();
 
   useEffect(() => {
     if (!roomId) return;
-    const socket = getSocket();
 
     // 회의 시작 소켓 수신
     const handleMeetingStarted = (incomingData: SocketMeetingEventPayload) => {
@@ -86,7 +86,7 @@ export default function MettingSocketListener({ roomId }: Props) {
       socket.off('meeting:ended', handleMeetingEnded);
       socket.off('room:private-rooms-updated', handlePrivateRoomsUpdated);
     };
-  }, [roomId, queryClient]);
+  }, [roomId, queryClient, socket]);
 
   return null;
 }
