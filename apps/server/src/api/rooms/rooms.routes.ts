@@ -15,6 +15,7 @@ import privateRoomRoutes from './private-room/private-room.routes.js';
 import './prs/prs.swagger.js';
 import prsRoutes from './prs/prs.routes.js';
 import './repo/repo.swagger.js';
+import './repo/collaborators.swagger.js';
 import './todos/todos.swagger.js';
 import repoRoutes from './repo/repo.routes.js';
 import {
