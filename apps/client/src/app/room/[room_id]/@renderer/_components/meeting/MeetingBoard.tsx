@@ -68,16 +68,23 @@ export default function MeetingBoard() {
   };
 
   // 저장 함수
-  const handleSave = async () => {
+  const handleSave = async (
+    overrideContent?: string,
+    overrideActionItems?: ActionItem[],
+  ) => {
     if (!currentMinutesId) return;
     await updateMinutes(roomId, currentMinutesId, {
-      content_md: content,
-      action_items: actionItems,
+      content_md: overrideContent ?? content,
+      action_items: overrideActionItems ?? actionItems,
       status: 'confirmed',
     });
-    // 저장 완료 후 dirty 해제 → 이후 서버 업데이트 다시 수신 가능
     isDirtyRef.current = false;
     queryClient.invalidateQueries({ queryKey: ['minutes', currentMinutesId] });
+  };
+
+  const handleSaveWithItems = async (items: ActionItem[]) => {
+    setActionItems(items);
+    await handleSave(content, items);
   };
 
   // 소켓 이벤트 처리
@@ -92,8 +99,9 @@ export default function MeetingBoard() {
       if (data.minutes_id !== currentMinutesId) return;
       setGenerationError(null);
       isDirtyRef.current = false;
+      // 회의 요약, 회의록 목록 갱신
       queryClient.invalidateQueries({
-        queryKey: ['minutes', currentMinutesId],
+        queryKey: ['minutes'],
       });
     };
 
@@ -107,8 +115,6 @@ export default function MeetingBoard() {
     };
 
     // 다른 유저가 저장했을 때 실시간 반영
-    // 단, 내가 수정 중이면 무시 (내 수정값 보호)
-    // ※ 서버에서 minutes:updated 이벤트를 broadcast해줘야 동작함
     const handleMinutesUpdated = (data: MinutesUpdatedEvent) => {
       if (data.minutes_id !== currentMinutesId) return;
       if (isDirtyRef.current) return;
@@ -128,8 +134,6 @@ export default function MeetingBoard() {
     };
   }, [currentMinutesId]);
 
-  console.log('currentMinutesId:', currentMinutesId);
-
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <MeetingMinutes
@@ -144,7 +148,7 @@ export default function MeetingBoard() {
         actionItems={actionItems}
         minutesId={currentMinutesId}
         onActionItemsChange={handleActionItemsChange}
-        onSave={handleSave}
+        onSaveWithItems={handleSaveWithItems}
         roomId={roomId}
       />
     </div>
