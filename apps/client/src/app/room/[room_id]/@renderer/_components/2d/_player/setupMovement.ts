@@ -268,19 +268,26 @@ export function setupMovement(
             privateRoomId: roomToLeave,
           });
 
-          // 마지막 사람이고 회의 종료 동의 시에만 종료 API 체인 가동
-          if (isLastPerson && shouldEndMeeting && isMeetingOngoing) {
+          // 마지막 사람이고 회의 중이라면 선택 여부와 무관하게 회의는 무조건 공식 종료 처리
+          if (isLastPerson && isMeetingOngoing) {
             const currentMeetingId = useSpaceStore.getState().currentMeetingId;
 
             if (currentMeetingId) {
               try {
+                // 아니요를 회의 종료 API 가동
                 const endedMeeting = await endMeeting(roomId, currentMeetingId);
-                const endedAt = new Date(endedMeeting.ended_at);
-                const minutesTitle = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
 
-                await generateMinutes(roomId, currentMeetingId, minutesTitle);
+                // 모달에서 '네, 생성할래요!(true)'를 누른 경우에만 AI 회의록 파이프라인 가동
+                if (shouldEndMeeting) {
+                  const endedAt = new Date(endedMeeting.ended_at);
+                  const minutesTitle = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
+
+                  await generateMinutes(roomId, currentMeetingId, minutesTitle);
+                  useSpaceStore.getState().setCurrentView?.('meeting');
+                }
+
+                // 회의 세션 ID 청소는 공통 적용
                 useSpaceStore.getState().setCurrentMeetingId(null);
-                useSpaceStore.getState().setCurrentView?.('meeting');
               } catch (apiError) {
                 console.error('❌ 퇴장 중 회의 자동 종료 처리 실패:', apiError);
               }

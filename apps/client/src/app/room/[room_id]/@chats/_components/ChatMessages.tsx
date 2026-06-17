@@ -79,6 +79,7 @@ function isMatchingPendingMessage(
     pendingMessage.content === message.content &&
     pendingMessage.private_room_id === message.private_room_id &&
     pendingMessage.user.github_username === message.user.github_username &&
+    pendingMessage.user?.github_username === message.user?.github_username &&
     Math.abs(receivedAt - sentAt) < 30_000
   );
 }
@@ -255,7 +256,7 @@ function MessageItem({
   const isFailed = msg.localStatus === 'failed';
   const authUser = getStoredAuthUser();
   const isMine =
-    authUser !== null && msg.user.github_username === authUser.login;
+    authUser !== null && msg.user?.github_username === authUser.login;
   const displayName = msg.user.nickname?.trim() || msg.user.github_username;
   const githubHandle = `@${msg.user.github_username}`;
 
@@ -547,9 +548,13 @@ export default function ChatMessages({
     (msg: ChatMessage) => {
       const authUser = getStoredAuthUser();
       const isMine =
-        authUser !== null && msg.user.github_username === authUser.login;
+        authUser !== null && msg.user?.github_username === authUser.login;
 
-      if (!isMine) {
+      if (
+        !isMine &&
+        msg.type !== 'meeting_start' &&
+        msg.type !== 'meeting_end'
+      ) {
         notifyIncomingMessage();
       }
 
