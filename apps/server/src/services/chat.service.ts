@@ -31,6 +31,7 @@ export interface ChatPayload {
   private_room_id: string | null;
   user: {
     github_username: string;
+    nickname: string | null; // 해당 룸에서의 표시 닉네임 (RoomMember.nickname)
     avatar_url: string | null;
   };
   content: string | null;
@@ -55,6 +56,7 @@ interface ChatRow {
   user: {
     githubUsername: string;
     avatarUrl: string | null;
+    roomMembers: { nickname: string | null }[];
   };
   reactions: { emoji: string; userId: string }[];
   attachments: {
@@ -65,14 +67,22 @@ interface ChatRow {
   }[];
 }
 
-const includeChat = {
-  user: { select: { githubUsername: true, avatarUrl: true } },
-  reactions: { select: { emoji: true, userId: true } },
-  attachments: {
-    select: { s3Key: true, mime: true, size: true, originalName: true },
-    orderBy: { createdAt: 'asc' }, // 첨부 순서 보존
-  },
-} as const;
+function buildChatInclude(roomId: string) {
+  return {
+    user: {
+      select: {
+        githubUsername: true,
+        avatarUrl: true,
+        roomMembers: { where: { roomId }, select: { nickname: true } },
+      },
+    },
+    reactions: { select: { emoji: true, userId: true } },
+    attachments: {
+      select: { s3Key: true, mime: true, size: true, originalName: true },
+      orderBy: { createdAt: 'asc' }, // 첨부 순서 보존
+    },
+  } as const;
+}
 
 function aggregateReactions(
   rows: { emoji: string; userId: string }[],
@@ -119,6 +129,7 @@ async function toPayload(
     private_room_id: row.privateRoomId,
     user: {
       github_username: row.user.githubUsername,
+      nickname: row.user.roomMembers[0]?.nickname ?? null,
       avatar_url: row.user.avatarUrl,
     },
     content: row.content,
@@ -145,7 +156,7 @@ async function fetchChats(
     },
     orderBy: { createdAt: 'desc' },
     take: limit,
-    include: includeChat,
+    include: buildChatInclude(where.roomId),
   });
 
   return Promise.all(rows.map(row => toPayload(row, currentUserId)));
@@ -266,7 +277,7 @@ export async function createChat(
         attachments: { create: attachments },
       }),
     },
-    include: includeChat,
+    include: buildChatInclude(input.roomId),
   });
 
   return toPayload(saved, userId);
@@ -295,7 +306,7 @@ export async function createMeetingSystemMessage(input: {
           : '회의가 종료되었습니다.',
       type: input.type,
     },
-    include: includeChat,
+    include: buildChatInclude(input.roomId),
   });
 
   return toPayload(saved, input.userId);
