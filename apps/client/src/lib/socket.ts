@@ -6,10 +6,11 @@ const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL ?? 'http://localhost:4000';
 
 let socket: Socket | null = null;
+let noopSocket: Socket | null = null;
 
 export function getSocket(accessToken?: string) {
   if (typeof window === 'undefined') {
-    throw new Error('클라이언트 사이드에서만 사용 가능합니다.');
+    return getNoopSocket();
   }
 
   if (socket === null) {
@@ -32,4 +33,35 @@ export function setSocketAuth(socket: Socket, accessToken: string) {
 
   socket.auth = { token };
   socket.io.opts.query = { token };
+}
+
+function getNoopSocket() {
+  if (noopSocket !== null) {
+    return noopSocket;
+  }
+
+  noopSocket = {
+    connected: false,
+    auth: {},
+    io: {
+      opts: {},
+    },
+    connect() {
+      return this;
+    },
+    disconnect() {
+      return this;
+    },
+    emit() {
+      return this;
+    },
+    on() {
+      return this;
+    },
+    off() {
+      return this;
+    },
+  } as unknown as Socket;
+
+  return noopSocket;
 }

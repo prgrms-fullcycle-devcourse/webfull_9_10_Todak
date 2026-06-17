@@ -71,17 +71,6 @@ function subscribeMinutesSocketSync(
     queryClient.invalidateQueries({ queryKey: minutesQueryKeys.all });
     useSpaceStore.getState().notifyMeetingMinutesUpdated();
   };
-  const joinRoom = () => {
-    socket.emit('room:join', roomId);
-  };
-
-  // 연결은 SocketProvider 가 소유한다(여기서 connect 하지 않음).
-  socket.on('connect', joinRoom);
-
-  if (socket.connected) {
-    joinRoom();
-  }
-
   socket.on('minutes:created', syncMinutes);
   socket.on('minutes:generation-started', syncMinutes);
   socket.on('minutes:generated', syncMinutes);
@@ -92,7 +81,6 @@ function subscribeMinutesSocketSync(
     roomId,
     subscribers: 1,
     dispose: () => {
-      socket.off('connect', joinRoom);
       socket.off('minutes:created', syncMinutes);
       socket.off('minutes:generation-started', syncMinutes);
       socket.off('minutes:generated', syncMinutes);

@@ -341,8 +341,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       // 룸 내 팀원 렌더링
       const remotePlayers = new Map<string, RemotePlayer>();
-      const { myChar } = useSpaceStore.getState();
       const syncMembers = (currentMembers: RoomProfile[]) => {
+        const currentMyId = useSpaceStore.getState().myChar.id;
+
         // 나간 사람 캔버스에서 제거
         const currentMemberIds = new Set(currentMembers.map(m => m.id));
         for (const [userId, remotePlayer] of remotePlayers.entries()) {
@@ -355,7 +356,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
         // 새로 들어온 사람 캔버스에 추가
         currentMembers.forEach(member => {
-          if (member.id === myChar.id) return;
+          if (String(member.id) === String(currentMyId)) return;
 
           if (!remotePlayers.has(member.id)) {
             const memberTextures =
@@ -378,8 +379,6 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         world.sortChildren();
       };
       syncMembers(useSpaceStore.getState().members);
-
-      socket.emit('room:join', roomId);
 
       const handleUserJoined = () => {
         setTimeout(async () => {

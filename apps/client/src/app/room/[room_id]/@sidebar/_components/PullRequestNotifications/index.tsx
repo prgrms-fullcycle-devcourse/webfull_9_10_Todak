@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/cn';
-import { useSocket } from '@/providers/SocketProvider';
+import { useSocketEvent } from '@/hooks/useSocketEvent';
 import {
   pullRequestQueryKeys,
   useRoomPullRequests,
@@ -39,7 +39,6 @@ export default function PullRequestNotifications({
 }: PullRequestNotificationsProps) {
   const { room_id: roomID } = useParams<{ room_id: string }>();
   const queryClient = useQueryClient();
-  const { socket } = useSocket();
   const {
     data: pullRequestsResponse,
     isError,
@@ -104,44 +103,36 @@ export default function PullRequestNotifications({
     }
   }, [pullRequestListSignature]);
 
-  useEffect(() => {
-    const handlePullRequestEvent = (data: PullRequestSocketPayload) => {
-      const payloadRoomId = getPullRequestEventRoomId(data);
+  const handlePullRequestEvent = (data: PullRequestSocketPayload) => {
+    const payloadRoomId = getPullRequestEventRoomId(data);
 
-      if (payloadRoomId && payloadRoomId !== roomID) {
-        return;
-      }
-
-      queryClient.invalidateQueries({ queryKey: pullRequestQueryKeys.all });
-
-      if (!isPullRequestExpandedRef.current) {
-        setHasPullRequestUpdate(true);
-      }
-    };
-    const joinRoom = () => {
-      socket.emit('room:join', roomID);
-    };
-
-    // 연결은 SocketProvider 가 소유한다(여기서 connect 하지 않음).
-    socket.on('connect', joinRoom);
-
-    if (socket.connected) {
-      joinRoom();
+    if (payloadRoomId && payloadRoomId !== roomID) {
+      return;
     }
 
-    socket.on('pr:opened', handlePullRequestEvent);
-    socket.on('pr:merged', handlePullRequestEvent);
-    socket.on('pr:closed', handlePullRequestEvent);
-    socket.on('pr:reviewed', handlePullRequestEvent);
+    queryClient.invalidateQueries({ queryKey: pullRequestQueryKeys.all });
 
-    return () => {
-      socket.off('connect', joinRoom);
-      socket.off('pr:opened', handlePullRequestEvent);
-      socket.off('pr:merged', handlePullRequestEvent);
-      socket.off('pr:closed', handlePullRequestEvent);
-      socket.off('pr:reviewed', handlePullRequestEvent);
-    };
-  }, [queryClient, roomID, socket]);
+    if (!isPullRequestExpandedRef.current) {
+      setHasPullRequestUpdate(true);
+    }
+  };
+
+  useSocketEvent<[PullRequestSocketPayload]>(
+    'pr:opened',
+    handlePullRequestEvent,
+  );
+  useSocketEvent<[PullRequestSocketPayload]>(
+    'pr:merged',
+    handlePullRequestEvent,
+  );
+  useSocketEvent<[PullRequestSocketPayload]>(
+    'pr:closed',
+    handlePullRequestEvent,
+  );
+  useSocketEvent<[PullRequestSocketPayload]>(
+    'pr:reviewed',
+    handlePullRequestEvent,
+  );
 
   const handlePullRequestTriggerPress = () => {
     setIsPullRequestExpanded(current => {
