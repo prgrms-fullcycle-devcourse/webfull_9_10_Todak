@@ -174,6 +174,7 @@ export default function ReviewModal({
                     labels: issue.labels,
                     create_issue: true,
                     minutes_id: minutesId,
+                    assignee_id: issue.assignee?.id ?? null,
                   }));
 
                   await createTodos(roomId, { todos });
