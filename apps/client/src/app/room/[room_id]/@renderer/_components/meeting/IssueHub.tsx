@@ -5,12 +5,14 @@ import CompleteModal from './CompleteModal';
 import ReviewModal from './ReviewModal';
 import { ActionItem } from '@/services/minutes/model';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { fetchTodos } from '@/services/todos/api';
+import { useQuery } from '@tanstack/react-query';
 
 interface IssueHubProps {
   actionItems: ActionItem[];
   minutesId: string | null;
   roomId: string;
-  onSave: () => void;
+  onSaveWithItems: (items: ActionItem[]) => Promise<void>;
   onActionItemsChange: (items: ActionItem[]) => void;
 }
 
@@ -18,7 +20,7 @@ export default function IssueHub({
   actionItems,
   minutesId,
   roomId,
-  onSave,
+  onSaveWithItems,
   onActionItemsChange,
 }: IssueHubProps) {
   const members = useSpaceStore(state => state.members);
@@ -26,7 +28,18 @@ export default function IssueHub({
   const [modal, setModal] = useState<'none' | 'review' | 'complete'>('none');
   const [completedIssues, setCompletedIssues] = useState<ActionItem[]>([]);
   const setCurrentView = useSpaceStore(state => state.setCurrentView);
+
+  // 발행된 투두 조회 → title 기준으로 비활성화
+  const { data: issuedTodos, refetch: refetchTodos } = useQuery({
+    queryKey: ['todos', roomId, minutesId],
+    queryFn: () => fetchTodos(roomId, { minutes_id: minutesId! }),
+    enabled: !!minutesId && !!roomId,
+  });
+
+  const issuedTitles = new Set(issuedTodos?.todos.map(t => t.title) ?? []);
+
   const toggleSelect = (idx: number) => {
+    if (issuedTitles.has(actionItems[idx]?.title)) return;
     setSelected(prev => {
       const next = new Set(prev);
 
@@ -68,66 +81,80 @@ export default function IssueHub({
             AI가 추출한 액션 아이템이 없습니다
           </div>
         ) : (
-          actionItems.map((item, idx) => (
-            <div
-              key={idx}
-              onClick={() => toggleSelect(idx)}
-              className={`cursor-pointer rounded-xl border p-3 transition-colors ${
-                selected.has(idx)
-                  ? 'border-todak-coral-200 bg-todak-coral-50'
-                  : 'border-border bg-surface hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <p className="mb-1 text-[10px] font-bold text-todak-coral-400">
-                    NEW ISSUE
-                  </p>
-                  <p className="text-xs font-bold leading-snug text-slate-800">
-                    {item.title}
-                  </p>
-                  {item.assignee && (
-                    <div className="mt-2 flex items-center gap-1.5">
-                      <span className="text-[10px] text-slate-400">
-                        @{item.assignee.github_username}
-                      </span>
-                    </div>
-                  )}
-                  {item.labels.length > 0 && (
-                    <div className="mt-1 flex gap-1">
-                      {item.labels.map(label => (
-                        <span
-                          key={label}
-                          className="rounded px-1.5 py-0.5 text-[9px] font-bold bg-slate-100 text-slate-500"
-                        >
-                          {label}
+          actionItems.map((item, idx) => {
+            const isIssued = issuedTitles.has(item.title);
+            return (
+              <div
+                key={idx}
+                onClick={() => toggleSelect(idx)}
+                className={`rounded-xl border p-3 transition-colors ${
+                  isIssued
+                    ? 'cursor-not-allowed border-slate-300 bg-slate-100 opacity-70'
+                    : selected.has(idx)
+                      ? 'cursor-pointer border-todak-coral-200 bg-todak-coral-50'
+                      : 'cursor-pointer border-border bg-surface hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p
+                      className={`mb-1 text-[10px] font-bold ${isIssued ? 'text-slate-800' : 'text-todak-coral-400'}`}
+                    >
+                      {isIssued ? '✓ ISSUED' : 'NEW ISSUE'}
+                    </p>
+                    <p className="text-xs font-bold leading-snug text-slate-800">
+                      {item.title}
+                    </p>
+                    {item.assignee && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-400">
+                          @{item.assignee.github_username}
                         </span>
-                      ))}
+                      </div>
+                    )}
+                    {item.labels.length > 0 && (
+                      <div className="mt-1 flex gap-1">
+                        {item.labels.map(label => (
+                          <span
+                            key={label}
+                            className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {!isIssued && (
+                    <div
+                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                        selected.has(idx)
+                          ? 'border-todak-coral-500 bg-todak-coral-500'
+                          : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {selected.has(idx) && (
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 12 12"
+                          fill="none"
+                        >
+                          <path
+                            d="M2 6l3 3 5-5"
+                            stroke="white"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div
-                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                    selected.has(idx)
-                      ? 'border-todak-coral-500 bg-todak-coral-500'
-                      : 'border-slate-300 bg-white'
-                  }`}
-                >
-                  {selected.has(idx) && (
-                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                      <path
-                        d="M2 6l3 3 5-5"
-                        stroke="white"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
                   )}
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -147,8 +174,19 @@ export default function IssueHub({
           issues={selectedItems}
           onClose={() => setModal('none')}
           onUpload={async editedIssues => {
-            await onSave();
-            onActionItemsChange(editedIssues);
+            const selectedIdxArray = Array.from(selected);
+            const updatedItems = actionItems.map((item, idx) => {
+              const editedIdx = selectedIdxArray.indexOf(idx);
+              return editedIdx !== -1 ? editedIssues[editedIdx] : item;
+            });
+
+            setSelected(new Set());
+            onActionItemsChange(updatedItems);
+            await onSaveWithItems(updatedItems);
+
+            // 투두 목록 갱신
+            await refetchTodos();
+
             setCompletedIssues(editedIssues);
             setModal('complete');
           }}
@@ -162,7 +200,7 @@ export default function IssueHub({
           issues={completedIssues}
           onClose={() => {
             setModal('none');
-            setCurrentView('2d'); // 2D 타운으로 전환
+            setCurrentView('2d');
           }}
         />
       )}

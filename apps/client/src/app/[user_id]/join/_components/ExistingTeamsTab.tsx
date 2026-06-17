@@ -40,7 +40,7 @@ export default function ExistingTeamsTab({ userID }: ExistingTeamsTabProps) {
       <p className="text-[11px] font-black text-slate-400">
         입장하실 방을 선택해주세요.
       </p>
-      <div className="space-y-2">
+      <div className="max-h-[282px] space-y-2 overflow-y-auto pr-1">
         {myRooms.map(room => (
           <Link
             className="group flex min-h-[50px] items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3.5 py-2.5 shadow-sm transition-colors hover:border-todak-coral-200 hover:bg-todak-coral-50/60"

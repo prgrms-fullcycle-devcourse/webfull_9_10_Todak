@@ -256,6 +256,8 @@ function MessageItem({
   const authUser = getStoredAuthUser();
   const isMine =
     authUser !== null && msg.user.github_username === authUser.login;
+  const displayName = msg.user.nickname?.trim() || msg.user.github_username;
+  const githubHandle = `@${msg.user.github_username}`;
 
   const time = new Date(msg.created_at).toLocaleTimeString('ko-KR', {
     hour: '2-digit',
@@ -362,11 +364,11 @@ function MessageItem({
       <Avatar className="h-8 w-8 shrink-0 overflow-hidden rounded-xl bg-slate-100">
         <Avatar.Image
           src={msg.user.avatar_url}
-          alt={msg.user.github_username}
+          alt={displayName}
           className="h-full w-full rounded-lg object-cover"
         />
         <Avatar.Fallback className="flex h-full w-full items-center justify-center rounded-lg text-[10px] font-bold text-slate-500">
-          {msg.user.github_username.slice(0, 1).toUpperCase()}
+          {displayName.slice(0, 1).toUpperCase()}
         </Avatar.Fallback>
       </Avatar>
       <div
@@ -374,13 +376,12 @@ function MessageItem({
           isMine ? 'items-end' : 'items-start'
         }`}
       >
-        <div
-          className={`flex items-center gap-2 ${
-            isMine ? 'flex-row-reverse' : ''
-          }`}
-        >
-          <span className="text-[11px] font-bold text-slate-700">
-            {msg.user.github_username}
+        <div className="flex max-w-full items-baseline gap-0">
+          <span className="min-w-0 truncate text-[11px] font-bold text-slate-700">
+            {displayName}
+          </span>
+          <span className="shrink-0 text-[9px] font-semibold text-slate-400">
+            {githubHandle}
           </span>
         </div>
 
@@ -680,6 +681,7 @@ export default function ChatMessages({
               private_room_id: privateRoomId,
               user: {
                 github_username: authUser?.login ?? '나',
+                nickname: useSpaceStore.getState().myChar.name.trim() || null,
                 avatar_url: authUser?.avatarUrl ?? '',
               },
               content: trimmedContent,

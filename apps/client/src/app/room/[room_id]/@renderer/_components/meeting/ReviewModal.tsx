@@ -173,14 +173,9 @@ export default function ReviewModal({
                     ...(issue.body ? { body: issue.body } : {}),
                     labels: issue.labels,
                     create_issue: true,
-                    // assignee_id, minutes_id 둘 다 제거
+                    minutes_id: minutesId,
+                    assignee_id: issue.assignee?.id ?? null,
                   }));
-                  console.log('members:', members);
-
-                  console.log(
-                    '🔥 최종 요청:',
-                    JSON.stringify({ todos }, null, 2),
-                  );
 
                   await createTodos(roomId, { todos });
 

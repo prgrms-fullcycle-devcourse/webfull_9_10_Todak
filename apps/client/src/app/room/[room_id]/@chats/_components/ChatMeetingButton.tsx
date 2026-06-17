@@ -14,12 +14,10 @@ interface Props {
   roomId: string;
 }
 
-export default function ChatMeetingButton({
-  meetingStatus,
-  onToggle,
-  roomId,
-}: Props) {
+export default function ChatMeetingButton({ onToggle, roomId }: Props) {
   const [isLoading, setIsLoading] = useState(false);
+
+  // Zustand 전역 스토어 구독
   const currentPrivateRoomId = useSpaceStore(
     state => state.currentPrivateRoomId,
   );
@@ -30,18 +28,22 @@ export default function ChatMeetingButton({
   const currentPrivateRoom = privateRooms.find(
     room => room.id === currentPrivateRoomId,
   );
-  const isCurrentPrivateRoomMeetingActive =
-    currentPrivateRoom?.is_meeting_active ?? false;
-  const isMeetingStartedByAnotherMember =
-    meetingStatus === 'ended' && isCurrentPrivateRoomMeetingActive;
+
+  // 소켓 감지 시 변경
+  const isMeetingOngoing = currentPrivateRoom?.is_meeting_active ?? false;
+
+  // 다른 멤버가 시작했는지 여부 판정
+  // 방은 회의 중(`true`)인데, 내 로컬 메모리에 미팅 세션 ID(`currentMeetingId`)가 없다면 다른 사람이 켠 걸로 판정
+  const isMeetingStartedByAnotherMember = isMeetingOngoing && !currentMeetingId;
   const isDisabled = isLoading || isMeetingStartedByAnotherMember;
+  const setCurrentMinutesId = useSpaceStore(state => state.setCurrentMinutesId);
 
   const handleClick = async () => {
     if (isDisabled) return;
     setIsLoading(true);
 
     try {
-      if (meetingStatus === 'ended') {
+      if (!isMeetingOngoing) {
         if (!currentPrivateRoomId) return;
         // 회의 시작
         const meeting = await startMeeting(roomId, currentPrivateRoomId);
@@ -57,7 +59,12 @@ export default function ChatMeetingButton({
         const endedAt = new Date(endedMeeting.ended_at);
         const title = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
 
-        await generateMinutes(roomId, currentMeetingId, title);
+        const newMinutes = await generateMinutes(
+          roomId,
+          currentMeetingId,
+          title,
+        );
+        setCurrentMinutesId(newMinutes.id);
 
         setCurrentMeetingId(null);
         onToggle();
@@ -82,18 +89,16 @@ export default function ChatMeetingButton({
         className={`w-full rounded-xl py-2.5 text-xs font-black text-white transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
           isMeetingStartedByAnotherMember
             ? 'bg-slate-400'
-            : meetingStatus === 'ended'
+            : !isMeetingOngoing
               ? 'bg-todak-coral-500 hover:bg-todak-coral-600'
               : 'bg-slate-800 hover:bg-slate-700'
         }`}
       >
-        {isLoading
-          ? '처리 중...'
-          : isMeetingStartedByAnotherMember
-            ? '이미 회의가 진행 중이에요'
-            : meetingStatus === 'ended'
-              ? '🚀 회의 시작하기 (AI 분석 활성화)'
-              : '✋ 회의 종료 및 AI 요약본 분석하기'}
+        {isMeetingStartedByAnotherMember
+          ? '이미 회의가 진행 중이에요'
+          : !isMeetingOngoing
+            ? '🚀 회의 시작하기 (AI 분석 활성화)'
+            : '✋ 회의 종료 및 AI 요약본 분석하기'}
       </button>
       {isMeetingStartedByAnotherMember && (
         <p

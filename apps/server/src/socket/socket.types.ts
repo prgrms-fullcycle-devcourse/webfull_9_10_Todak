@@ -270,6 +270,24 @@ export interface ServerToClientEvents {
     updated_at: string;
   }) => void;
 
+  /*
+   * 회의록 편집 잠금(동시 편집 방지, advisory). 룸 멤버에게 브로드캐스트.
+   * acquired/released 는 룸 전체, denied 는 요청자에게만.
+   */
+  'minutes:lock-acquired': (data: {
+    minutes_id: string;
+    user_id: string;
+    login: string;
+  }) => void;
+  'minutes:lock-released': (data: {
+    minutes_id: string;
+    user_id: string;
+  }) => void;
+  'minutes:lock-denied': (data: {
+    minutes_id: string;
+    reason: 'already_locked';
+  }) => void;
+
   // 알림 (개인방 userId 으로 emit)
   'notification:created': (data: NotificationEventPayload) => void;
 
@@ -319,6 +337,10 @@ export interface ClientToServerEvents {
   // Meeting (시작/종료는 REST 담당 — 여기선 회의 room 입·퇴장만)
   'meeting:join': (data: { meetingId: string }) => void;
   'meeting:leave': (data: { meetingId: string }) => void;
+
+  // Minutes 편집 잠금 (동시 편집 방지)
+  'minutes:request-lock': (data: { minutes_id: string }) => void;
+  'minutes:release-lock': (data: { minutes_id: string }) => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type

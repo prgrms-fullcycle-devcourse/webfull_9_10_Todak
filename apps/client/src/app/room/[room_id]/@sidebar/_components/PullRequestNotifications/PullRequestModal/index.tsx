@@ -3,6 +3,7 @@
 import { cn } from '@/lib/cn';
 import { getStoredAuthUser } from '@/lib/auth';
 import { isSystemError, isTodakApiError } from '@/services/error';
+import type { PullRequestReviewer } from '@/services/github/model';
 import {
   useApprovePullRequest,
   useMergePullRequest,
@@ -65,6 +66,16 @@ export default function PullRequestModal({
   const assignees =
     detail?.assignees.map(assignee => assignee.github_username) ??
     pullRequest.assignees;
+  const reviewers = detail?.reviewers ?? [];
+  const approvedReviewers = getApprovedReviewers(reviewers);
+  const hasApprovedReview = hasApproved || approvedReviewers.length > 0;
+  const hasCurrentUserApproved =
+    hasApproved ||
+    reviewers.some(
+      reviewer =>
+        isApprovedReview(reviewer) &&
+        isSameGithubUser(reviewer.github_username, currentGithubUsername),
+    );
   const isMyPullRequest = isUserPullRequestOwner({
     assignees,
     author,
@@ -75,7 +86,7 @@ export default function PullRequestModal({
     !isActionPending &&
     !isPending &&
     !isError &&
-    !hasApproved &&
+    !hasCurrentUserApproved &&
     !isDraft &&
     !isMerged;
   const canMerge =
@@ -254,13 +265,12 @@ export default function PullRequestModal({
 
               <aside className="space-y-4 text-[12px] font-bold text-muted">
                 <SidebarMeta title="Review">
-                  <p className="font-semibold text-foreground">
-                    {getReviewStatus({
-                      hasApproved,
-                      isDraft,
-                      isMerged,
-                    })}
-                  </p>
+                  <ReviewStatus
+                    approvedReviewers={approvedReviewers}
+                    hasApproved={hasApprovedReview}
+                    isDraft={isDraft}
+                    isMerged={isMerged}
+                  />
                 </SidebarMeta>
                 <SidebarMeta title="Assignees">
                   <InlineList
@@ -282,7 +292,7 @@ export default function PullRequestModal({
                 <SidebarActions
                   canApprove={canReview}
                   canMerge={canMerge}
-                  hasApproved={hasApproved}
+                  hasApproved={hasCurrentUserApproved}
                   isMerged={isMerged}
                   isApproving={approvePullRequest.isPending}
                   isMyPullRequest={isMyPullRequest}
@@ -363,6 +373,38 @@ function LabelChips({ labels }: { labels: string[] }) {
   );
 }
 
+function ReviewStatus({
+  approvedReviewers,
+  hasApproved,
+  isDraft,
+  isMerged,
+}: {
+  approvedReviewers: PullRequestReviewer[];
+  hasApproved: boolean;
+  isDraft: boolean;
+  isMerged: boolean;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="font-semibold text-foreground">
+        {getReviewStatus({
+          hasApproved,
+          isDraft,
+          isMerged,
+        })}
+      </p>
+      {approvedReviewers.length > 0 && (
+        <InlineList
+          emptyText=""
+          items={approvedReviewers.map(
+            reviewer => `@${reviewer.github_username}`,
+          )}
+        />
+      )}
+    </div>
+  );
+}
+
 function SidebarActions({
   canApprove,
   canMerge,
@@ -437,9 +479,21 @@ function isUserPullRequestOwner({
     return true;
   }
 
-  return assignees.some(
-    assignee => assignee.trim().toLowerCase() === normalizedCurrentUser,
+  return assignees.some(assignee =>
+    isSameGithubUser(assignee, normalizedCurrentUser),
   );
+}
+
+function getApprovedReviewers(reviewers: PullRequestReviewer[]) {
+  return reviewers.filter(isApprovedReview);
+}
+
+function isApprovedReview(reviewer: PullRequestReviewer) {
+  return reviewer.state.toUpperCase() === 'APPROVED';
+}
+
+function isSameGithubUser(a: string, b: string) {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
 function formatDateTime(value: string) {

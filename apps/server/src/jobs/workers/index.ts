@@ -12,6 +12,7 @@ import {
   deleteExpiredPrivateRoomChats,
   PRIVATE_ROOM_CHAT_RETENTION_DAYS,
 } from '../../services/chat-cleanup.service.js';
+import { filterChatNoise } from '../../services/minutes-input.js';
 import { MinutesService } from '../../services/minutes.service.js';
 import {
   createNotifications,
@@ -85,8 +86,11 @@ export const minutesGenerationWorker = new Worker(
       orderBy: { createdAt: 'asc' },
     });
 
-    if (chatMessages.length === 0) {
-      // 수집된 대화가 없으면 재시도해도 동일하게 실패하므로 즉시 종료
+    // 노이즈(빈 내용·이모지/기호만) 제거 — 입력 토큰·비용 절감
+    const meaningfulChats = filterChatNoise(chatMessages);
+
+    if (meaningfulChats.length === 0) {
+      // 수집된(의미 있는) 대화가 없으면 재시도해도 동일하게 실패하므로 즉시 종료
       throw new UnrecoverableError('MINUTES_NO_CHAT_LOG');
     }
 
@@ -108,7 +112,7 @@ export const minutesGenerationWorker = new Worker(
       contentMd: aiContentMd,
       actionItems,
     } = await generateMinutesSummary(
-      chatMessages,
+      meaningfulChats,
       members.map(m => ({
         githubUsername: m.user.githubUsername,
         nickname: m.nickname,

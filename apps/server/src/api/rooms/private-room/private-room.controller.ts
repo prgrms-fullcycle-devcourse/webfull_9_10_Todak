@@ -3,7 +3,7 @@ import { Response, NextFunction } from 'express';
 import { getUserId } from '../../../middleware/auth.middleware.js';
 import { getPrivateRoomChats } from '../../../services/chat.service.js';
 import {
-  getPrivateRooms,
+  getPrivateRoomsForUser,
   enterPrivateRoom,
   leavePrivateRoom,
 } from '../../../services/private-room.service.js';
@@ -20,8 +20,9 @@ export async function getPrivateRoomsHandler(
 ) {
   try {
     const { roomId } = req.params as { roomId: string };
+    const userId = getUserId(req);
 
-    const privateRooms = await getPrivateRooms(roomId);
+    const privateRooms = await getPrivateRoomsForUser(roomId, userId);
 
     res.json(privateRooms);
   } catch (err) {

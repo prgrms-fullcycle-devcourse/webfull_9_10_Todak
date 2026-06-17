@@ -553,7 +553,7 @@ function TodoDetailModalContent({ modalContent }: { modalContent: Todo }) {
   const modal = (
     <>
       <Modal.Backdrop
-        className="bg-slate-900/40 backdrop-blur-none"
+        className="z-[10000] bg-slate-900/40 backdrop-blur-none"
         isOpen={isOpen}
         onOpenChange={setIsModalOpen}
       >

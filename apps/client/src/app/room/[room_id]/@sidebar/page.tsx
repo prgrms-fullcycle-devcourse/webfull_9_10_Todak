@@ -71,7 +71,7 @@ export default async function Sidebar({ params }: SidebarProps) {
         className="min-h-0 flex-1 overflow-y-auto pr-1"
         defaultExpandedKeys={[]}
       >
-        <RecentMeetingLogs meetingLogs={meetingLogs.minutes} />
+        <RecentMeetingLogs meetingLogs={meetingLogs} />
         <PullRequestNotifications />
       </Accordion>
       <RoomSettingsDropdown
@@ -97,7 +97,17 @@ function SidebarFallback() {
         className="min-h-0 flex-1 overflow-y-auto pr-1"
         defaultExpandedKeys={[]}
       >
-        <RecentMeetingLogs meetingLogs={[]} />
+        <RecentMeetingLogs
+          meetingLogs={{
+            minutes: [],
+            pagination: {
+              page: 1,
+              limit: 5,
+              total_pages: 1,
+              total_count: 0,
+            },
+          }}
+        />
         <AIGuide />
       </Accordion>
     </>

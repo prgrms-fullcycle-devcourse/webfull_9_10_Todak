@@ -40,3 +40,12 @@ export interface SocketReviewPayload {
     url: string | null;
   };
 }
+
+// 이슈 소켓
+export interface SocketIssuePayload {
+  roomId: string;
+  issueNumber: number;
+  issueTitle: string;
+  author: string;
+  link?: string;
+}
