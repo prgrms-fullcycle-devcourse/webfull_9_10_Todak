@@ -139,16 +139,6 @@ export function useInitRooms(roomId: string) {
 
     initialize();
 
-    // 연결은 SocketProvider 가 소유한다(여기서 connect 하지 않음).
-    const joinRoom = () => {
-      socket.emit('room:join', roomId);
-    };
-
-    // 재연결 시에도 다시 join 되도록 connect 핸들러는 항상 등록
-    const handleConnect = () => {
-      joinRoom();
-    };
-
     const handleConnectError = (error: Error) => {
       console.error('소켓 연결 실패 :', error.message);
     };
@@ -210,7 +200,6 @@ export function useInitRooms(roomId: string) {
       console.error('AI 회의록 생성 실패');
     };
 
-    socket.on('connect', handleConnect);
     socket.on('connect_error', handleConnectError);
     socket.on('room:private-rooms-updated', handlePrivateRoomsUpdated);
     socket.on('room:member-status-changed', handleMemberStatusChanged);
@@ -222,14 +211,8 @@ export function useInitRooms(roomId: string) {
     socket.on('minutes:generated', handleMinutesGenerated);
     socket.on('minutes:generation-failed', handleMinutesGenerationFailed);
 
-    // 이미 연결돼 있으면 즉시 join (아니면 connect 핸들러가 처리)
-    if (socket.connected) {
-      joinRoom();
-    }
-
     // 컴포넌트 언마운트 시 자신이 등록한 리스너만 해제
     return () => {
-      socket.off('connect', handleConnect);
       socket.off('connect_error', handleConnectError);
       socket.off('room:private-rooms-updated', handlePrivateRoomsUpdated);
       socket.off('room:member-status-changed', handleMemberStatusChanged);

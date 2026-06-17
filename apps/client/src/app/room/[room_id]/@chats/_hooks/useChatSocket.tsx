@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
+import { useSocketEvent } from '@/hooks/useSocketEvent';
 import { useSocket } from '@/providers/SocketProvider';
 import {
   ChatMessage,
@@ -36,16 +37,6 @@ export function useChatSocket({
   onReaction,
 }: UseChatSocketParams) {
   const { socket, isConnected } = useSocket();
-  const onMessageRef = useRef(onMessage);
-  const onReactionRef = useRef(onReaction);
-
-  useEffect(() => {
-    onMessageRef.current = onMessage;
-  }, [onMessage]);
-
-  useEffect(() => {
-    onReactionRef.current = onReaction;
-  }, [onReaction]);
 
   const sendMessage = useCallback(
     (
@@ -100,27 +91,25 @@ export function useChatSocket({
     [socket, roomId, privateRoomId],
   );
 
-  useEffect(() => {
-    const handleMessage = (message: ChatMessage) => {
+  useSocketEvent<[ChatMessage]>(
+    'chat:message',
+    message => {
       if (isChatMessageForChannel(message, roomId, privateRoomId)) {
-        onMessageRef.current(message);
+        onMessage(message);
       }
-    };
+    },
+    { socket },
+  );
 
-    const handleReaction = (reaction: ChatReactionEvent) => {
+  useSocketEvent<[ChatReactionEvent]>(
+    'chat:reaction',
+    reaction => {
       if (isChatReactionForChannel(reaction, roomId, privateRoomId)) {
-        onReactionRef.current(reaction);
+        onReaction(reaction);
       }
-    };
-
-    socket.on('chat:message', handleMessage);
-    socket.on('chat:reaction', handleReaction);
-
-    return () => {
-      socket.off('chat:message', handleMessage);
-      socket.off('chat:reaction', handleReaction);
-    };
-  }, [socket, roomId, privateRoomId]);
+    },
+    { socket },
+  );
 
   return { sendMessage, sendReaction, isConnected };
 }

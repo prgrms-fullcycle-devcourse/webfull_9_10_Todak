@@ -15,6 +15,7 @@ import {
 import { fetchMinutes, updateMinutes } from '@/services/minutes/api';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import { useSocket } from '@/providers/SocketProvider';
+import { useSocketEvent } from '@/hooks/useSocketEvent';
 
 const GENERATION_FAIL_MESSAGES: Record<string, string> = {
   MINUTES_NO_CHAT_LOG: '회의 중 대화가 없어 회의록을 생성할 수 없습니다',
@@ -109,79 +110,79 @@ export default function MeetingBoard() {
     await handleSave(content, items);
   };
 
-  // 소켓 이벤트 처리
-  useEffect(() => {
-    if (!currentMinutesId) return;
-
-    // AI 생성 완료 → dirty 해제 후 서버 데이터로 강제 덮어씀
-    const handleGenerated = (data: MinutesGeneratedEvent) => {
+  useSocketEvent<[MinutesGeneratedEvent]>(
+    'minutes:generated',
+    data => {
       if (data.minutes_id !== currentMinutesId) return;
       setGenerationError(null);
       isDirtyRef.current = false;
-      // 회의 요약, 회의록 목록 갱신
       queryClient.invalidateQueries({
         queryKey: ['minutes'],
       });
-    };
+    },
+    { enabled: Boolean(currentMinutesId) },
+  );
 
-    // AI 생성 실패 → 에러 메시지 표시
-    const handleGenerationFailed = (data: MinutesGenerationFailedEvent) => {
+  useSocketEvent<[MinutesGenerationFailedEvent]>(
+    'minutes:generation-failed',
+    data => {
       if (data.minutes_id !== currentMinutesId) return;
       const msg =
         GENERATION_FAIL_MESSAGES[data.reason] ??
         '알 수 없는 오류가 발생했습니다';
       setGenerationError(msg);
-    };
+    },
+    { enabled: Boolean(currentMinutesId) },
+  );
 
-    // 다른 유저가 저장했을 때 실시간 반영
-    const handleMinutesUpdated = (data: MinutesUpdatedEvent) => {
+  useSocketEvent<[MinutesUpdatedEvent]>(
+    'minutes:updated',
+    data => {
       if (data.minutes_id !== currentMinutesId) return;
       if (isDirtyRef.current) return;
       queryClient.invalidateQueries({
         queryKey: ['minutes', currentMinutesId],
       });
-    };
+    },
+    { enabled: Boolean(currentMinutesId) },
+  );
 
-    // 락 획득 → 누가 편집 시작했는지 표시
-    const handleLockAcquired = (data: MinutesLockEvent) => {
+  useSocketEvent<[MinutesLockEvent]>(
+    'minutes:lock-acquired',
+    data => {
       if (data.minutes_id !== currentMinutesId) return;
       setEditorLock({ userId: data.user_id, login: data.login });
       setLockDenied(false);
-    };
+    },
+    { enabled: Boolean(currentMinutesId) },
+  );
 
-    // 락 해제 → 편집 가능해짐
-    const handleLockReleased = (data: {
-      minutes_id: string;
-      user_id: string;
-    }) => {
+  useSocketEvent<
+    [
+      {
+        minutes_id: string;
+        user_id: string;
+      },
+    ]
+  >(
+    'minutes:lock-released',
+    data => {
       if (data.minutes_id !== currentMinutesId) return;
       setEditorLock(null);
       isDirtyRef.current = false;
-    };
+    },
+    { enabled: Boolean(currentMinutesId) },
+  );
 
-    // 락 거절 → 내가 편집하려 했는데 이미 누가 하고 있음
-    const handleLockDenied = (data: { minutes_id: string }) => {
+  useSocketEvent<[{ minutes_id: string }]>(
+    'minutes:lock-denied',
+    data => {
       if (data.minutes_id !== currentMinutesId) return;
       setLockDenied(true);
       setTimeout(() => setLockDenied(false), 3000);
-    };
-
-    socket.on('minutes:generated', handleGenerated);
-    socket.on('minutes:generation-failed', handleGenerationFailed);
-    socket.on('minutes:updated', handleMinutesUpdated);
-    socket.on('minutes:lock-acquired', handleLockAcquired);
-    socket.on('minutes:lock-released', handleLockReleased);
-    socket.on('minutes:lock-denied', handleLockDenied);
-
-    return () => {
-      socket.off('minutes:generated', handleGenerated);
-      socket.off('minutes:generation-failed', handleGenerationFailed);
-      socket.off('minutes:updated', handleMinutesUpdated);
-      socket.off('minutes:lock-acquired', handleLockAcquired);
-      socket.off('minutes:lock-released', handleLockReleased);
-      socket.off('minutes:lock-denied', handleLockDenied);
-    };
-  }, [currentMinutesId, socket]);
+    },
+    { enabled: Boolean(currentMinutesId) },
+  );
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
