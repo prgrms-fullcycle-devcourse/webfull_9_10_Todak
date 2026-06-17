@@ -4,6 +4,7 @@ import type {
   RoomNotification,
   SocketPrPayload,
   SocketReviewPayload,
+  SocketIssuePayload,
 } from '@/services/notifications/model';
 import {
   notificationQueryKeys,
@@ -88,11 +89,21 @@ export default function RollingNotificationBanner() {
       setActiveIndex(0);
     };
 
+    // 이슈 생성 공용 핸들러
+    const handleIssueRoomEvent = (incomingData: SocketIssuePayload) => {
+      if (incomingData.roomId !== roomID) return;
+      queryClient.invalidateQueries({
+        queryKey: notificationQueryKeys.room(roomID),
+      });
+      setActiveIndex(0);
+    };
+
     // 통합 주파수 수신 대기 모드 ON
     socket.on('notification:created', handleNotificationCreated);
     socket.on('pr:opened', handlePrRoomEvent);
     socket.on('pr:merged', handlePrRoomEvent);
     socket.on('pr:reviewed', handleReviewRoomEvent);
+    socket.on('issue:created', handleIssueRoomEvent);
 
     return () => {
       // 리스너 클린업
@@ -100,6 +111,7 @@ export default function RollingNotificationBanner() {
       socket.off('pr:opened', handlePrRoomEvent);
       socket.off('pr:merged', handlePrRoomEvent);
       socket.off('pr:reviewed', handleReviewRoomEvent);
+      socket.off('issue:created', handleIssueRoomEvent);
     };
   }, [roomID, queryClient]);
 

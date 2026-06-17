@@ -87,6 +87,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     let cleanupCamera: (() => void) | null = null;
     let handleResize: (() => void) | null = null;
     let localPlayerContainer: PIXI.Container | null = null;
+    let resizeAnimationFrameId: number | null = null; // 애니메이션 프레임 ID를 기억할 로컬 변수
 
     const initPixi = async () => {
       const container = canvasRef.current;
@@ -578,18 +579,26 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       handleResize = () => {
         if (!app || !app.renderer || !container) return;
 
-        const w = container.clientWidth;
-        const h = container.clientHeight;
-        app.renderer.resize(w, h);
+        const currentApp = app;
 
-        // 배경 이미지 캔버스에 여백 없이 꽉 차도록 'Cover' 배율 계산
-        const scaleX = w / WORLD_WIDTH;
-        const scaleY = h / WORLD_HEIGHT;
-        // 두 배율 중 더 큰 값을 선택해야 빈 여백 없이 화면에 꽉 찹니다.
-        const dynamicScale = Math.max(scaleX, scaleY);
+        if (resizeAnimationFrameId !== null) {
+          cancelAnimationFrame(resizeAnimationFrameId);
+        }
 
-        // 월드 전체에 동적 배율 적용 (의자와 캐릭터의 상대적 비율이 모든 해상도에서 유지됨)
-        world.scale.set(dynamicScale);
+        resizeAnimationFrameId = requestAnimationFrame(() => {
+          const w = container.clientWidth;
+          const h = container.clientHeight;
+
+          currentApp.renderer.resize(w, h);
+
+          const scaleX = w / WORLD_WIDTH;
+          const scaleY = h / WORLD_HEIGHT;
+          const dynamicScale = Math.max(scaleX, scaleY);
+
+          world.scale.set(dynamicScale);
+
+          currentApp.render();
+        });
       };
 
       handleResize();
@@ -612,6 +621,11 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       unsubscribeRoomsList?.();
       npcRef.current = null;
       setIsNpcReady(false);
+
+      // 클린업 순간 남아있는 애니메이션 스케줄링 제거
+      if (resizeAnimationFrameId !== null) {
+        cancelAnimationFrame(resizeAnimationFrameId);
+      }
 
       if (localPlayerContainer) {
         useSpaceStore
