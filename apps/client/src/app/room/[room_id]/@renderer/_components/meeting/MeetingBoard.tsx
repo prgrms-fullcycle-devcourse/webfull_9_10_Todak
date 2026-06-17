@@ -10,6 +10,7 @@ import {
   MinutesGeneratedEvent,
   MinutesGenerationFailedEvent,
   MinutesUpdatedEvent,
+  MinutesLockEvent,
 } from '@/services/minutes/model';
 import { fetchMinutes, updateMinutes } from '@/services/minutes/api';
 import { useSpaceStore } from '@/store/useSpaceStore';
@@ -26,6 +27,7 @@ export default function MeetingBoard() {
   const params = useParams();
   const roomId = params.room_id as string;
   const currentMinutesId = useSpaceStore(state => state.currentMinutesId);
+  const myId = useSpaceStore(state => state.myChar.id);
   const queryClient = useQueryClient();
 
   const { data: minutes, isLoading } = useQuery({
@@ -37,6 +39,16 @@ export default function MeetingBoard() {
   const [content, setContent] = useState('');
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [generationError, setGenerationError] = useState<string | null>(null);
+
+  // 편집 락: 현재 편집 중인 유저
+  const [editorLock, setEditorLock] = useState<{
+    userId: string;
+    login: string;
+  } | null>(null);
+  const [lockDenied, setLockDenied] = useState(false);
+
+  const isMyLock = editorLock?.userId === myId;
+  const isEditable = isMyLock; // 내 락일 때만 편집 가능
 
   // 유저가 직접 수정 중인지 여부
   const isDirtyRef = useRef(false);
@@ -67,7 +79,14 @@ export default function MeetingBoard() {
     setActionItems(items);
   };
 
-  // 저장 함수
+  // 편집 시작 → 락 요청
+  const handleStartEdit = () => {
+    if (editorLock && !isMyLock) return;
+    const socket = getSocket(getAuthToken() ?? undefined);
+    socket.emit('minutes:request-lock', { minutes_id: currentMinutesId });
+  };
+
+  // 저장 후 락 해제
   const handleSave = async (
     overrideContent?: string,
     overrideActionItems?: ActionItem[],
@@ -79,6 +98,11 @@ export default function MeetingBoard() {
       status: 'confirmed',
     });
     isDirtyRef.current = false;
+
+    // 락 해제
+    const socket = getSocket(getAuthToken() ?? undefined);
+    socket.emit('minutes:release-lock', { minutes_id: currentMinutesId });
+
     queryClient.invalidateQueries({ queryKey: ['minutes', currentMinutesId] });
   };
 
@@ -123,14 +147,44 @@ export default function MeetingBoard() {
       });
     };
 
+    // 락 획득 → 누가 편집 시작했는지 표시
+    const handleLockAcquired = (data: MinutesLockEvent) => {
+      if (data.minutes_id !== currentMinutesId) return;
+      setEditorLock({ userId: data.user_id, login: data.login });
+      setLockDenied(false);
+    };
+
+    // 락 해제 → 편집 가능해짐
+    const handleLockReleased = (data: {
+      minutes_id: string;
+      user_id: string;
+    }) => {
+      if (data.minutes_id !== currentMinutesId) return;
+      setEditorLock(null);
+      isDirtyRef.current = false;
+    };
+
+    // 락 거절 → 내가 편집하려 했는데 이미 누가 하고 있음
+    const handleLockDenied = (data: { minutes_id: string }) => {
+      if (data.minutes_id !== currentMinutesId) return;
+      setLockDenied(true);
+      setTimeout(() => setLockDenied(false), 3000);
+    };
+
     socket.on('minutes:generated', handleGenerated);
     socket.on('minutes:generation-failed', handleGenerationFailed);
     socket.on('minutes:updated', handleMinutesUpdated);
+    socket.on('minutes:lock-acquired', handleLockAcquired);
+    socket.on('minutes:lock-released', handleLockReleased);
+    socket.on('minutes:lock-denied', handleLockDenied);
 
     return () => {
       socket.off('minutes:generated', handleGenerated);
       socket.off('minutes:generation-failed', handleGenerationFailed);
       socket.off('minutes:updated', handleMinutesUpdated);
+      socket.off('minutes:lock-acquired', handleLockAcquired);
+      socket.off('minutes:lock-released', handleLockReleased);
+      socket.off('minutes:lock-denied', handleLockDenied);
     };
   }, [currentMinutesId]);
 
@@ -141,7 +195,11 @@ export default function MeetingBoard() {
         isLoading={isLoading || !isContentReady}
         content={content}
         generationError={generationError}
+        editorLock={editorLock}
+        isEditable={isEditable}
+        lockDenied={lockDenied}
         onContentChange={handleContentChange}
+        onStartEdit={handleStartEdit}
         onSave={handleSave}
       />
       <IssueHub
