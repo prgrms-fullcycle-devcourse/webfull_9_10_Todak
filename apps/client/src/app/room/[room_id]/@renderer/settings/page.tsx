@@ -10,6 +10,7 @@ import { notFound } from 'next/navigation';
 
 import ProfileSettingsForm from './_components/ProfileSettingsForm';
 import ProjectSettingsForm from './_components/ProjectSettingsForm';
+import TeamSettingsForm from './_components/TeamSettingsForm';
 
 interface RoomSettingsPageProps {
   params: Promise<{
@@ -73,6 +74,11 @@ export default async function RoomSettingsPage({
           room={roomInfo}
           roomID={roomID}
           userID={myInfo.id}
+        />
+        <TeamSettingsForm
+          myRoomInfo={myRoomInfo}
+          roomMembers={roomMembers}
+          roomID={roomID}
         />
       </div>
     </main>
