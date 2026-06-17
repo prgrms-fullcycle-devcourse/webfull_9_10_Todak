@@ -235,28 +235,33 @@ export async function createTodos(
     [repoOwner, repoName] = repo.fullName.split('/');
   }
 
-  // 4. 이슈 발행이 필요한 todo의 담당자 GitHub 유저명 선조회
+  /*
+   * 4. 담당자 GitHub 유저명 선조회 + 룸 멤버 검증.
+   *    담당자는 반드시 해당 룸의 멤버여야 한다(크로스룸 배정 차단). 이슈 발행 여부와
+   *    무관하게 DB 에 assigneeId 가 저장되므로, 발행 대상이 아니어도 모두 검증한다.
+   */
   const assigneeIds = [
     ...new Set(
       todos
-        .filter(
-          t =>
-            t.create_issue &&
-            t.assignee_id !== null &&
-            t.assignee_id !== undefined,
-        )
+        .filter(t => t.assignee_id !== null && t.assignee_id !== undefined)
         .map(t => t.assignee_id!),
     ),
   ];
 
   const githubUsernameMap = new Map<string, string>();
   if (assigneeIds.length > 0) {
-    const assignees = await prisma.user.findMany({
-      where: { id: { in: assigneeIds } },
-      select: { id: true, githubUsername: true },
+    const assignedMembers = await prisma.roomMember.findMany({
+      where: { roomId, userId: { in: assigneeIds } },
+      select: { userId: true, user: { select: { githubUsername: true } } },
     });
-    for (const a of assignees) {
-      githubUsernameMap.set(a.id, a.githubUsername);
+
+    // 룸 멤버가 아닌 담당자가 하나라도 섞여 있으면 거부
+    if (assignedMembers.length !== assigneeIds.length) {
+      throw new AppError('BAD_REQUEST');
+    }
+
+    for (const m of assignedMembers) {
+      githubUsernameMap.set(m.userId, m.user.githubUsername);
     }
   }
 
@@ -546,6 +551,24 @@ export async function updateTodo(
     throw new AppError('TODO_NOT_FOUND');
   }
 
+  /*
+   * 담당자는 반드시 해당 룸의 멤버여야 한다(크로스룸 배정 차단).
+   * GitHub 발행 여부와 무관하게 DB 에 저장되므로 분기 밖에서 먼저 검증한다.
+   */
+  let assigneeGithubUsernames: string[] = [];
+  if (input.assignee_ids !== undefined && input.assignee_ids.length > 0) {
+    const assignedMembers = await prisma.roomMember.findMany({
+      where: { roomId, userId: { in: input.assignee_ids } },
+      select: { user: { select: { githubUsername: true } } },
+    });
+
+    if (assignedMembers.length !== new Set(input.assignee_ids).size) {
+      throw new AppError('BAD_REQUEST');
+    }
+
+    assigneeGithubUsernames = assignedMembers.map(m => m.user.githubUsername);
+  }
+
   const hasLinkedGithubIssue =
     todo.githubIssueNumber !== null && todo.repoId !== null;
 
@@ -588,15 +611,8 @@ export async function updateTodo(
     }
 
     if (input.assignee_ids !== undefined) {
-      if (input.assignee_ids.length === 0) {
-        githubParams.assignees = [];
-      } else {
-        const assignees = await prisma.user.findMany({
-          where: { id: { in: input.assignee_ids } },
-          select: { githubUsername: true },
-        });
-        githubParams.assignees = assignees.map(a => a.githubUsername);
-      }
+      // 위에서 룸 멤버 검증 완료 — 빈 배열이면 담당자 해제
+      githubParams.assignees = assigneeGithubUsernames;
     }
 
     if (Object.keys(githubParams).length > 0) {
