@@ -274,10 +274,10 @@ export function setupMovement(
 
             if (currentMeetingId) {
               try {
-                // 아니요를 회의 종료 API 가동
+                // 아니요 클릭한 경우 회의 종료 API 가동
                 const endedMeeting = await endMeeting(roomId, currentMeetingId);
 
-                // 모달에서 '네, 생성할래요!(true)'를 누른 경우에만 AI 회의록 파이프라인 가동
+                // 모달에서 네를 누른 경우에만 AI 회의록 파이프라인 가동
                 if (shouldEndMeeting) {
                   const endedAt = new Date(endedMeeting.ended_at);
                   const minutesTitle = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;

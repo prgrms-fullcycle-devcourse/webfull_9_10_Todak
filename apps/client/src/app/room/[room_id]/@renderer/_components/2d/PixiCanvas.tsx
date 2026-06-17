@@ -291,7 +291,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       darkOverlay.eventMode = 'none';
       world.addChild(darkOverlay);
 
-      // 🟢 [버그 수정 핵심 구역]: 탭 전환 후 컴포넌트 재마운트 시, 이미 특정 회의실에 서 있는 상태라면 오버레이 상태 복원
+      // 회의실에 서 있는 상태라면 탭 전환해도 오버레이 상태 복원
       const currentPrivateRoomId =
         useSpaceStore.getState().currentPrivateRoomId;
       if (currentPrivateRoomId) {
