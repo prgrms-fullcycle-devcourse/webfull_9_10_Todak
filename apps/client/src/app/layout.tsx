@@ -4,6 +4,7 @@ import { QueryProvider } from '@/providers/query-provider';
 import type { Metadata } from 'next';
 import { SITE_CONFIG } from '@/constants/metadata';
 import { DeviceSupportGate } from './_components/DeviceSupportGate';
+import { SocketProvider } from '@/providers/SocketProvider';
 
 export const metadata: Metadata = {
   metadataBase: process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000',
@@ -35,7 +36,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     <html className="todak" data-theme="todak" lang="ko">
       <body>
         <DeviceSupportGate>
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            <SocketProvider>{children}</SocketProvider>
+          </QueryProvider>
         </DeviceSupportGate>
       </body>
     </html>
