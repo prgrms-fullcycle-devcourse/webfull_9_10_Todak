@@ -486,76 +486,24 @@ export async function deleteRoom(
   await purgeRoom(roomId, accessToken, linkedRepo);
 }
 
-// 룸 탈퇴 => 누구나 가능
-export async function leaveRoom(
-  userId: string,
-  roomId: string,
-  accessToken: string,
-) {
+// 룸 탈퇴 => 방장 제외 누구나 가능
+export async function leaveRoom(userId: string, roomId: string) {
   const membership = await prisma.roomMember.findFirst({
     where: { roomId, userId },
-    include: { room: { include: { repos: true } } },
+    select: { isHost: true },
   });
 
   if (membership === null) {
     throw new AppError('ROOM_NOT_FOUND');
   }
 
-  /*
-   * 동시 탈퇴 race 에서 멤버 수/방장 판정이 어긋나지 않도록
-   * 룸 행을 잠그고 멤버를 tx 안에서 재조회해 판정한다.
-   * (마지막 멤버 판정은 tx 안에서 하되, 실제 룸 삭제는 webhook 해제(네트워크)를
-   *  포함하므로 락을 풀고 tx 밖에서 purgeRoom 으로 처리한다.)
-   */
-  const decision = await prisma.$transaction(
-    async (tx: Prisma.TransactionClient) => {
-      await tx.$queryRaw`SELECT id FROM "room" WHERE id = ${roomId}::uuid FOR UPDATE`;
-
-      const members = await tx.roomMember.findMany({
-        where: { roomId },
-        orderBy: { joinedAt: 'asc' },
-        select: { id: true, userId: true, isHost: true },
-      });
-
-      // 동시 요청이 먼저 내 멤버십을 처리한 경우
-      const me = members.find(m => m.userId === userId);
-      if (me === undefined) {
-        throw new AppError('ROOM_NOT_FOUND');
-      }
-
-      // 내가 마지막 멤버 => 룸 삭제는 tx 밖에서 처리하도록 신호만 반환
-      if (members.length <= 1) {
-        return { shouldPurge: true, newHostUserId: null as string | null };
-      }
-
-      // 남은 멤버가 있는 경우 => (방장이면) 위임 후 내 멤버십만 제거
-      let newHostUserId: string | null = null;
-      if (me.isHost) {
-        // joinedAt 오름차순이므로 나를 제외한 첫 멤버 = 다음으로 가입한 멤버
-        const nextHost = members.find(m => m.userId !== userId);
-        if (nextHost !== undefined) {
-          await tx.roomMember.update({
-            where: { id: nextHost.id },
-            data: { isHost: true },
-          });
-          newHostUserId = nextHost.userId;
-        }
-      }
-
-      await tx.roomMember.delete({ where: { id: me.id } });
-      return { shouldPurge: false, newHostUserId };
-    },
-  );
-
-  if (decision.shouldPurge) {
-    const linkedRepo = membership.room.repos[0] ?? null;
-    await purgeRoom(roomId, accessToken, linkedRepo);
-    return { left: true, room_deleted: true, new_host_user_id: null };
+  if (membership.isHost) {
+    throw new AppError('HOST_CANNOT_LEAVE');
   }
 
-  return {
-    left: true,
-    room_deleted: false,
-    new_host_user_id: decision.newHostUserId,
-  };
+  await prisma.roomMember.delete({
+    where: { roomId_userId: { roomId, userId } },
+  });
+
+  return { left: true };
 }
