@@ -88,7 +88,6 @@ export interface UpdateMinutesResponse {
   updated_at: string;
 }
 
-// model.ts에 추가
 export interface MinutesGeneratedEvent {
   room_id: string;
   minutes_id: string;
