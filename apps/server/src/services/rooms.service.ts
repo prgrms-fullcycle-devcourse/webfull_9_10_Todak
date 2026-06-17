@@ -8,7 +8,12 @@ import { isUniqueConstraintError } from '../errors/prisma.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
 
-import { registerWebhook, unregisterWebhook } from './github.service.js';
+import {
+  registerWebhook,
+  unregisterWebhook,
+  addCollaborator,
+  acceptInvitation,
+} from './github.service.js';
 
 // 멤버 입장 시 초기 좌표 (맵 중앙 의자 위치)
 const SPAWN_POS = { posX: 1292, posY: 560 };
@@ -366,7 +371,59 @@ export async function joinRoom(userId: string, input: JoinRoomInput) {
     throw error;
   }
 
+  // 룸 입장 성공 후 GitHub 레포 협업자 자동 추가 (non-fatal)
+  void autoAddGithubCollaborator(room.id, userId);
+
   return { room_id: room.id, name: room.name };
+}
+
+async function autoAddGithubCollaborator(
+  roomId: string,
+  joiningUserId: string,
+): Promise<void> {
+  const [repo, joiningUser, hostMember] = await Promise.all([
+    prisma.repo.findFirst({
+      where: { roomId },
+      select: { fullName: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: joiningUserId },
+      select: { accessToken: true, githubUsername: true },
+    }),
+    prisma.roomMember.findFirst({
+      where: { roomId, isHost: true },
+      select: { user: { select: { accessToken: true } } },
+    }),
+  ]);
+
+  if (
+    repo === null ||
+    joiningUser?.accessToken === null ||
+    joiningUser?.accessToken === undefined ||
+    joiningUser?.githubUsername === '' ||
+    joiningUser?.githubUsername === undefined ||
+    hostMember?.user.accessToken === null ||
+    hostMember?.user.accessToken === undefined
+  ) {
+    return;
+  }
+
+  const [owner, repoName] = repo.fullName.split('/');
+
+  try {
+    const { invitationId } = await addCollaborator(
+      hostMember.user.accessToken,
+      owner,
+      repoName,
+      joiningUser.githubUsername,
+    );
+
+    if (invitationId !== null) {
+      await acceptInvitation(joiningUser.accessToken, invitationId);
+    }
+  } catch (err) {
+    console.error('[joinRoom] GitHub collaborator 자동 추가 실패:', err);
+  }
 }
 
 // 룸 완전 정리

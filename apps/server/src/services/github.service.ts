@@ -885,3 +885,211 @@ export async function deleteIssueReaction(
     mapGithubError(err, { 404: 'NOT_FOUND' });
   }
 }
+
+// ─── Collaborators ────────────────────────────────────────────────────────────
+
+export type CollaboratorPermission =
+  | 'pull'
+  | 'triage'
+  | 'push'
+  | 'maintain'
+  | 'admin';
+
+export type CollaboratorInfo = {
+  login: string;
+  avatarUrl: string;
+  permission: CollaboratorPermission;
+};
+
+export type InvitationInfo = {
+  id: number;
+  login: string;
+  permission: string;
+  invitedAt: string;
+};
+
+function derivePermission(perms?: {
+  admin?: boolean;
+  maintain?: boolean;
+  push?: boolean;
+  triage?: boolean;
+  pull?: boolean;
+}): CollaboratorPermission {
+  if (!perms) {
+    return 'pull';
+  }
+
+  if (perms.admin) {
+    return 'admin';
+  }
+
+  if (perms.maintain) {
+    return 'maintain';
+  }
+
+  if (perms.push) {
+    return 'push';
+  }
+
+  if (perms.triage) {
+    return 'triage';
+  }
+
+  return 'pull';
+}
+
+/*
+ * 1. 협업자 초대 (admin 토큰으로 호출)
+ * 201 → 초대 전송됨, invitationId 반환
+ * 204 → 이미 협업자, invitationId = null
+ */
+export async function addCollaborator(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  username: string,
+  permission: CollaboratorPermission = 'push',
+): Promise<{ invitationId: number | null }> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const response = await octokit.repos.addCollaborator({
+      owner,
+      repo,
+      username,
+      permission,
+    });
+
+    // status 201 = 초대 발송됨, 204 = 이미 협업자
+    const invitationId =
+      response.status === 201 && response.data
+        ? (response.data as { id: number }).id
+        : null;
+
+    return { invitationId };
+  } catch (err) {
+    return mapGithubError(err, {
+      403: 'REPO_ADMIN_REQUIRED',
+      404: 'REPO_NOT_FOUND',
+      422: 'CONFLICT',
+    });
+  }
+}
+
+// 2. 보류 중인 초대 목록
+export async function listInvitations(
+  accessToken: string,
+  owner: string,
+  repo: string,
+): Promise<InvitationInfo[]> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.repos.listInvitations({
+      owner,
+      repo,
+      per_page: 100,
+    });
+
+    return data.map(inv => ({
+      id: inv.id,
+      login: inv.invitee?.login ?? '',
+      permission: inv.permissions,
+      invitedAt: inv.created_at,
+    }));
+  } catch (err) {
+    return mapGithubError(err, {
+      403: 'REPO_ADMIN_REQUIRED',
+      404: 'REPO_NOT_FOUND',
+    });
+  }
+}
+
+// 3. 초대 취소
+export async function deleteInvitation(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  invitationId: number,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.repos.deleteInvitation({
+      owner,
+      repo,
+      invitation_id: invitationId,
+    });
+  } catch (err) {
+    mapGithubError(err, {
+      403: 'REPO_ADMIN_REQUIRED',
+      404: 'NOT_FOUND',
+    });
+  }
+}
+
+// 4. 수락된 협업자 목록
+export async function listCollaborators(
+  accessToken: string,
+  owner: string,
+  repo: string,
+): Promise<CollaboratorInfo[]> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    const { data } = await octokit.repos.listCollaborators({
+      owner,
+      repo,
+      per_page: 100,
+    });
+
+    return data.map(c => ({
+      login: c.login,
+      avatarUrl: c.avatar_url,
+      permission: derivePermission(c.permissions),
+    }));
+  } catch (err) {
+    return mapGithubError(err, {
+      403: 'REPO_ADMIN_REQUIRED',
+      404: 'REPO_NOT_FOUND',
+    });
+  }
+}
+
+// 5. 협업자 제거
+export async function removeCollaborator(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  username: string,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.repos.removeCollaborator({ owner, repo, username });
+  } catch (err) {
+    mapGithubError(err, {
+      403: 'REPO_ADMIN_REQUIRED',
+      404: 'REPO_NOT_FOUND',
+    });
+  }
+}
+
+// 6. 초대 수락 (초대받은 사람의 토큰으로 호출 — joinRoom 자동 수락에 사용)
+export async function acceptInvitation(
+  accessToken: string,
+  invitationId: number,
+): Promise<void> {
+  const octokit = createGithubClient(accessToken);
+
+  try {
+    await octokit.repos.acceptInvitationForAuthenticatedUser({
+      invitation_id: invitationId,
+    });
+  } catch (err) {
+    mapGithubError(err, {
+      403: 'GITHUB_SCOPE_REQUIRED',
+      404: 'NOT_FOUND',
+    });
+  }
+}
