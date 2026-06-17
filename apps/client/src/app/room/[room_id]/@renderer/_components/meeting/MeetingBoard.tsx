@@ -53,6 +53,11 @@ export default function MeetingBoard() {
   // 유저가 직접 수정 중인지 여부
   const isDirtyRef = useRef(false);
 
+  // 이전 minutesId 추적 (락 해제용)
+  const prevMinutesIdRef = useRef<string | null>(null);
+  // 이전 락 상태 추적 (락 해제용)
+  const isMyLockRef = useRef(false);
+
   // 서버 데이터가 준비됐는지 여부
   const isContentReady =
     !isLoading &&
@@ -110,6 +115,35 @@ export default function MeetingBoard() {
     setActionItems(items);
     await handleSave(content, items);
   };
+
+  // currentMinutesId 바뀔 때
+  useEffect(() => {
+    const prevId = prevMinutesIdRef.current;
+    const wasMyLock = isMyLockRef.current;
+
+    if (prevId && prevId !== currentMinutesId) {
+      // 이전 회의록 락 해제 소켓 전송
+      if (wasMyLock && prevId) {
+        const socket = getSocket(getAuthToken() ?? undefined);
+        if (!socket.connected) socket.connect();
+
+        socket.emit('minutes:release-lock', { minutes_id: prevId });
+      }
+    }
+
+    // 상태 초기화
+    prevMinutesIdRef.current = currentMinutesId;
+    isMyLockRef.current = false;
+    // eslint-disable-next-line
+    setEditorLock(null);
+    setLockDenied(false);
+    isDirtyRef.current = false;
+  }, [currentMinutesId]);
+
+  // isMyLock 변할 때마다 ref 동기화
+  useEffect(() => {
+    isMyLockRef.current = isMyLock;
+  }, [isMyLock]);
 
   // 소켓 이벤트 처리
   useEffect(() => {
