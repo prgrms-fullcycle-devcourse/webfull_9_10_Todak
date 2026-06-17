@@ -1,6 +1,6 @@
 'use client';
 
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/providers/SocketProvider';
 import { isSystemError, isTodakApiError } from '@/services/error';
 import { leaveRoom } from '@/services/rooms/api';
 import type { MyRooms } from '@/services/rooms/model';
@@ -24,13 +24,14 @@ export default function LeaveRoomModal({
   userID,
 }: LeaveRoomModalProps) {
   const router = useRouter();
+  const { socket } = useSocket();
   const queryClient = useQueryClient();
   const [leaveError, setLeaveError] = useState<string | null>(null);
 
   const leaveRoomMutation = useMutation({
     mutationFn: () => leaveRoom(roomID),
     onSuccess: () => {
-      getSocket().emit('room:leave', roomID);
+      socket.emit('room:leave', roomID);
       queryClient.setQueryData<MyRooms>(['myRooms'], rooms =>
         rooms?.filter(room => room.id !== roomID),
       );

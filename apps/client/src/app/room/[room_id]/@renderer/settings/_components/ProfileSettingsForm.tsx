@@ -7,7 +7,7 @@ import {
   roleValueByPart,
 } from '@/app/[user_id]/join/customize/_components/UserProfileForm';
 import { cn } from '@/lib/cn';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/providers/SocketProvider';
 import { isSystemError, isTodakApiError } from '@/services/error';
 import { updateRoomProfile } from '@/services/rooms/api';
 import type { RoomProfile } from '@/services/rooms/model';
@@ -58,6 +58,7 @@ export default function ProfileSettingsForm({
   roomID,
 }: ProfileSettingsFormProps) {
   const router = useRouter();
+  const { socket } = useSocket();
   const queryClient = useQueryClient();
   const setMyChar = useSpaceStore(state => state.setMyChar);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -102,7 +103,7 @@ export default function ProfileSettingsForm({
         detailedRole: profile.detailed_role ?? 'Team Member',
       });
 
-      getSocket().emit('room:member-profile-changed', {
+      socket.emit('room:member-profile-changed', {
         userId: profile.id,
         nickname: profile.nickname,
         character_type: profile.character_type,

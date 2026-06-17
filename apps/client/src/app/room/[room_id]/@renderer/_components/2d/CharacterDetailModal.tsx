@@ -17,7 +17,7 @@ import {
   detailJobs,
   roleValueByPart,
 } from '@/app/[user_id]/join/customize/_components/UserProfileForm';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/providers/SocketProvider';
 
 const AVATAR_MAP = {
   rabbit: { label: '🐰 토끼', src: '/assets/rabbit_front.webp' },
@@ -137,6 +137,7 @@ function ModalFormContent({
 }: ModalFormContentProps) {
   const { myChar, setMyChar, members: storeMembers } = useSpaceStore();
   const { room_id: roomID } = useParams<{ room_id: string }>();
+  const { socket } = useSocket();
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -191,7 +192,7 @@ function ModalFormContent({
         detailedRole: profile.detailed_role ?? 'Team Member',
       });
 
-      getSocket().emit('room:member-profile-changed', {
+      socket.emit('room:member-profile-changed', {
         userId: profile.id,
         nickname: profile.nickname,
         character_type: profile.character_type,
