@@ -1,8 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/cn';
-import { getAuthToken } from '@/lib/auth';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/providers/SocketProvider';
 import {
   pullRequestQueryKeys,
   useRoomPullRequests,
@@ -40,6 +39,7 @@ export default function PullRequestNotifications({
 }: PullRequestNotificationsProps) {
   const { room_id: roomID } = useParams<{ room_id: string }>();
   const queryClient = useQueryClient();
+  const { socket } = useSocket();
   const {
     data: pullRequestsResponse,
     isError,
@@ -105,7 +105,6 @@ export default function PullRequestNotifications({
   }, [pullRequestListSignature]);
 
   useEffect(() => {
-    const socket = getSocket(getAuthToken() ?? undefined);
     const handlePullRequestEvent = (data: PullRequestSocketPayload) => {
       const payloadRoomId = getPullRequestEventRoomId(data);
 
@@ -123,11 +122,10 @@ export default function PullRequestNotifications({
       socket.emit('room:join', roomID);
     };
 
+    // 연결은 SocketProvider 가 소유한다(여기서 connect 하지 않음).
     socket.on('connect', joinRoom);
 
-    if (!socket.connected) {
-      socket.connect();
-    } else {
+    if (socket.connected) {
       joinRoom();
     }
 
@@ -143,7 +141,7 @@ export default function PullRequestNotifications({
       socket.off('pr:closed', handlePullRequestEvent);
       socket.off('pr:reviewed', handlePullRequestEvent);
     };
-  }, [queryClient, roomID]);
+  }, [queryClient, roomID, socket]);
 
   const handlePullRequestTriggerPress = () => {
     setIsPullRequestExpanded(current => {

@@ -14,8 +14,7 @@ import {
 } from '@/services/minutes/model';
 import { fetchMinutes, updateMinutes } from '@/services/minutes/api';
 import { useSpaceStore } from '@/store/useSpaceStore';
-import { getSocket } from '@/lib/socket';
-import { getAuthToken } from '@/lib/auth';
+import { useSocket } from '@/providers/SocketProvider';
 
 const GENERATION_FAIL_MESSAGES: Record<string, string> = {
   MINUTES_NO_CHAT_LOG: '회의 중 대화가 없어 회의록을 생성할 수 없습니다',
@@ -29,6 +28,7 @@ export default function MeetingBoard() {
   const currentMinutesId = useSpaceStore(state => state.currentMinutesId);
   const myId = useSpaceStore(state => state.myChar.id);
   const queryClient = useQueryClient();
+  const { socket } = useSocket();
 
   const { data: minutes, isLoading } = useQuery({
     queryKey: ['minutes', currentMinutesId],
@@ -82,7 +82,6 @@ export default function MeetingBoard() {
   // 편집 시작 → 락 요청
   const handleStartEdit = () => {
     if (editorLock && !isMyLock) return;
-    const socket = getSocket(getAuthToken() ?? undefined);
     socket.emit('minutes:request-lock', { minutes_id: currentMinutesId });
   };
 
@@ -100,7 +99,6 @@ export default function MeetingBoard() {
     isDirtyRef.current = false;
 
     // 락 해제
-    const socket = getSocket(getAuthToken() ?? undefined);
     socket.emit('minutes:release-lock', { minutes_id: currentMinutesId });
 
     queryClient.invalidateQueries({ queryKey: ['minutes', currentMinutesId] });
@@ -114,9 +112,6 @@ export default function MeetingBoard() {
   // 소켓 이벤트 처리
   useEffect(() => {
     if (!currentMinutesId) return;
-
-    const socket = getSocket(getAuthToken() ?? undefined);
-    if (!socket.connected) socket.connect();
 
     // AI 생성 완료 → dirty 해제 후 서버 데이터로 강제 덮어씀
     const handleGenerated = (data: MinutesGeneratedEvent) => {
@@ -186,7 +181,7 @@ export default function MeetingBoard() {
       socket.off('minutes:lock-released', handleLockReleased);
       socket.off('minutes:lock-denied', handleLockDenied);
     };
-  }, [currentMinutesId]);
+  }, [currentMinutesId, socket]);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">

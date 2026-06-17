@@ -580,6 +580,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         darkOverlay,
         roomId,
         staticOfficeWalls,
+        socket,
       );
 
       // 카메라 셋업

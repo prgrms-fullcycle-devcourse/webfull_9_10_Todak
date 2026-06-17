@@ -3,7 +3,7 @@ import type { AnimalAssetPack } from '../_animals/types';
 import { type Player, CHAR_HEIGHT, CHAR_WIDTH } from './createPlayer';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
 import { enterPrivateRoom, updateMemberStatus } from '@/services/rooms/api';
-import { getSocket } from '@/lib/socket';
+import type { Socket } from 'socket.io-client';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import { endMeeting, generateMinutes } from '@/services/minutes/api';
 
@@ -61,6 +61,7 @@ export function setupMovement(
   darkOverlay: PIXI.Graphics,
   roomId: string,
   walls: PIXI.Rectangle[],
+  socket: Socket,
 ): () => void {
   const keys: Record<string, boolean> = {};
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -146,7 +147,7 @@ export function setupMovement(
     container.y = Math.max(50, Math.min(1170 - 50, container.y));
 
     if (container.x !== lastSentX || container.y !== lastSentY) {
-      getSocket().emit('room:move', {
+      socket.emit('room:move', {
         roomId: roomId,
         posX: container.x,
         posY: container.y,
@@ -192,7 +193,7 @@ export function setupMovement(
 
         enterPrivateRoom(roomId, newRoomId)
           .then(() => {
-            getSocket().emit('private-room:enter', {
+            socket.emit('private-room:enter', {
               roomId: roomId,
               privateRoomId: newRoomId,
             });
@@ -263,7 +264,7 @@ export function setupMovement(
           useSpaceStore.getState().setCurrentPrivateRoomId(null);
           useSpaceStore.getState().setMyStatus('🔥 집중');
 
-          getSocket().emit('private-room:leave', {
+          socket.emit('private-room:leave', {
             roomId: roomId,
             privateRoomId: roomToLeave,
           });

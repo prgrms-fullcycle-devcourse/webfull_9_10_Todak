@@ -1,10 +1,10 @@
 'use client';
 
-import { getAuthToken } from '@/lib/auth';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/providers/SocketProvider';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import { QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import type { Socket } from 'socket.io-client';
 
 import { minutesQueryKeys } from './query';
 
@@ -23,17 +23,22 @@ let registration: MinutesSocketRegistration | null = null;
 
 export function useMinutesSocketSync(roomId: string) {
   const queryClient = useQueryClient();
+  const { socket } = useSocket();
 
   useEffect(() => {
     if (roomId === '') {
       return;
     }
 
-    return subscribeMinutesSocketSync(roomId, queryClient);
-  }, [queryClient, roomId]);
+    return subscribeMinutesSocketSync(roomId, queryClient, socket);
+  }, [queryClient, roomId, socket]);
 }
 
-function subscribeMinutesSocketSync(roomId: string, queryClient: QueryClient) {
+function subscribeMinutesSocketSync(
+  roomId: string,
+  queryClient: QueryClient,
+  socket: Socket,
+) {
   if (registration !== null && registration.roomId !== roomId) {
     registration.dispose();
     registration = null;
@@ -56,7 +61,6 @@ function subscribeMinutesSocketSync(roomId: string, queryClient: QueryClient) {
     };
   }
 
-  const socket = getSocket(getAuthToken() ?? undefined);
   const syncMinutes = (payload?: MinutesSocketPayload) => {
     const payloadRoomId = payload?.roomId ?? payload?.room_id;
 
@@ -71,11 +75,10 @@ function subscribeMinutesSocketSync(roomId: string, queryClient: QueryClient) {
     socket.emit('room:join', roomId);
   };
 
+  // 연결은 SocketProvider 가 소유한다(여기서 connect 하지 않음).
   socket.on('connect', joinRoom);
 
-  if (!socket.connected) {
-    socket.connect();
-  } else {
+  if (socket.connected) {
     joinRoom();
   }
 
