@@ -124,3 +124,9 @@ export interface RefineMinutesResponse {
   id: string;
   refined_content_md: string;
 }
+
+export interface MinutesLockEvent {
+  minutes_id: string;
+  user_id: string;
+  login: string;
+}

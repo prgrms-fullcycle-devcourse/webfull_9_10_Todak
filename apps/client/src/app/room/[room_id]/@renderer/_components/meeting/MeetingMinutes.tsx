@@ -13,7 +13,11 @@ interface MeetingMinutesProps {
   isLoading: boolean;
   content: string;
   generationError: string | null;
+  editorLock: { userId: string; login: string } | null;
+  isEditable: boolean;
+  lockDenied: boolean;
   onContentChange: (content: string) => void;
+  onStartEdit: () => void;
   onSave: () => void;
 }
 
@@ -28,7 +32,11 @@ export default function MeetingMinutes({
   isLoading,
   content,
   generationError,
+  editorLock,
+  isEditable,
+  lockDenied,
   onContentChange,
+  onStartEdit,
   onSave,
 }: MeetingMinutesProps) {
   const params = useParams();
@@ -146,19 +154,42 @@ export default function MeetingMinutes({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* 락 상태 표시 */}
+          {editorLock && !isEditable && (
+            <span className="text-[10px] font-bold text-amber-500">
+              ✏️ {editorLock.login}님이 편집 중
+            </span>
+          )}
+          {lockDenied && (
+            <span className="text-[10px] font-bold text-red-400">
+              다른 사람이 편집 중이에요
+            </span>
+          )}
           <span className="rounded-full border border-todak-coral-200 bg-todak-coral-50 px-2 py-0.5 text-[10px] font-bold text-todak-coral-500">
             AI 요약 활성됨
           </span>
-          <button
-            onClick={handleSaveClick}
-            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
-          >
-            {saveStatus === 'saving'
-              ? '저장 중...'
-              : saveStatus === 'saved'
-                ? '✓ 저장됨'
-                : '저장'}
-          </button>
+          {isEditable ? (
+            // 내가 편집 중 → 저장 버튼
+            <button
+              onClick={handleSaveClick}
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            >
+              {saveStatus === 'saving'
+                ? '저장 중...'
+                : saveStatus === 'saved'
+                  ? '✓ 저장됨'
+                  : '저장'}
+            </button>
+          ) : (
+            // 아무도 편집 안 함 or 다른 사람 편집 중 → 편집하기 버튼
+            <button
+              onClick={onStartEdit}
+              disabled={!!editorLock}
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ✏️ 편집하기
+            </button>
+          )}
         </div>
       </div>
 
@@ -190,7 +221,7 @@ export default function MeetingMinutes({
 
       {/* 본문 */}
       <div
-        className="min-h-0 flex-1 overflow-y-auto p-4"
+        className={`min-h-[400px] ${!isEditable ? 'pointer-events-none' : ''}`}
         data-color-mode="light"
       >
         {tab === 'edit' ? (
