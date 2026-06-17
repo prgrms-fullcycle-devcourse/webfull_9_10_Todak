@@ -62,6 +62,17 @@ describe('채팅 히스토리 페이지네이션 (integration)', () => {
     ]);
   });
 
+  it('각 메시지에 작성자의 룸 닉네임(nickname)이 포함된다', async () => {
+    const res = await request()
+      .get(`/api/rooms/${roomId}/chats`)
+      .query({ limit: 1 })
+      .set('Authorization', auth);
+
+    expect(res.status).toBe(200);
+    // seedRoom 의 호스트 멤버 nickname 은 'host'
+    expect(res.body[0].user.nickname).toBe('host');
+  });
+
   it('before 커서로 그 이전 메시지만 반환', async () => {
     const res = await request()
       .get(`/api/rooms/${roomId}/chats`)
