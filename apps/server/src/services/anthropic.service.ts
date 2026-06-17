@@ -4,6 +4,8 @@ import { env } from '../config/env.js';
 import { AppError } from '../errors/AppError.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 
+import { formatChatLog } from './minutes-input.js';
+
 const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 
 /*
@@ -95,9 +97,8 @@ export async function generateMinutesSummary(
   contentMd: string;
   actionItems: MinutesActionItem[];
 }> {
-  const formattedChats = chatMessages
-    .map(msg => `[${msg.createdAt}] ${msg.user.githubUsername}: ${msg.content}`)
-    .join('\n');
+  // 채팅 로그를 정제·압축해 입력 토큰·비용을 절감 (노이즈는 워커에서 선필터됨)
+  const formattedChats = formatChatLog(chatMessages);
 
   const memberRoster =
     members
