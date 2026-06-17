@@ -14,6 +14,7 @@ import {
   assertRoomMember,
   assertRoomHost,
 } from '../../../services/room-guards.js';
+import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 
 import { AddCollaboratorInput } from './collaborators.schema.js';
@@ -121,10 +122,36 @@ export async function removeCollaboratorHandler(
     };
     await assertRoomHost(roomId, userId);
 
+    // githubUsername 으로 룸 멤버 조회
+    const target = await prisma.user.findFirst({
+      where: { githubUsername: username },
+      select: { id: true },
+    });
+
+    if (target === null) {
+      throw new AppError('USER_NOT_FOUND');
+    }
+
+    // 룸 멤버에서 제거 (방장은 본인이므로 제외)
+    await prisma.roomMember.deleteMany({
+      where: { roomId, userId: target.id },
+    });
+
+    // 추방된 유저 본인에게만 kick 이벤트 전송 (개인방 = userId)
+    getIO().to(target.id).emit('room:kicked', { roomId });
+
+    // 나머지 멤버에게 퇴장 브로드캐스트
+    getIO().to(roomId).emit('room:user-left', { userId: target.id });
+
+    // GitHub 협업자 제거 (non-fatal — DB/소켓 처리 후 시도)
     const repo = await getLinkedRepo(roomId);
     const [owner, repoName] = repo.fullName.split('/');
+    try {
+      await removeCollaborator(accessToken, owner, repoName, username);
+    } catch (err) {
+      console.error('[removeCollaborator] GitHub 협업자 제거 실패:', err);
+    }
 
-    await removeCollaborator(accessToken, owner, repoName, username);
     res
       .status(200)
       .json({ success: true, message: '협업자가 제거되었습니다.' });
