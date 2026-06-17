@@ -259,17 +259,37 @@ export class MinutesService {
      * 비울 필요가 없고, 미리 비우면 큐 등록 실패 시 기존 초안이 유실된다.
      * 생성 중에는 기존 본문이 잠시 남아 있다가 완료 시 교체된다.
      */
-    const tempMinutes = existing
-      ? await prisma.minutes.update({
-          where: { id: existing.id },
-          data: { title: finalTitle, status: 'generating' },
-        })
-      : await this.createGeneratingMinutes(
-          roomId,
-          authorId,
-          meeting_id,
-          finalTitle,
-        );
+    let tempMinutes;
+    if (existing) {
+      /*
+       * draft/failed → generating 전환을 원자적으로 수행한다.
+       * 위 findUnique 와 이 갱신 사이에 다른 요청이 먼저 generating 으로 바꾸면(동시 재생성)
+       * status 가드(notIn)로 count=0 이 되어, 잡 중복 enqueue 없이 1건만 통과한다.
+       */
+      const { count } = await prisma.minutes.updateMany({
+        where: {
+          id: existing.id,
+          status: { notIn: ['generating', 'confirmed'] },
+        },
+        data: { title: finalTitle, status: 'generating' },
+      });
+
+      if (count === 0) {
+        // 경합에서 짐 — 다른 요청이 이미 생성 중(또는 그 사이 확정됨)
+        throw new AppError('MINUTES_GENERATING');
+      }
+
+      tempMinutes = await prisma.minutes.findUniqueOrThrow({
+        where: { id: existing.id },
+      });
+    } else {
+      tempMinutes = await this.createGeneratingMinutes(
+        roomId,
+        authorId,
+        meeting_id,
+        finalTitle,
+      );
+    }
 
     try {
       await addJob('minutes-generation', {
