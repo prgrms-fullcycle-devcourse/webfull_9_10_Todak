@@ -399,17 +399,21 @@ export default function ProjectSettingsForm({
 
       <section className="mt-6 border-t border-border pt-5">
         <p className="text-xs font-black text-danger">프로젝트 탈퇴</p>
+        {/* 방장 여부 판단하여 안내 문구 제공 */}
         <p className="mt-1 text-[11px] font-bold leading-5 text-muted">
-          이 프로젝트에서 탈퇴하면 룸 선택 및 생성 페이지로 이동합니다.
+          {canEdit
+            ? '방장(Owner)은 프로젝트를 탈퇴할 수 없습니다. 필요 시 룸을 완전히 삭제하거나 레포를 이전해야 합니다.'
+            : '이 프로젝트에서 탈퇴하면 룸 선택 및 생성 페이지로 이동합니다.'}
         </p>
 
         <div className="mt-3 flex justify-end">
           <Button
-            className="h-9 rounded-xl border border-red-200 bg-red-50 px-4 text-xs font-black text-danger shadow-sm transition-colors hover:bg-red-100"
+            className="h-9 rounded-xl border border-red-200 bg-red-50 px-4 text-xs font-black text-danger shadow-sm transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
             onPress={() => setIsLeaveModalOpen(true)}
             type="button"
+            isDisabled={canEdit}
           >
-            탈퇴하기
+            {canEdit ? '방장 탈퇴 불가' : '탈퇴하기'}
           </Button>
         </div>
       </section>
