@@ -2,6 +2,7 @@ export type ChatType = 'text' | 'meeting_start' | 'meeting_end';
 
 export interface ChatUser {
   github_username: string;
+  nickname: string | null;
   avatar_url: string;
 }
 
