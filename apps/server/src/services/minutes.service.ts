@@ -8,6 +8,7 @@ import {
 import { AppError } from '../errors/AppError.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 import { addJob } from '../jobs/queues/index.js';
+import { splitMeetingInfoHeader } from '../jobs/workers/minutes-header.js';
 import { prisma } from '../lib/prisma.js';
 
 import { refineMinutesContent } from './anthropic.service.js';
@@ -474,10 +475,16 @@ export class MinutesService {
       instruction = REFINE_INSTRUCTIONS[body.refine_type];
     }
 
-    const refinedContentMd = await refineMinutesContent(
+    /*
+     * '회의 정보' 헤더(진행자·일시·참석자, DB 사실 기반)는 AI 가 건드리지 않도록 분리하고
+     * 본문만 다듬은 뒤 헤더를 그대로 재부착한다. (헤더 없으면 전체를 다듬음)
+     */
+    const { header, body: bodyContent } = splitMeetingInfoHeader(
       minutes.contentMd,
-      instruction,
     );
+    const refinedBody = await refineMinutesContent(bodyContent, instruction);
+    const refinedContentMd =
+      header !== null ? `${header}\n\n${refinedBody}` : refinedBody;
 
     return {
       id: minutes.id,
