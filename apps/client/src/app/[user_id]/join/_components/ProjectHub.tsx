@@ -3,7 +3,7 @@
 import { fetchMyRooms } from '@/services/rooms/api';
 import { Card, Tabs } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 import CreateTab from './CreateTab';
 import ExistingTeamsTab from './ExistingTeamsTab';
@@ -47,6 +47,8 @@ export default function ProjectHub({
   const [selectedTab, setSelectedTab] = useState<TabID | null>(
     initialInviteCode === '' ? null : 'invite',
   );
+  const activePanelRef = useRef<HTMLDivElement | null>(null);
+  const [panelHeight, setPanelHeight] = useState<number | null>(null);
   const defaultTab = myRooms && myRooms.length > 0 ? 'teams' : 'create';
   const activeTab = selectedTab ?? defaultTab;
   const wrapperClassName =
@@ -57,6 +59,27 @@ export default function ProjectHub({
     variant === 'page'
       ? 'w-full max-w-[386px] gap-0 rounded-[26px] border border-border/80 bg-surface px-7 py-8 shadow-todak-panel'
       : 'w-full gap-0 rounded-[26px] border border-border/80 bg-surface px-6 py-7 shadow-todak-panel';
+
+  useLayoutEffect(() => {
+    const activePanel = activePanelRef.current;
+
+    if (activePanel === null) {
+      return;
+    }
+
+    const updatePanelHeight = () => {
+      setPanelHeight(activePanel.offsetHeight);
+    };
+
+    updatePanelHeight();
+
+    const resizeObserver = new ResizeObserver(updatePanelHeight);
+    resizeObserver.observe(activePanel);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [activeTab, myRooms?.length]);
 
   return (
     <section className={wrapperClassName}>
@@ -98,22 +121,31 @@ export default function ProjectHub({
                 ))}
               </Tabs.List>
             </Tabs.ListContainer>
-            {TabOptions.map(option => (
-              <Tabs.Panel
-                className="mt-0 p-0 outline-none"
-                key={`team-selection-tabs-panel-${option.id}`}
-                id={option.id}
-              >
-                {option.id === 'teams' && <ExistingTeamsTab userID={userID} />}
-                {option.id === 'create' && <CreateTab userID={userID} />}
-                {option.id === 'invite' && (
-                  <InviteTab
-                    initialInviteCode={initialInviteCode}
-                    userID={userID}
-                  />
-                )}
-              </Tabs.Panel>
-            ))}
+            <div
+              className="overflow-hidden transition-[height] duration-300 ease-out motion-reduce:transition-none"
+              style={panelHeight === null ? undefined : { height: panelHeight }}
+            >
+              {TabOptions.map(option => (
+                <Tabs.Panel
+                  className="mt-0 p-0 outline-none"
+                  key={`team-selection-tabs-panel-${option.id}`}
+                  id={option.id}
+                >
+                  <div ref={option.id === activeTab ? activePanelRef : null}>
+                    {option.id === 'teams' && (
+                      <ExistingTeamsTab userID={userID} />
+                    )}
+                    {option.id === 'create' && <CreateTab userID={userID} />}
+                    {option.id === 'invite' && (
+                      <InviteTab
+                        initialInviteCode={initialInviteCode}
+                        userID={userID}
+                      />
+                    )}
+                  </div>
+                </Tabs.Panel>
+              ))}
+            </div>
           </Tabs>
         </Card.Content>
       </Card>

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { fetchTodos, fetchMyTodos } from '@/services/todos/api';
 import type { Todo, TodosResponse } from '@/services/todos/model';
-import { Tabs } from '@heroui/react';
+import { useTodoListStore } from '@/store/useTodoListStore';
+import { Button, Tabs } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 
@@ -20,6 +21,8 @@ interface ModalTodoTabsProps {
 export default function ModalTodoTabs({ userId, isMe }: ModalTodoTabsProps) {
   const { room_id: roomID } = useParams<{ room_id: string }>();
   const [activeTab, setActiveTab] = useState<'team' | 'individual'>('team');
+  const setModalContent = useTodoListStore(state => state.setModalContent);
+  const setIsModalOpen = useTodoListStore(state => state.setIsModalOpen);
 
   const isFetchingMyTodos = activeTab === 'individual' && isMe;
   const isFetchingMemberTodos = activeTab === 'individual' && !isMe;
@@ -58,6 +61,10 @@ export default function ModalTodoTabs({ userId, isMe }: ModalTodoTabsProps) {
   };
 
   const currentTodos = getFilteredTodos();
+  const handleTodoPress = (todo: Todo) => {
+    setModalContent(todo);
+    setIsModalOpen(true);
+  };
 
   return (
     <Tabs
@@ -116,22 +123,27 @@ export default function ModalTodoTabs({ userId, isMe }: ModalTodoTabsProps) {
           {!isPending && !isError && currentTodos.length > 0 && (
             <div className="max-h-55 flex flex-col gap-2.5 overflow-y-auto pr-1">
               {currentTodos.map(todo => (
-                <div
+                <Button
                   className="flex items-center justify-between rounded-xl border border-border bg-surface-secondary px-4 py-3 text-xs"
+                  fullWidth
                   key={todo.id}
+                  onPress={() => handleTodoPress(todo)}
+                  type="button"
                 >
-                  <div className="flex min-w-0 items-center gap-2.5">
+                  <div className="flex min-w-0 items-center gap-3">
                     <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${todo.is_done ? 'bg-emerald-500' : 'bg-orange-400'}`}
+                      className={`size-2.5 shrink-0 rounded-full ${
+                        todo.is_done ? 'bg-success' : 'bg-warning'
+                      }`}
                     />
-                    <span className="truncate font-bold text-slate-700">
+                    <span className="truncate font-black text-foreground">
                       {todo.title}
                     </span>
                   </div>
-                  <span className="ml-3 shrink-0 rounded-md bg-white px-2 py-0.5 font-mono text-[10px] font-bold text-muted">
+                  <span className="ml-3 shrink-0 font-todak-mono text-[11px] font-black text-accent">
                     @{todo.assignee?.github_username ?? '미지정'}
                   </span>
-                </div>
+                </Button>
               ))}
             </div>
           )}
