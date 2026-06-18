@@ -350,7 +350,6 @@ pnpm test:integration  # 통합 테스트 (임베디드 PostgreSQL)
   </tr>
 </table>
 
-
 <br/>
 
 ## 🤝 컨벤션
