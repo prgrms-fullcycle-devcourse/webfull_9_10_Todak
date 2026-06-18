@@ -4,7 +4,6 @@ import { useState } from 'react';
 import CompleteModal from './CompleteModal';
 import ReviewModal from './ReviewModal';
 import { ActionItem } from '@/services/minutes/model';
-import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { fetchTodos } from '@/services/todos/api';
 import { useQuery } from '@tanstack/react-query';
 
@@ -26,7 +25,6 @@ export default function IssueHub({
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [modal, setModal] = useState<'none' | 'review' | 'complete'>('none');
   const [completedIssues, setCompletedIssues] = useState<ActionItem[]>([]);
-  const setCurrentView = useRoomUiStore(state => state.setCurrentView);
 
   // 발행된 투두 조회 → title 기준으로 비활성화
   const { data: issuedTodos, refetch: refetchTodos } = useQuery({
@@ -198,7 +196,6 @@ export default function IssueHub({
           issues={completedIssues}
           onClose={() => {
             setModal('none');
-            setCurrentView('2d');
           }}
         />
       )}
