@@ -31,6 +31,40 @@ const MAX_CLOSED_PAGES_SCAN = 10;
 
 type RawPull = Awaited<ReturnType<typeof listPullRequests>>[number];
 
+// PR 목록 캐시 키 접두사 (레포 단위) — 무효화 시 이 접두사로 SCAN 한다.
+const prListCacheKeyPrefix = (owner: string, repoName: string) =>
+  `pr:list:${owner}/${repoName}:`;
+
+/*
+ * 특정 레포의 PR 목록 캐시를 모두 무효화한다(웹훅으로 PR 변경 감지 시 호출).
+ * 키가 상태/페이지별로 여러 개라 접두사로 SCAN 해 일괄 삭제한다.
+ * (KEYS 는 운영에서 블로킹되므로 SCAN 사용)
+ */
+export async function invalidatePullRequestListCache(
+  owner: string,
+  repoName: string,
+): Promise<void> {
+  const pattern = `${prListCacheKeyPrefix(owner, repoName)}*`;
+  const keys: string[] = [];
+  let cursor = '0';
+
+  do {
+    const [next, found] = await redis.scan(
+      cursor,
+      'MATCH',
+      pattern,
+      'COUNT',
+      100,
+    );
+    cursor = next;
+    keys.push(...found);
+  } while (cursor !== '0');
+
+  if (keys.length > 0) {
+    await redis.del(...keys);
+  }
+}
+
 // GitHub PR 한 페이지를 캐시(레포+상태+페이지 단위)를 거쳐 조회한다.
 async function fetchPullsPage(
   accessToken: string,
@@ -40,7 +74,7 @@ async function fetchPullsPage(
   page: number,
   limit: number,
 ): Promise<RawPull[]> {
-  const cacheKey = `pr:list:${owner}/${repoName}:${githubState}:p${page}:l${limit}`;
+  const cacheKey = `${prListCacheKeyPrefix(owner, repoName)}${githubState}:p${page}:l${limit}`;
 
   const cached = await redis.get(cacheKey);
   if (cached !== null) {

@@ -18,6 +18,7 @@ import {
   createPullRequestReview,
   getPullRequestDetail,
   getPullRequests,
+  invalidatePullRequestListCache,
   mergePullRequest,
 } from '@/services/prs.service.js';
 
@@ -38,7 +39,7 @@ vi.mock('@/services/github.service.js', () => ({
 }));
 
 vi.mock('@/lib/redis.js', () => ({
-  redis: { get: vi.fn(), set: vi.fn() },
+  redis: { get: vi.fn(), set: vi.fn(), scan: vi.fn(), del: vi.fn() },
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -543,5 +544,42 @@ describe('getPullRequests - merged/closed 누적 페이지네이션', () => {
     expect(res.pagination.has_more).toBe(true);
     // 무한 루프 방지: 최대 10개 GitHub 페이지만 훑는다
     expect(ghList).toHaveBeenCalledTimes(10);
+  });
+});
+
+describe('invalidatePullRequestListCache', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('레포 접두사로 SCAN 해 찾은 키들을 삭제한다', async () => {
+    // SCAN: 1회 순회로 cursor '0' 반환 + 키 2개
+    r.scan.mockResolvedValue([
+      '0',
+      ['pr:list:owner/repo:open:p1:l30', 'pr:list:owner/repo:closed:p1:l30'],
+    ]);
+    r.del.mockResolvedValue(2);
+
+    await invalidatePullRequestListCache('owner', 'repo');
+
+    expect(r.scan).toHaveBeenCalledWith(
+      '0',
+      'MATCH',
+      'pr:list:owner/repo:*',
+      'COUNT',
+      100,
+    );
+    expect(r.del).toHaveBeenCalledWith(
+      'pr:list:owner/repo:open:p1:l30',
+      'pr:list:owner/repo:closed:p1:l30',
+    );
+  });
+
+  it('매칭되는 키가 없으면 del 을 호출하지 않는다', async () => {
+    r.scan.mockResolvedValue(['0', []]);
+
+    await invalidatePullRequestListCache('owner', 'repo');
+
+    expect(r.del).not.toHaveBeenCalled();
   });
 });
