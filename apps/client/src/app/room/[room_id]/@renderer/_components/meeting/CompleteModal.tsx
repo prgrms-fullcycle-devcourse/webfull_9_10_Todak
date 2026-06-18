@@ -78,7 +78,7 @@ export default function CompleteModal({ issues, onClose }: Props) {
           onClick={onClose}
           className="w-full rounded-xl bg-slate-900 py-3 text-sm font-black text-white hover:bg-slate-800"
         >
-          확인 및 스터디룸 복귀
+          완료
         </button>
       </div>
     </div>

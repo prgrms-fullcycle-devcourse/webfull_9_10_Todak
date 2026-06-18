@@ -1,35 +1,24 @@
 'use client';
 
 import { cn } from '@/lib/cn';
-import { getAuthToken } from '@/lib/auth';
-import { getSocket } from '@/lib/socket';
-import {
-  pullRequestQueryKeys,
-  useRoomPullRequests,
-} from '@/services/github/query';
+import { useRoomPullRequests } from '@/services/github/query';
+import { usePullRequestSocket } from '@/services/github/usePullRequestSocket';
 import type { RoomPullRequest } from '@/services/github/api';
 import { Accordion, Button, Chip } from '@heroui/react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 
 import PullRequestModal, {
   type PullRequestModalData,
 } from './PullRequestModal';
-
-interface PullRequestSocketPayload {
-  roomId?: string;
-  room_id?: string;
-  pull_request?: {
-    roomId?: string;
-    room_id?: string;
-  };
-  review?: {
-    roomId?: string;
-    room_id?: string;
-  };
-}
 
 interface PullRequestNotificationsProps {
   className?: string;
@@ -39,7 +28,6 @@ export default function PullRequestNotifications({
   className,
 }: PullRequestNotificationsProps) {
   const { room_id: roomID } = useParams<{ room_id: string }>();
-  const queryClient = useQueryClient();
   const {
     data: pullRequestsResponse,
     isError,
@@ -104,46 +92,16 @@ export default function PullRequestNotifications({
     }
   }, [pullRequestListSignature]);
 
-  useEffect(() => {
-    const socket = getSocket(getAuthToken() ?? undefined);
-    const handlePullRequestEvent = (data: PullRequestSocketPayload) => {
-      const payloadRoomId = getPullRequestEventRoomId(data);
-
-      if (payloadRoomId && payloadRoomId !== roomID) {
-        return;
-      }
-
-      queryClient.invalidateQueries({ queryKey: pullRequestQueryKeys.all });
-
-      if (!isPullRequestExpandedRef.current) {
-        setHasPullRequestUpdate(true);
-      }
-    };
-    const joinRoom = () => {
-      socket.emit('room:join', roomID);
-    };
-
-    socket.on('connect', joinRoom);
-
-    if (!socket.connected) {
-      socket.connect();
-    } else {
-      joinRoom();
+  const handlePullRequestUpdated = useCallback(() => {
+    if (!isPullRequestExpandedRef.current) {
+      setHasPullRequestUpdate(true);
     }
+  }, []);
 
-    socket.on('pr:opened', handlePullRequestEvent);
-    socket.on('pr:merged', handlePullRequestEvent);
-    socket.on('pr:closed', handlePullRequestEvent);
-    socket.on('pr:reviewed', handlePullRequestEvent);
-
-    return () => {
-      socket.off('connect', joinRoom);
-      socket.off('pr:opened', handlePullRequestEvent);
-      socket.off('pr:merged', handlePullRequestEvent);
-      socket.off('pr:closed', handlePullRequestEvent);
-      socket.off('pr:reviewed', handlePullRequestEvent);
-    };
-  }, [queryClient, roomID]);
+  usePullRequestSocket({
+    roomId: roomID,
+    onUpdated: handlePullRequestUpdated,
+  });
 
   const handlePullRequestTriggerPress = () => {
     setIsPullRequestExpanded(current => {
@@ -209,6 +167,7 @@ export default function PullRequestNotifications({
       {selectedPullRequest !== null && (
         <PullRequestModal
           isOpen={isModalOpen}
+          key={`pull-request-modal-${selectedPullRequest.id}`}
           onOpenChange={isOpen => {
             if (!isOpen) {
               setSelectedPullRequest(null);
@@ -219,17 +178,6 @@ export default function PullRequestNotifications({
         />
       )}
     </>
-  );
-}
-
-function getPullRequestEventRoomId(data: PullRequestSocketPayload) {
-  return (
-    data.roomId ??
-    data.room_id ??
-    data.pull_request?.roomId ??
-    data.pull_request?.room_id ??
-    data.review?.roomId ??
-    data.review?.room_id
   );
 }
 

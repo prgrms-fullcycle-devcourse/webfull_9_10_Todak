@@ -10,6 +10,7 @@ import {
   type AnimalType,
   type CharacterInfo,
 } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { type RoomProfile } from '@/services/rooms/model';
 import { fetchRoomMembers, updateRoomProfile } from '@/services/rooms/api';
 import ModalTodoTabs from './ModalTodoTabs';
@@ -17,7 +18,7 @@ import {
   detailJobs,
   roleValueByPart,
 } from '@/app/[user_id]/join/customize/_components/UserProfileForm';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/providers/SocketProvider';
 
 const AVATAR_MAP = {
   rabbit: { label: '🐰 토끼', src: '/assets/rabbit_front.webp' },
@@ -89,7 +90,7 @@ function getUnifiedMember(
 
 export default function CharacterDetailModal() {
   const { isCharacterModalOpen, selectedMember, closeCharacterModal } =
-    useSpaceStore();
+    useRoomUiStore();
   const { room_id: roomID } = useParams<{ room_id: string }>();
   const { data: memberListData } = useQuery<RoomMembersResponse>({
     queryKey: ['room-members', roomID],
@@ -137,6 +138,7 @@ function ModalFormContent({
 }: ModalFormContentProps) {
   const { myChar, setMyChar, members: storeMembers } = useSpaceStore();
   const { room_id: roomID } = useParams<{ room_id: string }>();
+  const { socket } = useSocket();
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -191,7 +193,7 @@ function ModalFormContent({
         detailedRole: profile.detailed_role ?? 'Team Member',
       });
 
-      getSocket().emit('room:member-profile-changed', {
+      socket.emit('room:member-profile-changed', {
         userId: profile.id,
         nickname: profile.nickname,
         character_type: profile.character_type,

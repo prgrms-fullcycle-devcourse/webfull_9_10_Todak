@@ -1,6 +1,6 @@
 'use client';
 
-import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import PixiCanvas from '../2d/PixiCanvas';
 import MeetingBoard from './MeetingBoard';
 
@@ -9,7 +9,7 @@ interface RendererViewProps {
 }
 
 export default function RendererView({ roomId }: RendererViewProps) {
-  const { currentView } = useSpaceStore();
+  const currentView = useRoomUiStore(state => state.currentView);
 
   if (currentView === 'meeting') {
     return (

@@ -5,6 +5,7 @@ import {
   generateMinutes,
   startMeeting,
 } from '@/services/minutes/api';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import { useState } from 'react';
 
@@ -24,7 +25,9 @@ export default function ChatMeetingButton({ onToggle, roomId }: Props) {
   const privateRooms = useSpaceStore(state => state.privateRooms);
   const currentMeetingId = useSpaceStore(state => state.currentMeetingId);
   const setCurrentMeetingId = useSpaceStore(state => state.setCurrentMeetingId);
-  const setCurrentView = useSpaceStore(state => state.setCurrentView);
+  const notifyMinutesGenerationRequested = useRoomUiStore(
+    state => state.notifyMinutesGenerationRequested,
+  );
   const currentPrivateRoom = privateRooms.find(
     room => room.id === currentPrivateRoomId,
   );
@@ -36,7 +39,9 @@ export default function ChatMeetingButton({ onToggle, roomId }: Props) {
   // 방은 회의 중(`true`)인데, 내 로컬 메모리에 미팅 세션 ID(`currentMeetingId`)가 없다면 다른 사람이 켠 걸로 판정
   const isMeetingStartedByAnotherMember = isMeetingOngoing && !currentMeetingId;
   const isDisabled = isLoading || isMeetingStartedByAnotherMember;
-  const setCurrentMinutesId = useSpaceStore(state => state.setCurrentMinutesId);
+  const setCurrentMinutesId = useRoomUiStore(
+    state => state.setCurrentMinutesId,
+  );
 
   const handleClick = async () => {
     if (isDisabled) return;
@@ -59,16 +64,17 @@ export default function ChatMeetingButton({ onToggle, roomId }: Props) {
         const endedAt = new Date(endedMeeting.ended_at);
         const title = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
 
-        const newMinutes = await generateMinutes(
-          roomId,
-          currentMeetingId,
-          title,
-        );
-        setCurrentMinutesId(newMinutes.id);
+        notifyMinutesGenerationRequested();
+        void generateMinutes(roomId, currentMeetingId, title)
+          .then(newMinutes => {
+            setCurrentMinutesId(newMinutes.id);
+          })
+          .catch(error => {
+            console.error('AI 회의록 생성 요청 실패:', error);
+          });
 
         setCurrentMeetingId(null);
         onToggle();
-        setCurrentView('meeting'); // 회의 보드로 전환
       }
     } catch (error) {
       console.error('회의 시작/종료 실패:', error);

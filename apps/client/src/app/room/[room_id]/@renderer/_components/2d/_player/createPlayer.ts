@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import type { AnimalAssetPack } from '../_animals/types';
 import { updateMemberStatus } from '@/services/rooms/api';
 import { MemberStatus } from '@/services/rooms/model';
@@ -217,7 +218,7 @@ export function createPlayer(
     e.stopPropagation();
 
     const currentMyChar = useSpaceStore.getState().myChar;
-    useSpaceStore.getState().openCharacterModal(currentMyChar);
+    useRoomUiStore.getState().openCharacterModal(currentMyChar);
 
     if (isExpanded) {
       isExpanded = false;

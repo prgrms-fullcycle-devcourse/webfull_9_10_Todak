@@ -1,9 +1,10 @@
 'use client';
-import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { Button } from '@heroui/react';
 
 export default function ViewSelection() {
-  const { currentView, setCurrentView } = useSpaceStore();
+  const currentView = useRoomUiStore(state => state.currentView);
+  const setCurrentView = useRoomUiStore(state => state.setCurrentView);
 
   return (
     <section className="shrink-0 space-y-1.5">

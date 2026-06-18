@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
 import { AnimalType, useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { loadAllAnimalAssets } from './_animals/animalAssets';
 import {
   createPlayer,
@@ -20,7 +21,7 @@ import { createWorld } from './_world/createWorld';
 import { setupCamera } from './_world/setupCamera';
 import { createMeetingRoom } from '../meeting/_world/createMeetingRoom';
 import { createOtherPlayer, RemotePlayer } from './_player/createOtherPlayer';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/providers/SocketProvider';
 import {
   fetchRoomMembers,
   RoomMembers,
@@ -30,6 +31,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { loadMascotNpcAssets } from '../2d/_npcs/npcAssets';
 import { createMascotNpc, MascotNpcContainer } from '../2d/_npcs/createNpc';
 import { useNotifications } from '@/services/notifications/query';
+import { useNotificationSocket } from '@/services/notifications/useNotificationSocket';
 import NotificationHistoryModal from './NotificationHistoryModal';
 import { openChatSafely } from '../../../@chats/_components/ChatOpenButton';
 import rawWallData from '@/app/room/[room_id]/@renderer/_constants/walls.json';
@@ -66,6 +68,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   // 캔버스를 마운트할 DOM 컨테이너 참조
   const canvasRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const { socket } = useSocket();
   const npcRef = useRef<MascotNpcContainer | null>(null);
   const [isNpcReady, setIsNpcReady] = useState(false);
   const { data: notificationData } = useNotifications(roomId);
@@ -74,12 +77,15 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const notifications = notificationData?.notifications ?? [];
 
+  useNotificationSocket({ roomId });
+
   useEffect(() => {
     let isMounted = true;
     let app: PIXI.Application | null = null;
     let unsubscribeStatus: (() => void) | null = null;
     let unsubscribeAnimal: (() => void) | null = null;
     let unsubscribePlayer: (() => void) | null = null;
+    let unsubscribeMembers: (() => void) | null = null;
     let unsubscribeModal: (() => void) | null = null;
     let unsubscribeMeetingId: (() => void) | null = null;
     let unsubscribeRoomsList: (() => void) | null = null;
@@ -89,6 +95,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     let handleVisibilityChange: (() => void) | null = null;
     let localPlayerContainer: PIXI.Container | null = null;
     let resizeAnimationFrameId: number | null = null; // 애니메이션 프레임 ID를 기억할 로컬 변수
+    const recentlyLeftUserIds = new Map<string, number>();
+    // 이 effect 가 등록한 소켓 리스너 해제 함수 모음 (자기 핸들러만 off)
+    const socketOffs: Array<() => void> = [];
 
     const initPixi = async () => {
       const container = canvasRef.current;
@@ -338,10 +347,34 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       // 룸 내 팀원 렌더링
       const remotePlayers = new Map<string, RemotePlayer>();
-      const { myChar } = useSpaceStore.getState();
+      const normalizeUserId = (userId: string) => String(userId);
+      const isRecentlyLeft = (userId: string) => {
+        const leftAt = recentlyLeftUserIds.get(normalizeUserId(userId));
+        if (!leftAt) return false;
+
+        if (Date.now() - leftAt > 5000) {
+          recentlyLeftUserIds.delete(normalizeUserId(userId));
+          return false;
+        }
+
+        return true;
+      };
+      const withoutRecentlyLeftMembers = (members: RoomProfile[]) =>
+        members.filter(
+          member =>
+            !isRecentlyLeft(member.id) &&
+            member.status !== 'away' &&
+            member.status !== '💤 부재',
+        );
+
       const syncMembers = (currentMembers: RoomProfile[]) => {
+        const currentMyId = useSpaceStore.getState().myChar.id;
+        const visibleMembers = withoutRecentlyLeftMembers(currentMembers);
+
         // 나간 사람 캔버스에서 제거
-        const currentMemberIds = new Set(currentMembers.map(m => m.id));
+        const currentMemberIds = new Set(
+          visibleMembers.map(m => normalizeUserId(m.id)),
+        );
         for (const [userId, remotePlayer] of remotePlayers.entries()) {
           if (!currentMemberIds.has(userId)) {
             world.removeChild(remotePlayer.container);
@@ -351,10 +384,12 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         }
 
         // 새로 들어온 사람 캔버스에 추가
-        currentMembers.forEach(member => {
-          if (member.id === myChar.id) return;
+        visibleMembers.forEach(member => {
+          if (String(member.id) === String(currentMyId)) return;
 
-          if (!remotePlayers.has(member.id)) {
+          const memberId = normalizeUserId(member.id);
+
+          if (!remotePlayers.has(memberId)) {
             const memberTextures =
               animalAssets[member.character_type as AnimalType] ??
               animalAssets.rabbit;
@@ -368,192 +403,247 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
             remotePlayer.container.zIndex = 9;
 
             world.addChild(remotePlayer.container);
-            remotePlayers.set(member.id, remotePlayer);
+            remotePlayers.set(memberId, remotePlayer);
           }
         });
 
         world.sortChildren();
       };
+
+      const refreshMembersAndSync = async () => {
+        const freshRoomData = await fetchRoomMembers(roomId);
+        if (!isMounted) return;
+        if (!freshRoomData?.members) return;
+
+        queryClient.setQueryData<RoomMembers>(
+          ['room-members', roomId],
+          freshRoomData,
+        );
+        const visibleMembers = withoutRecentlyLeftMembers(
+          freshRoomData.members,
+        );
+        useSpaceStore.getState().setMembers(visibleMembers);
+        syncMembers(visibleMembers);
+      };
+
+      const scheduleMembersRefresh = (
+        delays = [0, 300, 1000],
+        targetUserId?: string,
+      ) => {
+        delays.forEach(delay => {
+          window.setTimeout(() => {
+            void refreshMembersAndSync().then(() => {
+              if (!targetUserId) return;
+
+              const hasTarget = useSpaceStore
+                .getState()
+                .members.some(
+                  member =>
+                    normalizeUserId(member.id) ===
+                    normalizeUserId(targetUserId),
+                );
+
+              if (hasTarget) {
+                recentlyLeftUserIds.delete(normalizeUserId(targetUserId));
+              }
+            });
+          }, delay);
+        });
+      };
+
+      const removeRemotePlayer = (userId: string) => {
+        const remotePlayer = remotePlayers.get(userId);
+
+        if (!remotePlayer) {
+          return;
+        }
+
+        world.removeChild(remotePlayer.container);
+        remotePlayer.container.destroy({ children: true });
+        remotePlayers.delete(userId);
+      };
+
       syncMembers(useSpaceStore.getState().members);
 
-      const socket = getSocket();
+      const handleUserJoined = (data?: { userId?: string }) => {
+        if (data?.userId) {
+          recentlyLeftUserIds.delete(normalizeUserId(data.userId));
+        }
 
-      socket.emit('room:join', roomId);
+        scheduleMembersRefresh([0, 300, 1000, 2000], data?.userId);
+      };
+      socket.on('room:user-joined', handleUserJoined);
+      socketOffs.push(() => socket.off('room:user-joined', handleUserJoined));
 
-      socket.on('room:user-joined', () => {
+      const handleUserLeft = (data?: { userId?: string }) => {
+        if (data?.userId) {
+          const leftUserId = normalizeUserId(data.userId);
+          recentlyLeftUserIds.set(leftUserId, Date.now());
+          removeRemotePlayer(leftUserId);
+          useSpaceStore
+            .getState()
+            .setMembers(
+              useSpaceStore
+                .getState()
+                .members.filter(
+                  member => normalizeUserId(member.id) !== leftUserId,
+                ),
+            );
+        }
+
+        scheduleMembersRefresh([300, 1000]);
+      };
+      socket.on('room:user-left', handleUserLeft);
+      socketOffs.push(() => socket.off('room:user-left', handleUserLeft));
+
+      unsubscribeMembers = useSpaceStore.subscribe(
+        state => state.members,
+        members => {
+          syncMembers(members);
+        },
+      );
+
+      // 맴버 소켓 이벤트 수신
+      const handleMemberMoved = (data: {
+        userId: string;
+        posX: number;
+        posY: number;
+      }) => {
+        if (isRecentlyLeft(data.userId)) return;
+
+        const targetPlayer = remotePlayers.get(normalizeUserId(data.userId));
+        if (targetPlayer) {
+          targetPlayer.updatePosition(data.posX, data.posY);
+        } else {
+          fetchRoomMembers(roomId).then(res => {
+            if (res?.members) {
+              const visibleMembers = withoutRecentlyLeftMembers(res.members);
+              useSpaceStore.getState().setMembers(visibleMembers);
+              syncMembers(visibleMembers);
+            }
+          });
+        }
+      };
+      socket.on('room:member-moved', handleMemberMoved);
+      socketOffs.push(() => socket.off('room:member-moved', handleMemberMoved));
+
+      // 다른 유저 상태 변경 소켓 리스너
+      const handleMemberStatusChanged = (data: {
+        userId: string;
+        status: string;
+      }) => {
+        if (isRecentlyLeft(data.userId)) return;
+
+        const targetPlayer = remotePlayers.get(normalizeUserId(data.userId));
+        if (targetPlayer) {
+          const hangulStatus = STATUS_TO_LABEL_MAP[data.status] || data.status;
+          const color = getStatusColor(hangulStatus);
+          targetPlayer.updateStatus(hangulStatus, color);
+        }
+
+        queryClient.setQueryData<RoomMembers>(
+          ['room-members', roomId],
+          oldData => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              members: oldData.members.map(m =>
+                String(m.id) === String(data.userId)
+                  ? { ...m, status: data.status }
+                  : m,
+              ),
+            };
+          },
+        );
+        const updatedMembers = useSpaceStore
+          .getState()
+          .members.map(m =>
+            String(m.id) === String(data.userId)
+              ? { ...m, status: data.status }
+              : m,
+          );
+        useSpaceStore.getState().setMembers(updatedMembers);
+
+        // 현재 열려있는 모달창의 유저 정보 실시간 갱신
+        const currentSelected = useRoomUiStore.getState().selectedMember;
+        if (
+          currentSelected &&
+          String(currentSelected.id) === String(data.userId)
+        ) {
+          useRoomUiStore.getState().openCharacterModal({
+            ...currentSelected,
+            status: data.status,
+          });
+        }
+      };
+      socket.on('room:member-status-changed', handleMemberStatusChanged);
+      socketOffs.push(() =>
+        socket.off('room:member-status-changed', handleMemberStatusChanged),
+      );
+
+      const handleMemberProfileChanged = (data: {
+        userId: string;
+        nickname: string | null;
+        character_type: string | null;
+        roles: string[];
+        detailed_role: string | null;
+      }) => {
         setTimeout(async () => {
           const store = useSpaceStore.getState();
 
+          // 최신 목록 수신 및 안전망 검증
           const freshRoomData = await fetchRoomMembers(roomId);
           if (!freshRoomData || !freshRoomData.members) return;
+          const visibleMembers = withoutRecentlyLeftMembers(
+            freshRoomData.members,
+          );
+
+          // 기존 화면의 그래픽 제거
           for (const remotePlayer of remotePlayers.values()) {
             world.removeChild(remotePlayer.container);
             remotePlayer.container.destroy({ children: true });
           }
           remotePlayers.clear();
 
+          // React Query 캐시 및 Zustand 명부 일제히 업데이트
           queryClient.setQueryData<RoomMembers>(
             ['room-members', roomId],
             freshRoomData,
           );
-          store.setMembers(freshRoomData.members);
-          const myId = store.myChar.id;
-          const myFreshProfile = freshRoomData.members.find(m => m.id === myId);
-          if (myFreshProfile && player) {
-            player.nameText.text = myFreshProfile.nickname ?? '미지정';
+          store.setMembers(visibleMembers);
 
-            store.setMyChar({
-              id: myFreshProfile.id,
-              name: myFreshProfile.nickname ?? '미지정',
-              avatarId: myFreshProfile.character_type as AnimalType,
-              status:
-                STATUS_TO_LABEL_MAP[myFreshProfile.status] ||
-                myFreshProfile.status ||
-                '🔥 집중',
-              roles: myFreshProfile.roles ?? ['frontend'],
-              detailedRole: myFreshProfile.detailed_role ?? 'Team Member',
-            });
+          // 변경 주체가 '나'인지 '타인'인지 판별 후 처리
+          const isMe = String(data.userId) === String(store.myChar.id);
+
+          if (isMe) {
+            const myFreshProfile = freshRoomData.members.find(
+              m => String(m.id) === String(data.userId),
+            );
+            if (myFreshProfile && player) {
+              const normalizedNickname =
+                myFreshProfile.nickname ?? String(data.nickname);
+              player.nameText.text = normalizedNickname;
+
+              store.setMyChar({
+                id: myFreshProfile.id,
+                name: normalizedNickname,
+                avatarId: myFreshProfile.character_type as AnimalType,
+                status:
+                  STATUS_TO_LABEL_MAP[myFreshProfile.status] ||
+                  myFreshProfile.status ||
+                  '🔥 집중',
+                roles: myFreshProfile.roles ?? ['frontend'],
+                detailedRole: myFreshProfile.detailed_role ?? 'Team Member',
+              });
+            }
           }
-
-          syncMembers(freshRoomData.members);
+          syncMembers(visibleMembers);
         }, 200);
-      });
-
-      // 맴버 소켓 이벤트 수신
-      socket.on(
-        'room:member-moved',
-        (data: { userId: string; posX: number; posY: number }) => {
-          const targetPlayer = remotePlayers.get(data.userId);
-          if (targetPlayer) {
-            targetPlayer.updatePosition(data.posX, data.posY);
-          } else {
-            fetchRoomMembers(roomId).then(res => {
-              if (res?.members) {
-                useSpaceStore.getState().setMembers(res.members);
-                syncMembers(res.members);
-              }
-            });
-          }
-        },
+      };
+      socket.on('room:member-profile-changed', handleMemberProfileChanged);
+      socketOffs.push(() =>
+        socket.off('room:member-profile-changed', handleMemberProfileChanged),
       );
-
-      // 다른 유저 상태 변경 소켓 리스너
-      socket.on(
-        'room:member-status-changed',
-        (data: { userId: string; status: string }) => {
-          const targetPlayer = remotePlayers.get(data.userId);
-          if (targetPlayer) {
-            const hangulStatus =
-              STATUS_TO_LABEL_MAP[data.status] || data.status;
-            const color = getStatusColor(hangulStatus);
-            targetPlayer.updateStatus(hangulStatus, color);
-          }
-
-          queryClient.setQueryData<RoomMembers>(
-            ['room-members', roomId],
-            oldData => {
-              if (!oldData) return oldData;
-              return {
-                ...oldData,
-                members: oldData.members.map(m =>
-                  String(m.id) === String(data.userId)
-                    ? { ...m, status: data.status }
-                    : m,
-                ),
-              };
-            },
-          );
-          const updatedMembers = useSpaceStore
-            .getState()
-            .members.map(m =>
-              String(m.id) === String(data.userId)
-                ? { ...m, status: data.status }
-                : m,
-            );
-          useSpaceStore.getState().setMembers(updatedMembers);
-
-          // 현재 열려있는 모달창의 유저 정보 실시간 갱신
-          const currentSelected = useSpaceStore.getState().selectedMember;
-          if (
-            currentSelected &&
-            String(currentSelected.id) === String(data.userId)
-          ) {
-            useSpaceStore.getState().openCharacterModal({
-              ...currentSelected,
-              status: data.status,
-            });
-          }
-        },
-      );
-
-      socket.on(
-        'room:member-profile-changed',
-        (data: {
-          userId: string;
-          nickname: string | null;
-          character_type: string | null;
-          roles: string[];
-          detailed_role: string | null;
-        }) => {
-          setTimeout(async () => {
-            const store = useSpaceStore.getState();
-
-            // 최신 목록 수신 및 안전망 검증
-            const freshRoomData = await fetchRoomMembers(roomId);
-            if (!freshRoomData || !freshRoomData.members) return;
-
-            // 기존 화면의 그래픽 제거
-            for (const remotePlayer of remotePlayers.values()) {
-              world.removeChild(remotePlayer.container);
-              remotePlayer.container.destroy({ children: true });
-            }
-            remotePlayers.clear();
-
-            // React Query 캐시 및 Zustand 명부 일제히 업데이트
-            queryClient.setQueryData<RoomMembers>(
-              ['room-members', roomId],
-              freshRoomData,
-            );
-            store.setMembers(freshRoomData.members);
-
-            // 변경 주체가 '나'인지 '타인'인지 판별 후 처리
-            const isMe = String(data.userId) === String(store.myChar.id);
-
-            if (isMe) {
-              const myFreshProfile = freshRoomData.members.find(
-                m => String(m.id) === String(data.userId),
-              );
-              if (myFreshProfile && player) {
-                const normalizedNickname =
-                  myFreshProfile.nickname ?? String(data.nickname);
-                player.nameText.text = normalizedNickname;
-
-                store.setMyChar({
-                  id: myFreshProfile.id,
-                  name: normalizedNickname,
-                  avatarId: myFreshProfile.character_type as AnimalType,
-                  status:
-                    STATUS_TO_LABEL_MAP[myFreshProfile.status] ||
-                    myFreshProfile.status ||
-                    '🔥 집중',
-                  roles: myFreshProfile.roles ?? ['frontend'],
-                  detailedRole: myFreshProfile.detailed_role ?? 'Team Member',
-                });
-              }
-            }
-            syncMembers(freshRoomData.members);
-          }, 200);
-        },
-      );
-
-      socket.on('room:user-left', () => {
-        fetchRoomMembers(roomId).then(res => {
-          if (res?.members) {
-            useSpaceStore.getState().setMembers(res.members);
-            syncMembers(res.members);
-          }
-        });
-      });
 
       unsubscribeStatus = useSpaceStore.subscribe(
         state => state.myChar.status,
@@ -574,7 +664,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       );
 
       // 상세 모달 오픈 시, pixi 그래픽 일시정지
-      unsubscribeModal = useSpaceStore.subscribe(
+      unsubscribeModal = useRoomUiStore.subscribe(
         state => state.isCharacterModalOpen,
         isOpen => {
           if (!newApp) return;
@@ -589,7 +679,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       // 빈 공간 클릭 시 링 메뉴 닫기
       app.stage.eventMode = 'static';
       app.stage.on('pointerdown', () => {
-        useSpaceStore.getState().setMenuOpen(false);
+        useRoomUiStore.getState().setMenuOpen(false);
       });
 
       // 이동 제한 구역 데이터
@@ -607,6 +697,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         darkOverlay,
         roomId,
         staticOfficeWalls,
+        socket,
       );
 
       // 카메라 셋업
@@ -646,14 +737,15 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         if (document.visibilityState === 'visible') {
           fetchRoomMembers(roomId).then(res => {
             if (res?.members) {
+              const visibleMembers = withoutRecentlyLeftMembers(res.members);
               for (const remotePlayer of remotePlayers.values()) {
                 world.removeChild(remotePlayer.container);
                 remotePlayer.container.destroy({ children: true });
               }
               remotePlayers.clear();
 
-              useSpaceStore.getState().setMembers(res.members);
-              syncMembers(res.members);
+              useSpaceStore.getState().setMembers(visibleMembers);
+              syncMembers(visibleMembers);
             }
           });
         }
@@ -671,6 +763,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       unsubscribeStatus?.();
       unsubscribeAnimal?.();
       unsubscribePlayer?.();
+      unsubscribeMembers?.();
       unsubscribeModal?.();
       unsubscribeMeetingId?.();
       unsubscribeRoomsList?.();
@@ -692,12 +785,8 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       npcRef.current = null;
       setIsNpcReady(false);
 
-      // 맴버 소켓 이벤트 리스너 제거
-      getSocket().off('room:user-joined');
-      getSocket().off('room:member-moved');
-      getSocket().off('room:member-status-changed');
-      getSocket().off('room:member-profile-changed');
-      getSocket().off('room:user-left');
+      // 맴버 소켓 이벤트 리스너 제거 (이 effect 가 등록한 핸들러만)
+      socketOffs.forEach(off => off());
 
       // 리사이즈 이벤트 리스너 제거
       if (handleResize) {
@@ -719,7 +808,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         window.clearTimeout(npcTimeoutRef.current);
       }
     };
-  }, [roomId, queryClient]);
+  }, [roomId, queryClient, socket]);
 
   // 실시간 알림 연동
   useEffect(() => {
@@ -792,11 +881,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       state => state.currentPrivateRoomId,
       currentRoomId => {
         if (currentRoomId !== null) {
-          const store = useSpaceStore.getState();
-
           openChatSafely();
 
-          store.setActiveChatTab('private');
+          useRoomUiStore.getState().setActiveChatTab('private');
         }
       },
     );

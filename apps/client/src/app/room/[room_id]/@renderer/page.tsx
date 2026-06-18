@@ -5,7 +5,7 @@ import { useInitRooms } from './_hooks/useInitRooms';
 import RendererView from './_components/meeting/RendererView';
 import BottomInfoContainer from '../_components/BottomInfoContainer';
 import CharacterDetailModal from './_components/2d/CharacterDetailModal';
-import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import ExitConfirmModal from './_components/meeting/ExitConfirmModal';
 import KickedAlertModal from './_components/meeting/KickedAlertModal';
 
@@ -16,7 +16,7 @@ export default function RendererPage({
 }) {
   const { room_id } = use(params);
   const { isReady } = useInitRooms(room_id);
-  const currentView = useSpaceStore(state => state.currentView);
+  const currentView = useRoomUiStore(state => state.currentView);
   const isMeetingView = currentView === 'meeting';
 
   if (!isReady) {

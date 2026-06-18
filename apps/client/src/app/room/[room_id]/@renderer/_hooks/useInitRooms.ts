@@ -1,18 +1,27 @@
 import { useEffect, useState } from 'react';
 import { AnimalType, useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { STATIC_ROOM_BOUNDS } from '../_constants/roomBounds';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/providers/SocketProvider';
 import {
   fetchMyProfile,
   fetchPrivateRooms,
   fetchRoomMembers,
 } from '@/services/rooms/api';
 import { type PrivateRoom } from '@/services/rooms/model';
-import { getAuthToken, getStoredAuthUser } from '@/lib/auth';
+import { getStoredAuthUser } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
+
+const STATUS_TO_LABEL_MAP: Record<string, string> = {
+  focus: '🔥 집중',
+  rest: '☕ 휴식',
+  meeting: '💬 회의중',
+  away: '💤 부재',
+};
 
 export function useInitRooms(roomId: string) {
   const router = useRouter();
+  const { socket } = useSocket();
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -131,110 +140,80 @@ export function useInitRooms(roomId: string) {
 
     initialize();
 
-    const token = getAuthToken();
-    const socket = getSocket(token ?? undefined);
-    const STATUS_TO_LABEL_MAP: Record<string, string> = {
-      focus: '🔥 집중',
-      rest: '☕ 휴식',
-      meeting: '💬 회의중',
-      away: '💤 부재',
-    };
-
-    // 소켓 연결 확인
-    if (!socket.connected) {
-      socket.connect();
-    }
-
-    const joinRoom = () => {
-      socket.emit('room:join', roomId);
-    };
-
-    socket.on('connect_error', error => {
+    const handleConnectError = (error: Error) => {
       console.error('소켓 연결 실패 :', error.message);
-    });
-
-    // 룸 소켓 채널 구독
-    if (socket.connected) {
-      joinRoom();
-    } else {
-      socket.on('connect', () => {
-        joinRoom();
-      });
-    }
-
-    // 모두에게 오는 이벤트 리스너
-    socket.on('room:private-rooms-updated', () => {
-      fetchAndUpdateRooms();
-    });
-
-    socket.on(
-      'room:member-status-changed',
-      (data: { userId: string; status: string }) => {
-        const hangulStatus = STATUS_TO_LABEL_MAP[data.status] || data.status;
-
-        const authUser = getStoredAuthUser();
-
-        if (authUser && data.userId === authUser.id) {
-          useSpaceStore.getState().setMyStatus(hangulStatus);
-        }
-
-        const { members, setMembers } = useSpaceStore.getState();
-        const updatedMembers = members.map(member =>
-          member.id === data.userId
-            ? { ...member, status: data.status }
-            : member,
-        );
-
-        // 전역 스토어에 업데이트된 배열 저장
-        setMembers(updatedMembers);
-      },
-    );
-
-    // 나 이외의 다른 유저에게만 오는 이벤트 리스너
-    socket.on('room:user-joined', () => {
-      fetchAndUpdateRooms();
-    });
-
-    socket.on('room:user-left', () => {
-      fetchAndUpdateRooms();
-    });
-
-    // 팀원 간 회의 상태 동기화
-    socket.on('meeting:started', ({ meetingId }: { meetingId: string }) => {
-      useSpaceStore.getState().setCurrentMeetingId(meetingId);
-    });
-
-    socket.on('meeting:ended', () => {
-      useSpaceStore.getState().setCurrentMeetingId(null);
-    });
-
-    socket.on(
-      'minutes:generation-started',
-      ({ minutes_id }: { minutes_id: string }) => {
-        useSpaceStore.getState().setCurrentMinutesId(minutes_id);
-      },
-    );
-
-    socket.on('minutes:generated', ({ minutes_id }: { minutes_id: string }) => {
-      useSpaceStore.getState().setCurrentMinutesId(minutes_id);
-    });
-
-    socket.on('minutes:generation-failed', () => {
-      console.error('AI 회의록 생성 실패');
-    });
-
-    // 컴포넌트 언마운트 시 리스너 해제
-    return () => {
-      socket.off('meeting:started');
-      socket.off('meeting:ended');
-      socket.off('connect');
-      socket.off('connect_error');
-      socket.off('room:private-rooms-updated');
-      socket.off('room:member-status-changed');
-      socket.off('room:user-joined');
-      socket.off('room:user-left');
     };
-  }, [roomId, router]);
+
+    const handlePrivateRoomsUpdated = () => {
+      fetchAndUpdateRooms();
+    };
+
+    const handleMemberStatusChanged = (data: {
+      userId: string;
+      status: string;
+    }) => {
+      const hangulStatus = STATUS_TO_LABEL_MAP[data.status] || data.status;
+
+      const authUser = getStoredAuthUser();
+
+      if (authUser && data.userId === authUser.id) {
+        useSpaceStore.getState().setMyStatus(hangulStatus);
+      }
+
+      const { members, setMembers } = useSpaceStore.getState();
+      const updatedMembers = members.map(member =>
+        member.id === data.userId ? { ...member, status: data.status } : member,
+      );
+
+      // 전역 스토어에 업데이트된 배열 저장
+      setMembers(updatedMembers);
+    };
+
+    const handleMeetingStarted = ({ meetingId }: { meetingId: string }) => {
+      useSpaceStore.getState().setCurrentMeetingId(meetingId);
+    };
+
+    const handleMeetingEnded = () => {
+      useSpaceStore.getState().setCurrentMeetingId(null);
+    };
+
+    const handleMinutesGenerationStarted = ({
+      minutes_id,
+    }: {
+      minutes_id: string;
+    }) => {
+      useRoomUiStore.getState().setCurrentMinutesId(minutes_id);
+    };
+
+    const handleMinutesGenerated = ({ minutes_id }: { minutes_id: string }) => {
+      useRoomUiStore.getState().setCurrentMinutesId(minutes_id);
+    };
+
+    const handleMinutesGenerationFailed = () => {
+      console.error('AI 회의록 생성 실패');
+    };
+
+    socket.on('connect_error', handleConnectError);
+    socket.on('room:private-rooms-updated', handlePrivateRoomsUpdated);
+    socket.on('room:member-status-changed', handleMemberStatusChanged);
+    socket.on('meeting:started', handleMeetingStarted);
+    socket.on('meeting:ended', handleMeetingEnded);
+    socket.on('minutes:generation-started', handleMinutesGenerationStarted);
+    socket.on('minutes:generated', handleMinutesGenerated);
+    socket.on('minutes:generation-failed', handleMinutesGenerationFailed);
+
+    // 컴포넌트 언마운트 시 자신이 등록한 리스너만 해제
+    return () => {
+      socket.off('connect_error', handleConnectError);
+      socket.off('room:private-rooms-updated', handlePrivateRoomsUpdated);
+      socket.off('room:member-status-changed', handleMemberStatusChanged);
+      socket.off('meeting:started', handleMeetingStarted);
+      socket.off('meeting:ended', handleMeetingEnded);
+      socket.off('minutes:generation-started', handleMinutesGenerationStarted);
+      socket.off('minutes:generated', handleMinutesGenerated);
+      socket.off('minutes:generation-failed', handleMinutesGenerationFailed);
+    };
+  }, [roomId, router, socket]);
 
   return { isReady };
 }
