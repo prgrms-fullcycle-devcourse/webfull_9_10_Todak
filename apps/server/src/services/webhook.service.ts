@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
 
+import { z } from 'zod';
+
 import { env } from '../config/env.js';
 import { Prisma } from '../generated/prisma/client/index.js';
 import { prisma } from '../lib/prisma.js';
@@ -16,67 +18,85 @@ import { TodoEventPayload } from '../socket/socket.types.js';
 const WEBHOOK_DEDUP_TTL_SEC = 600;
 
 /*
- * GitHub Webhook payload 의 일부 필드만 사용하므로 필요한 형태만 정의한다.
- * (GitHub 실제 payload 에는 더 많은 필드가 있으나 사용하는 것만 받음)
+ * GitHub Webhook payload 의 일부 필드만 사용하므로 필요한 형태만 검증한다.
+ * 서명(HMAC)은 통과했더라도 형식이 깨진 페이로드가 핸들러로 들어가 크래시/오작동하지
+ * 않도록 zod 로 검증한다. GitHub 실제 payload 엔 더 많은 필드가 있으나 zod object 가
+ * 알 수 없는 키는 무시(strip)하므로 사용하는 필드만 정의한다.
  */
-interface GithubRepository {
-  name: string;
-  owner: { login: string };
-}
+const GithubRepositorySchema = z.object({
+  name: z.string(),
+  owner: z.object({ login: z.string() }),
+});
 
-interface IssuesEventPayload {
-  action: string;
-  issue: {
-    number: number;
-    title: string;
-    body?: string | null;
-    state: string;
-    labels?: Array<{ name: string } | string>;
-    assignee?: { login: string } | null;
-    assignees?: Array<{ login: string }>;
-    html_url?: string;
-  };
-  sender?: { login: string };
-  repository: GithubRepository;
-}
+// 공통 envelope — 어느 이벤트든 repository 로 룸/레포를 매핑하는 데 필요
+const WebhookBaseSchema = z.object({ repository: GithubRepositorySchema });
 
-interface PullRequestEventPayload {
-  action: string;
-  pull_request: {
-    number: number;
-    title: string;
-    state: string;
-    merged: boolean;
-    html_url?: string;
-  };
-  sender?: { login: string };
-  repository: GithubRepository;
-}
+const IssuesEventSchema = z.object({
+  action: z.string(),
+  issue: z.object({
+    number: z.number(),
+    title: z.string(),
+    body: z.string().nullish(),
+    state: z.string(),
+    labels: z
+      .array(z.union([z.object({ name: z.string() }), z.string()]))
+      .optional(),
+    assignee: z.object({ login: z.string() }).nullish(),
+    assignees: z.array(z.object({ login: z.string() })).optional(),
+    html_url: z.string().optional(),
+  }),
+  sender: z.object({ login: z.string() }).optional(),
+  repository: GithubRepositorySchema,
+});
 
-interface PullRequestReviewEventPayload {
-  action: string;
-  review: {
+const PullRequestEventSchema = z.object({
+  action: z.string(),
+  pull_request: z.object({
+    number: z.number(),
+    title: z.string(),
+    state: z.string(),
+    merged: z.boolean(),
+    html_url: z.string().optional(),
+  }),
+  sender: z.object({ login: z.string() }).optional(),
+  repository: GithubRepositorySchema,
+});
+
+const PullRequestReviewEventSchema = z.object({
+  action: z.string(),
+  review: z.object({
     // approved | changes_requested | commented | dismissed
-    state: string;
-    body?: string | null;
-    html_url?: string;
-    user?: { login: string; avatar_url?: string | null } | null;
-  };
-  pull_request: { number: number };
-  repository: GithubRepository;
-}
+    state: z.string(),
+    body: z.string().nullish(),
+    html_url: z.string().optional(),
+    user: z
+      .object({ login: z.string(), avatar_url: z.string().nullish() })
+      .nullish(),
+  }),
+  pull_request: z.object({ number: z.number() }),
+  repository: GithubRepositorySchema,
+});
 
-interface PushEventPayload {
-  ref: string;
-  commits: Array<{
-    id: string;
-    message: string;
-    url: string;
-    author?: { name?: string };
-  }>;
-  pusher?: { name?: string };
-  repository: GithubRepository;
-}
+const PushEventSchema = z.object({
+  ref: z.string(),
+  commits: z.array(
+    z.object({
+      id: z.string(),
+      message: z.string(),
+      url: z.string(),
+      author: z.object({ name: z.string().optional() }).optional(),
+    }),
+  ),
+  pusher: z.object({ name: z.string().optional() }).optional(),
+  repository: GithubRepositorySchema,
+});
+
+type IssuesEventPayload = z.infer<typeof IssuesEventSchema>;
+type PullRequestEventPayload = z.infer<typeof PullRequestEventSchema>;
+type PullRequestReviewEventPayload = z.infer<
+  typeof PullRequestReviewEventSchema
+>;
+type PushEventPayload = z.infer<typeof PushEventSchema>;
 
 /*
  * X-Hub-Signature-256 검증.
@@ -418,8 +438,21 @@ export async function handleGithubEvent(
   }
 
   /*
+   * 페이로드 형식 검증 (서명은 통과했어도 형식이 깨졌을 수 있음).
+   * 형식이 깨진 페이로드는 재시도해도 동일하게 실패하므로 dedup 키를 소비하지 않고 드롭한다.
+   */
+  const base = WebhookBaseSchema.safeParse(payload);
+  if (!base.success) {
+    console.warn(`[webhook] repository 누락/형식 오류로 무시 (event=${event})`);
+    return;
+  }
+  const { owner, name } = base.data.repository;
+  const fullName = `${owner.login}/${name}`;
+
+  /*
    * 멱등성: 같은 X-GitHub-Delivery 가 중복 배달돼도 한 번만 처리한다.
    * SET NX 로 키를 선점하고, 처리 실패 시 키를 해제해 GitHub 재시도가 다시 처리하게 한다.
+   * (형식 검증을 통과한 페이로드에 대해서만 키를 소비한다)
    */
   const dedupKey = deliveryId !== undefined ? `webhook:gh:${deliveryId}` : null;
   if (dedupKey !== null) {
@@ -436,12 +469,6 @@ export async function handleGithubEvent(
   }
 
   try {
-    const { repository } = payload as { repository?: GithubRepository };
-    if (repository === undefined) {
-      return;
-    }
-
-    const fullName = `${repository.owner.login}/${repository.name}`;
     const repo = await prisma.repo.findFirst({
       where: { fullName },
       select: { id: true, roomId: true },
@@ -453,28 +480,42 @@ export async function handleGithubEvent(
 
     const { id: repoId, roomId } = repo;
 
+    /*
+     * 이벤트별 페이로드를 검증해(safeParse) 통과한 것만 핸들러로 넘긴다.
+     * 형식이 어긋나면 드롭(재시도 무의미) — 핸들러 내부 크래시를 사전에 차단.
+     */
     switch (event) {
-      case 'issues':
-        await handleIssuesEvent(roomId, repoId, payload as IssuesEventPayload);
+      case 'issues': {
+        const parsed = IssuesEventSchema.safeParse(payload);
+        if (parsed.success) {
+          await handleIssuesEvent(roomId, repoId, parsed.data);
+        }
         break;
+      }
 
-      case 'pull_request':
-        await handlePullRequestEvent(
-          roomId,
-          payload as PullRequestEventPayload,
-        );
+      case 'pull_request': {
+        const parsed = PullRequestEventSchema.safeParse(payload);
+        if (parsed.success) {
+          await handlePullRequestEvent(roomId, parsed.data);
+        }
         break;
+      }
 
-      case 'pull_request_review':
-        await handlePullRequestReviewEvent(
-          roomId,
-          payload as PullRequestReviewEventPayload,
-        );
+      case 'pull_request_review': {
+        const parsed = PullRequestReviewEventSchema.safeParse(payload);
+        if (parsed.success) {
+          await handlePullRequestReviewEvent(roomId, parsed.data);
+        }
         break;
+      }
 
-      case 'push':
-        handlePushEvent(roomId, payload as PushEventPayload);
+      case 'push': {
+        const parsed = PushEventSchema.safeParse(payload);
+        if (parsed.success) {
+          handlePushEvent(roomId, parsed.data);
+        }
         break;
+      }
       default:
         break;
     }

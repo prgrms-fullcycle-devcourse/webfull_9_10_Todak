@@ -537,102 +537,25 @@ describe('leaveRoom', () => {
   it('멤버가 아니면 ROOM_NOT_FOUND', async () => {
     db.roomMember.findFirst.mockResolvedValue(null);
 
-    await expectAppError(
-      leaveRoom(USER_ID, ROOM_ID, ACCESS_TOKEN),
-      'ROOM_NOT_FOUND',
-    );
+    await expectAppError(leaveRoom(USER_ID, ROOM_ID), 'ROOM_NOT_FOUND');
   });
 
-  it('마지막 멤버가 나가면 룸을 통째로 삭제(webhook 해제 + 전체 삭제)', async () => {
-    db.roomMember.findFirst.mockResolvedValue({
-      id: 'rm-1',
-      userId: USER_ID,
-      isHost: true,
-      room: {
-        repos: [{ fullName: 'jiyun/todak', webhookId: 'webhook-1' }],
-      },
-    });
-    // 룸 행 잠금 후 tx 안에서 멤버 재조회 → 나 혼자
-    db.roomMember.findMany.mockResolvedValue([
-      { id: 'rm-1', userId: USER_ID, isHost: true },
-    ]);
-    vi.mocked(unregisterWebhook).mockResolvedValue(undefined);
+  it('방장이면 HOST_CANNOT_LEAVE', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ isHost: true });
 
-    const result = await leaveRoom(USER_ID, ROOM_ID, ACCESS_TOKEN);
-
-    expect(unregisterWebhook).toHaveBeenCalledWith(
-      ACCESS_TOKEN,
-      'jiyun',
-      'todak',
-      'webhook-1',
-    );
-    expect(db.room.delete).toHaveBeenCalledWith({ where: { id: ROOM_ID } });
-    // 마지막 멤버 → 내 멤버십만 콕 집어 지우지 않고 deleteMany 로 일괄 삭제
-    expect(db.roomMember.delete).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      left: true,
-      room_deleted: true,
-      new_host_user_id: null,
-    });
+    await expectAppError(leaveRoom(USER_ID, ROOM_ID), 'HOST_CANNOT_LEAVE');
   });
 
-  it('방장이 나가면 다음으로 가입한 멤버에게 방장을 위임하고 내 멤버십만 삭제', async () => {
-    db.roomMember.findFirst.mockResolvedValue({
-      id: 'rm-1',
-      userId: USER_ID,
-      isHost: true,
-      room: { repos: [] },
-    });
-    // joinedAt 오름차순 — 방장(나) 다음이 user-2
-    db.roomMember.findMany.mockResolvedValue([
-      { id: 'rm-1', userId: USER_ID, isHost: true },
-      { id: 'rm-2', userId: 'user-2', isHost: false },
-      { id: 'rm-3', userId: 'user-3', isHost: false },
-    ]);
+  it('일반 멤버가 나가면 내 멤버십을 삭제하고 { left: true } 반환', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ isHost: false });
+    db.roomMember.delete.mockResolvedValue({});
 
-    const result = await leaveRoom(USER_ID, ROOM_ID, ACCESS_TOKEN);
+    const result = await leaveRoom(USER_ID, ROOM_ID);
 
-    // 다음 가입자(rm-2)가 새 방장
-    expect(db.roomMember.update).toHaveBeenCalledWith({
-      where: { id: 'rm-2' },
-      data: { isHost: true },
-    });
-    // 내 멤버십만 삭제, 룸은 유지
     expect(db.roomMember.delete).toHaveBeenCalledWith({
-      where: { id: 'rm-1' },
+      where: { roomId_userId: { roomId: ROOM_ID, userId: USER_ID } },
     });
     expect(db.room.delete).not.toHaveBeenCalled();
-    expect(unregisterWebhook).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      left: true,
-      room_deleted: false,
-      new_host_user_id: 'user-2',
-    });
-  });
-
-  it('방장이 아닌 멤버가 나가면 위임 없이 내 멤버십만 삭제', async () => {
-    db.roomMember.findFirst.mockResolvedValue({
-      id: 'rm-2',
-      userId: USER_ID,
-      isHost: false,
-      room: { repos: [] },
-    });
-    db.roomMember.findMany.mockResolvedValue([
-      { id: 'rm-1', userId: 'host-user', isHost: true },
-      { id: 'rm-2', userId: USER_ID, isHost: false },
-    ]);
-
-    const result = await leaveRoom(USER_ID, ROOM_ID, ACCESS_TOKEN);
-
-    expect(db.roomMember.update).not.toHaveBeenCalled();
-    expect(db.roomMember.delete).toHaveBeenCalledWith({
-      where: { id: 'rm-2' },
-    });
-    expect(db.room.delete).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      left: true,
-      room_deleted: false,
-      new_host_user_id: null,
-    });
+    expect(result).toEqual({ left: true });
   });
 });

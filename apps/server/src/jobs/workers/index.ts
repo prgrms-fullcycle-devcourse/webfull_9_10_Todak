@@ -26,6 +26,15 @@ import { buildMeetingInfoHeader } from './minutes-header.js';
 
 const connection = redis;
 
+/*
+ * 회의록 생성 잡은 Anthropic 호출 대기가 대부분인 I/O-bound 라 동시 처리로 처리량을 올린다.
+ * 동시 처리 = 동시 Anthropic 호출(비용·레이트리밋) + 동시 DB 커넥션이라 보수적으로 설정.
+ * DB 풀(pg 어댑터 기본 10)에 비해 여유 — 잡당 커넥션은 짧은 쿼리 구간만 점유하고
+ * 대부분 시간은 Anthropic 대기라 커넥션을 들고 있지 않음.
+ * (chat-cleanup·minutes-sweep 은 주기적 단일 잡, ai-review 는 미사용이라 동시성 설정 불필요)
+ */
+const MINUTES_GENERATION_CONCURRENCY = 3;
+
 export const aiReviewWorker = new Worker(
   'ai-review',
   async job => {
@@ -199,7 +208,7 @@ export const minutesGenerationWorker = new Worker(
 
     return { success: true };
   },
-  { connection },
+  { connection, concurrency: MINUTES_GENERATION_CONCURRENCY },
 );
 
 aiReviewWorker.on('completed', job => {
