@@ -33,10 +33,12 @@
 - [주요 기능](#-주요-기능)
 - [기술 스택](#-기술-스택)
 - [시스템 아키텍처](#-시스템-아키텍처)
+- [데이터 모델](#-데이터-모델-erd)
 - [성능 최적화](#-성능-최적화)
 - [안정성 & 보안](#-안정성--보안)
 - [프로젝트 구조](#-프로젝트-구조)
 - [시작하기](#-시작하기)
+- [API 문서](#-api-문서)
 - [배포](#-배포)
 - [팀 소개](#-팀-소개)
 - [컨벤션](#-컨벤션)
@@ -156,14 +158,14 @@ flowchart TD
     S3[("AWS S3<br/>파일 저장")]
 
     Browser <--> Client
-    Client -- "REST API" --> Server
-    Client <-. "WebSocket (Socket.IO)" .-> Server
+    Client -->|"REST API"| Server
+    Client <-->|"WebSocket (Socket.IO)"| Server
 
-    Server -- "Prisma" --> DB
-    Server -- "enqueue" --> Redis
-    Server -- "Octokit" --> GitHub
-    Server -- "AI 호출" --> Claude
-    Server -- "업로드" --> S3
+    Server -->|"Prisma"| DB
+    Server -->|"enqueue"| Redis
+    Server -->|"Octokit"| GitHub
+    Server -->|"AI 호출"| Claude
+    Server -->|"업로드"| S3
 ```
 
 - **REST + WebSocket** 이원화: 일반 요청은 REST, 실시간 상태·채팅은 WebSocket
@@ -172,16 +174,45 @@ flowchart TD
 
 <br/>
 
-## 📖 API 문서
+## 🗄 데이터 모델 (ERD)
 
-**Swagger UI** 로 모든 엔드포인트를 확인하고 브라우저에서 바로 호출해볼 수 있습니다.
+14개 모델을 룸(Room) 중심으로 설계했습니다. 모든 협업 데이터(채팅·회의·회의록·할 일·알림)가 룸에 귀속됩니다.
 
-| 환경    | 주소                                                       |
-| :------ | :--------------------------------------------------------- |
-| 🔵 배포 | https://webfull910todak-production.up.railway.app/api-docs |
-| 🖥 로컬 | http://localhost:4000/api-docs                             |
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#FFF7ED','primaryBorderColor':'#D97757','lineColor':'#D97757','primaryTextColor':'#7C2D12','tertiaryColor':'#FEF3C7'}}}%%
+erDiagram
+    USER ||--o{ ROOM_MEMBER : "가입"
+    USER ||--o{ CHAT_MESSAGE : "작성"
+    USER ||--o{ CHAT_REACTION : "반응"
+    USER ||--o{ MEETING : "주최"
+    USER ||--o{ MEETING_PARTICIPANT : "참여"
+    USER ||--o{ MINUTES : "작성"
+    USER ||--o{ TODO : "담당"
+    USER ||--o{ NOTIFICATION : "수신"
+    USER ||--o{ PRIVATE_ROOM_SESSION : "입장"
 
-- OpenAPI 스펙은 **`zod-to-openapi`** 로 Zod 스키마에서 자동 생성됩니다. (JSON: `/api/docs/openapi.json`)
+    ROOM ||--o{ ROOM_MEMBER : "구성"
+    ROOM ||--o{ REPO : "연결"
+    ROOM ||--o{ PRIVATE_ROOM : "보유"
+    ROOM ||--o{ CHAT_MESSAGE : "채팅"
+    ROOM ||--o{ MEETING : "회의"
+    ROOM ||--o{ MINUTES : "회의록"
+    ROOM ||--o{ TODO : "할일"
+    ROOM ||--o{ NOTIFICATION : "알림"
+
+    PRIVATE_ROOM ||--o{ PRIVATE_ROOM_SESSION : "세션"
+    PRIVATE_ROOM ||--o{ CHAT_MESSAGE : "채팅"
+    PRIVATE_ROOM ||--o{ MEETING : "회의"
+
+    CHAT_MESSAGE ||--o{ CHAT_REACTION : "반응"
+    CHAT_MESSAGE ||--o{ CHAT_ATTACHMENT : "첨부"
+
+    MEETING ||--o{ MEETING_PARTICIPANT : "참가자"
+    MEETING ||--o| MINUTES : "생성"
+
+    REPO ||--o{ TODO : "이슈"
+    MINUTES ||--o{ TODO : "발행"
+```
 
 <br/>
 
@@ -224,7 +255,7 @@ flowchart TD
 ```
 .
 ├── apps/
-│   ├── client/        # Next.js 16 · React 19 (Render 배포)
+│   ├── client/        # Next.js 16 · React 19 (Vercel 배포)
 │   │   └── src/
 │   │       ├── app/         # App Router (room, auth ...)
 │   │       ├── services/    # API 클라이언트 (axios · React Query)
@@ -299,6 +330,19 @@ pnpm test:integration  # 통합 테스트 (임베디드 PostgreSQL)
 
 <br/>
 
+## 📖 API 문서
+
+**Swagger UI** 로 모든 엔드포인트를 확인하고 브라우저에서 바로 호출해볼 수 있습니다.
+
+| 환경    | 주소                                                       |
+| :------ | :--------------------------------------------------------- |
+| 🔵 배포 | https://webfull910todak-production.up.railway.app/api-docs |
+| 🖥 로컬 | http://localhost:4000/api-docs                             |
+
+- OpenAPI 스펙은 **`zod-to-openapi`** 로 Zod 스키마에서 자동 생성됩니다. (JSON: `/api/docs/openapi.json`)
+
+<br/>
+
 ## 🚢 배포
 
 | 대상             | 플랫폼              | 비고                                                                                    |
@@ -321,7 +365,7 @@ pnpm test:integration  # 통합 테스트 (임베디드 PostgreSQL)
     </td>
     <td align="center" width="160">
       <img src="https://avatars.githubusercontent.com/u/163396166?v=4" width="110" height="110" style="border-radius:50%"/><br/>
-      <b>김가영</b><br/><sub>Backend</sub>
+      <b>김가영</b><br/><sub>팀장 · Backend</sub>
     </td>
     <td align="center" width="160">
       <img src="https://avatars.githubusercontent.com/u/57696898?v=4" width="110" height="110" style="border-radius:50%"/><br/>
