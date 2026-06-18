@@ -210,24 +210,27 @@ export default function MeetingMinutes({
       </div>
 
       {/* 본문 */}
-      <div
-        className={`min-h-[400px] ${!isEditable ? 'pointer-events-none' : ''}`}
-        data-color-mode="light"
-      >
-        {tab === 'edit' ? (
-          <MDEditor
-            value={content}
-            onChange={val => onContentChange(val ?? '')}
-            height="100%"
-            preview="edit"
-            className="min-h-[400px]"
-          />
-        ) : (
-          <MDPreview
-            source={content}
-            className="rounded-xl border border-border bg-surface p-4"
-          />
-        )}
+      <div className="h-full flex flex-col">
+        <div className="flex-1 min-h-0">
+          {tab === 'edit' ? (
+            <MDEditor
+              value={content}
+              onChange={val => onContentChange(val ?? '')}
+              height="100%"
+              preview="edit"
+              style={{ paddingBottom: '100px' }}
+            />
+          ) : (
+            <div className="h-full overflow-auto">
+              <div className="min-h-full flex flex-col">
+                <MDPreview
+                  source={content}
+                  className="flex-1 rounded-xl border border-border bg-surface p-4 pb-30"
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 하단 버튼 */}

@@ -4,6 +4,7 @@ import { Octokit } from '@octokit/rest';
 import { env } from '../../config/env.js';
 import { AppError } from '../../errors/AppError.js';
 import { ErrorCodeKey } from '../../errors/error.code.js';
+import { logger } from '../../lib/logger.js';
 
 export function createGithubClient(accessToken: string): Octokit {
   return new Octokit({ auth: accessToken });
@@ -80,7 +81,10 @@ export async function createRepo(
     };
   } catch (err) {
     if (err instanceof RequestError) {
-      console.error('[createRepo] GitHub API Error:', err.status, err.message);
+      logger.error(
+        { status: err.status, message: err.message },
+        '[createRepo] GitHub API Error',
+      );
     }
     mapGithubError(err, {
       403: 'FORBIDDEN',

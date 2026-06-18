@@ -1,6 +1,7 @@
 import { UnrecoverableError, Worker } from 'bullmq';
 
 import { Prisma } from '../../generated/prisma/client/index.js';
+import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 import { redis } from '../../lib/redis.js';
 import {
@@ -42,7 +43,7 @@ export const aiReviewWorker = new Worker(
   'ai-review',
   async job => {
     const { code, context } = job.data as { code: string; context?: string };
-    console.log(`[Worker] ai-review job ${job.id} started`);
+    logger.info(`[Worker] ai-review job ${job.id} started`);
     const result = await reviewCode(code, context);
 
     return { result };
@@ -59,7 +60,7 @@ export const minutesGenerationWorker = new Worker(
       roomId: string;
       userTitle: string | null;
     };
-    console.log(`[Worker] minutes-generation job ${job.id} started`);
+    logger.info(`[Worker] minutes-generation job ${job.id} started`);
 
     const meeting = await prisma.meeting.findUnique({
       where: { id: meetingId },
@@ -215,22 +216,19 @@ export const minutesGenerationWorker = new Worker(
 );
 
 aiReviewWorker.on('completed', job => {
-  console.log(`[Worker] ai-review job ${job.id} completed`);
+  logger.info(`[Worker] ai-review job ${job.id} completed`);
 });
 
 aiReviewWorker.on('failed', (job, err) => {
-  console.error(`[Worker] ai-review job ${job?.id} failed:`, err.message);
+  logger.error({ err }, `[Worker] ai-review job ${job?.id} failed`);
 });
 
 minutesGenerationWorker.on('completed', job => {
-  console.log(`[Worker] minutes-generation job ${job.id} completed`);
+  logger.info(`[Worker] minutes-generation job ${job.id} completed`);
 });
 
 minutesGenerationWorker.on('failed', async (job, err) => {
-  console.error(
-    `[Worker] minutes-generation job ${job?.id} failed:`,
-    err.message,
-  );
+  logger.error({ err }, `[Worker] minutes-generation job ${job?.id} failed`);
 
   if (job === undefined) {
     return;
@@ -298,7 +296,7 @@ export const chatCleanupWorker = new Worker(
   'chat-cleanup',
   async () => {
     const deleted = await deleteExpiredPrivateRoomChats();
-    console.log(
+    logger.info(
       `[Worker] chat-cleanup removed ${deleted} expired private-room messages`,
     );
 
@@ -308,7 +306,7 @@ export const chatCleanupWorker = new Worker(
 );
 
 chatCleanupWorker.on('failed', (job, err) => {
-  console.error(`[Worker] chat-cleanup job ${job?.id} failed:`, err.message);
+  logger.error({ err }, `[Worker] chat-cleanup job ${job?.id} failed`);
 });
 
 /*
@@ -349,7 +347,7 @@ export const minutesSweepWorker = new Worker(
 );
 
 minutesSweepWorker.on('failed', (job, err) => {
-  console.error(`[Worker] minutes-sweep job ${job?.id} failed:`, err.message);
+  logger.error({ err }, `[Worker] minutes-sweep job ${job?.id} failed`);
 });
 
 const workers = [
@@ -365,7 +363,7 @@ const workers = [
  */
 export async function closeWorkers() {
   await Promise.all(workers.map(worker => worker.close()));
-  console.log('✅ BullMQ workers closed');
+  logger.info('✅ BullMQ workers closed');
 }
 
 export async function startWorkers() {
@@ -391,7 +389,7 @@ export async function startWorkers() {
     },
   );
 
-  console.log(
+  logger.info(
     `✅ BullMQ workers started (private-room chat retention: ${PRIVATE_ROOM_CHAT_RETENTION_DAYS}d)`,
   );
 }
