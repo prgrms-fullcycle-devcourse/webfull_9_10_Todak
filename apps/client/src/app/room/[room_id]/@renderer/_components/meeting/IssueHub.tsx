@@ -5,7 +5,6 @@ import CompleteModal from './CompleteModal';
 import ReviewModal from './ReviewModal';
 import { ActionItem } from '@/services/minutes/model';
 import { useRoomUiStore } from '@/store/useRoomUiStore';
-import { useSpaceStore } from '@/store/useSpaceStore';
 import { fetchTodos } from '@/services/todos/api';
 import { useQuery } from '@tanstack/react-query';
 
