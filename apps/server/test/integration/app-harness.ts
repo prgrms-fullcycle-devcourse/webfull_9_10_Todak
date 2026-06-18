@@ -11,7 +11,7 @@ import supertest from 'supertest';
 
 import app from '@/app.js';
 import { prisma } from '@/lib/prisma.js';
-import { signAccessToken } from '@/services/auth.service.js';
+import { signAccessToken } from '@/services/auth/auth.service.js';
 
 export const request = () => supertest(app);
 

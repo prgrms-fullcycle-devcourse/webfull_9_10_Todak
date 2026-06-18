@@ -15,7 +15,7 @@ import {
   signRefreshToken,
   upsertUser,
   verifyRefreshToken,
-} from '../../services/auth.service.js';
+} from '../../services/auth/auth.service.js';
 
 const isProd = env.NODE_ENV === 'production';
 

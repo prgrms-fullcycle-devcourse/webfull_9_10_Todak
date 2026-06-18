@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '@/lib/prisma.js';
-import { getRoomRepoContext } from '@/services/room-repo-context.service.js';
+import { getRoomRepoContext } from '@/services/rooms/repo/room-repo-context.service.js';
 
 vi.mock('@/lib/prisma.js', () => ({
   prisma: {

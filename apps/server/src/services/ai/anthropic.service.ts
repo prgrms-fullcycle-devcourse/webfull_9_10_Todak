@@ -1,10 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-import { env } from '../config/env.js';
-import { AppError } from '../errors/AppError.js';
-import { Prisma } from '../generated/prisma/client/index.js';
-
-import { formatChatLog } from './minutes-input.js';
+import { env } from '../../config/env.js';
+import { AppError } from '../../errors/AppError.js';
+import { Prisma } from '../../generated/prisma/client/index.js';
+import { formatChatLog } from '../rooms/minutes/minutes-input.js';
 
 const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 

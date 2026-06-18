@@ -1,10 +1,9 @@
-import { AppError } from '../errors/AppError.js';
-import { prisma } from '../lib/prisma.js';
-
+import { AppError } from '../../../errors/AppError.js';
+import { prisma } from '../../../lib/prisma.js';
 import {
   assertPrivateRoomBelongsToRoom,
   assertRoomMember,
-} from './room-guards.js';
+} from '../room-guards.js';
 
 export interface MeetingChat {
   id: string;

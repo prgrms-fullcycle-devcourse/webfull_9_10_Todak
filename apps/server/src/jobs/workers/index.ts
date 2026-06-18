@@ -7,17 +7,17 @@ import {
   generateMinutesSummary,
   resolveActionItemAssignees,
   reviewCode,
-} from '../../services/anthropic.service.js';
+} from '../../services/ai/anthropic.service.js';
 import {
   deleteExpiredPrivateRoomChats,
   PRIVATE_ROOM_CHAT_RETENTION_DAYS,
-} from '../../services/chat-cleanup.service.js';
-import { filterChatNoise } from '../../services/minutes-input.js';
-import { MinutesService } from '../../services/minutes.service.js';
+} from '../../services/ai/chat-cleanup.service.js';
 import {
   createNotifications,
   getMeetingParticipantIds,
-} from '../../services/notifications.service.js';
+} from '../../services/notifications/notifications.service.js';
+import { filterChatNoise } from '../../services/rooms/minutes/minutes-input.js';
+import { MinutesService } from '../../services/rooms/minutes/minutes.service.js';
 import { getIO } from '../../socket/index.js';
 import { addJob } from '../queues/index.js';
 

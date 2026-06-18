@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { resolveActionItemAssignees } from '@/services/anthropic.service.js';
+import { resolveActionItemAssignees } from '@/services/ai/anthropic.service.js';
 
 const members = [
   { id: 'u-1', githubUsername: 'kim', avatarUrl: 'https://avatar/1' },

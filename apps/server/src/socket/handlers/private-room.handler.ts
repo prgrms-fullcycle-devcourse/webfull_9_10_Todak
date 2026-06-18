@@ -1,8 +1,8 @@
+import { updateRoomMemberStatus } from '../../services/rooms/members/room-member.service.js';
 import {
   enterPrivateRoom,
   leavePrivateRoom,
-} from '../../services/private-room.service.js';
-import { updateRoomMemberStatus } from '../../services/room-member.service.js';
+} from '../../services/rooms/private-room/private-room.service.js';
 import { broadcastPrivateRooms } from '../broadcast.js';
 import { toSocketError } from '../socket-error.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';

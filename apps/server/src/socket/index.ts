@@ -3,8 +3,8 @@ import { Server as HttpServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 
 import { env } from '../config/env.js';
-import { clearActivePrivateRoomSessions } from '../services/private-room.service.js';
-import { setUserStatusInAllRooms } from '../services/room-member.service.js';
+import { setUserStatusInAllRooms } from '../services/rooms/members/room-member.service.js';
+import { clearActivePrivateRoomSessions } from '../services/rooms/private-room/private-room.service.js';
 
 import { broadcastPrivateRooms } from './broadcast.js';
 import { registerHandlers } from './handlers/index.js';

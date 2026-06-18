@@ -1,6 +1,6 @@
 import type { NextFunction, Response } from 'express';
 
-import { MinutesService } from '../../services/minutes.service.js';
+import { MinutesService } from '../../services/rooms/minutes/minutes.service.js';
 import { getIO } from '../../socket/index.js';
 import { AuthenticatedRequest } from '../../types/index.js';
 

@@ -1,6 +1,9 @@
 import { Response, NextFunction } from 'express';
 
-import { getUserRepos, getPullRequest } from '../../services/github.service.js';
+import {
+  getUserRepos,
+  getPullRequest,
+} from '../../services/github/github.service.js';
 import { AuthenticatedRequest } from '../../types/index.js';
 
 export async function listRepos(

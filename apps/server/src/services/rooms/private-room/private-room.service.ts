@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma.js';
 import {
   assertPrivateRoomBelongsToRoom,
   assertRoomMember,
-} from '@/services/room-guards.js';
+} from '@/services/rooms/room-guards.js';
 
 export interface PrivateRoomParticipant {
   user_id: string;

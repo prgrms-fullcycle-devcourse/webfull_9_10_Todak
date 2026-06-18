@@ -10,7 +10,7 @@ import {
   joinRoom,
   leaveRoom,
   updateRoom,
-} from '../../services/rooms.service.js';
+} from '../../services/rooms/rooms.service.js';
 import { getIO } from '../../socket/index.js';
 import { AuthenticatedRequest } from '../../types/index.js';
 

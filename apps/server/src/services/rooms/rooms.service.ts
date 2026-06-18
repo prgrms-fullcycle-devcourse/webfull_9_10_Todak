@@ -2,18 +2,17 @@ import {
   CreateRoomInput,
   JoinRoomInput,
   UpdateRoomInput,
-} from '../api/rooms/rooms.schema.js';
-import { AppError } from '../errors/AppError.js';
-import { isUniqueConstraintError } from '../errors/prisma.js';
-import { Prisma } from '../generated/prisma/client/index.js';
-import { prisma } from '../lib/prisma.js';
-
+} from '../../api/rooms/rooms.schema.js';
+import { AppError } from '../../errors/AppError.js';
+import { isUniqueConstraintError } from '../../errors/prisma.js';
+import { Prisma } from '../../generated/prisma/client/index.js';
+import { prisma } from '../../lib/prisma.js';
 import {
   registerWebhook,
   unregisterWebhook,
   addCollaborator,
   acceptInvitation,
-} from './github.service.js';
+} from '../github/github.service.js';
 
 // 멤버 입장 시 초기 좌표 (맵 중앙 의자 위치)
 const SPAWN_POS = { posX: 1292, posY: 560 };

@@ -6,7 +6,7 @@ import {
   setupRoomMember,
   updateRoomMember,
   updateRoomMemberStatus,
-} from '../../../services/room-member.service.js';
+} from '../../../services/rooms/members/room-member.service.js';
 import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 

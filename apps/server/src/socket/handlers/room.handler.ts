@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma.js';
-import { clearActivePrivateRoomSessions } from '../../services/private-room.service.js';
-import { assertRoomMember } from '../../services/room-guards.js';
+import { clearActivePrivateRoomSessions } from '../../services/rooms/private-room/private-room.service.js';
+import { assertRoomMember } from '../../services/rooms/room-guards.js';
 import { broadcastPrivateRooms } from '../broadcast.js';
 import { toSocketError } from '../socket-error.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';

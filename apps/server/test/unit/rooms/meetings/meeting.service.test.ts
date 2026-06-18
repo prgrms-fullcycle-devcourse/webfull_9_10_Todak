@@ -26,7 +26,7 @@ import {
   getMeetingChats,
   listMeetings,
   startMeeting,
-} from '@/services/meeting.service.js';
+} from '@/services/rooms/meetings/meeting.service.js';
 
 /*
  * '@/lib/prisma.js' 모듈을 통째로 가짜로 바꾼다.

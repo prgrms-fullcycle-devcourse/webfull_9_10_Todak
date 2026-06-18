@@ -6,12 +6,12 @@ import { consumeRateLimit } from '../../../middleware/rateLimit.middleware.js';
 import {
   assertAllowedAttachment,
   createUploadUrl,
-} from '../../../services/attachment.service.js';
+} from '../../../services/ai/attachment.service.js';
 import {
   ChatPayload,
   getMainRoomChats,
-} from '../../../services/chat.service.js';
-import { assertRoomMember } from '../../../services/room-guards.js';
+} from '../../../services/ai/chat.service.js';
+import { assertRoomMember } from '../../../services/rooms/room-guards.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 
 import { AttachmentUploadBody, ChatsQuery } from './chat.schema.js';

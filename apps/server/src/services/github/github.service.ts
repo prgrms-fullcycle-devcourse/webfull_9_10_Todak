@@ -1,9 +1,9 @@
 import { RequestError } from '@octokit/request-error';
 import { Octokit } from '@octokit/rest';
 
-import { env } from '../config/env.js';
-import { AppError } from '../errors/AppError.js';
-import { ErrorCodeKey } from '../errors/error.code.js';
+import { env } from '../../config/env.js';
+import { AppError } from '../../errors/AppError.js';
+import { ErrorCodeKey } from '../../errors/error.code.js';
 
 export function createGithubClient(accessToken: string): Octokit {
   return new Octokit({ auth: accessToken });

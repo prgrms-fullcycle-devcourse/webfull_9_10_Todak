@@ -5,7 +5,10 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { filterChatNoise, formatChatLog } from '@/services/minutes-input.js';
+import {
+  filterChatNoise,
+  formatChatLog,
+} from '@/services/rooms/minutes/minutes-input.js';
 
 const at = new Date('2026-06-14T00:00:00.000Z');
 const msg = (content: string | null, username = 'alice') => ({

@@ -1,6 +1,6 @@
 import { AppError } from '../../errors/AppError.js';
 import { prisma } from '../../lib/prisma.js';
-import { assertRoomMember } from '../../services/room-guards.js';
+import { assertRoomMember } from '../../services/rooms/room-guards.js';
 import { toSocketError } from '../socket-error.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 

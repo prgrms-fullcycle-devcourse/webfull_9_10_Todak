@@ -38,7 +38,7 @@ import {
   verifyJwt,
   verifyRefreshToken,
   type JwtPayload,
-} from '@/services/auth.service.js';
+} from '@/services/auth/auth.service.js';
 
 // prisma 를 가짜로 대체 — 서비스가 쓰는 user.upsert 만 vi.fn() 으로 채운다
 vi.mock('@/lib/prisma.js', () => ({

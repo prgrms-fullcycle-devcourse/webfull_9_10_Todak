@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '@/lib/prisma.js';
 import { addJob } from '@/jobs/queues/index.js';
-import { MinutesService } from '@/services/minutes.service.js';
+import { MinutesService } from '@/services/rooms/minutes/minutes.service.js';
 
 vi.mock('@/lib/prisma.js', () => ({
   prisma: {

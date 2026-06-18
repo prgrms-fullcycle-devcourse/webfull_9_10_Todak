@@ -6,7 +6,7 @@ import {
   getPullRequestDetail,
   getPullRequests,
   mergePullRequest,
-} from '../../../services/prs.service.js';
+} from '../../../services/rooms/prs/prs.service.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 
 import {

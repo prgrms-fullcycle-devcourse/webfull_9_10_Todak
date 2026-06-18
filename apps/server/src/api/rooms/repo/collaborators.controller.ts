@@ -9,11 +9,11 @@ import {
   listInvitations,
   deleteInvitation,
   CollaboratorPermission,
-} from '../../../services/github.service.js';
+} from '../../../services/github/github.service.js';
 import {
   assertRoomMember,
   assertRoomHost,
-} from '../../../services/room-guards.js';
+} from '../../../services/rooms/room-guards.js';
 import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 

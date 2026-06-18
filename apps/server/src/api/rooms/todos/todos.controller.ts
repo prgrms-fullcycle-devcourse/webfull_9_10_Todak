@@ -20,7 +20,7 @@ import {
   updateTodo,
   updateTodoComment,
   updateTodoLabel,
-} from '../../../services/todos.service.js';
+} from '../../../services/rooms/todos/todos.service.js';
 import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 

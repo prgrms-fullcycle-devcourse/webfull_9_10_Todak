@@ -1,15 +1,14 @@
-import { CreateRepoInput } from '../api/repos/repos.schema.js';
-import { AppError } from '../errors/AppError.js';
-import { isUniqueConstraintError } from '../errors/prisma.js';
-import { prisma } from '../lib/prisma.js';
-
+import { CreateRepoInput } from '../../api/repos/repos.schema.js';
+import { AppError } from '../../errors/AppError.js';
+import { isUniqueConstraintError } from '../../errors/prisma.js';
+import { prisma } from '../../lib/prisma.js';
 import {
   createRepo,
   deleteRepo,
   registerWebhook,
   unregisterWebhook,
-} from './github.service.js';
-import { assertRoomHost } from './room-guards.js';
+} from '../github/github.service.js';
+import { assertRoomHost } from '../rooms/room-guards.js';
 
 export async function createGithubRepo(
   accessToken: string,
