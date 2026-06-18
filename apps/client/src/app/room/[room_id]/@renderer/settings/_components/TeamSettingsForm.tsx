@@ -12,7 +12,7 @@ import {
 import { Button, Avatar } from '@heroui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 interface TeamSettingsFormProps {
   myRoomInfo?: RoomProfile;
@@ -38,20 +38,8 @@ export default function TeamSettingsForm({
     retry: false,
   });
 
-  // 레포에서 제거 당했는지 감시
-  useEffect(() => {
-    if (collaboratorsQuery.isError) {
-      const error = collaboratorsQuery.error;
-
-      if (axios.isAxiosError(error) && error.response?.status === 403) {
-        alert(
-          '이 프로젝트 룸의 GitHub 협업자 명단에서 제외되었거나 추방되었습니다. 메인 화면으로 이동합니다.',
-        );
-
-        window.location.assign('/');
-      }
-    }
-  }, [collaboratorsQuery.isError, collaboratorsQuery.error]);
+  const error = collaboratorsQuery.error;
+  const isKicked = axios.isAxiosError(error) && error.response?.status === 403;
 
   // 보류 중인 깃허브 초대 대기자 목록 실시간 조회
   const invitationsQuery = useQuery({
@@ -111,26 +99,26 @@ export default function TeamSettingsForm({
     inviteMutation.mutate(targetName);
   };
 
-  // 추방 가드 레이어 고도화
-  if (collaboratorsQuery.isError) {
-    const error = collaboratorsQuery.error;
-    const isKicked =
-      axios.isAxiosError(error) && error.response?.status === 403;
+  // // 추방 가드 레이어 고도화
+  // if (collaboratorsQuery.isError) {
+  //   const error = collaboratorsQuery.error;
+  //   const isKicked =
+  //     axios.isAxiosError(error) && error.response?.status === 403;
 
-    return (
-      <RouteFallbackView
-        variant="segment"
-        eyebrow={isKicked ? 'ACCESS DENIED' : 'TEAM COMPONENT ERROR'}
-        title={isKicked ? '룸 권한을 상실했습니다.' : '팀 목록 로드 실패'}
-        description={
-          isKicked
-            ? '이 프로젝트 룸의 멤버 명단에서 제외되었거나 추방 처리되었습니다.'
-            : '협업자 명단을 백엔드로부터 불러오지 못했습니다.'
-        }
-        onRetry={() => collaboratorsQuery.refetch()}
-      />
-    );
-  }
+  //   return (
+  //     <RouteFallbackView
+  //       variant="segment"
+  //       eyebrow={isKicked ? 'ACCESS DENIED' : 'TEAM COMPONENT ERROR'}
+  //       title={isKicked ? '룸 권한을 상실했습니다.' : '팀 목록 로드 실패'}
+  //       description={
+  //         isKicked
+  //           ? '이 프로젝트 룸의 멤버 명단에서 제외되었거나 추방 처리되었습니다.'
+  //           : '협업자 명단을 백엔드로부터 불러오지 못했습니다.'
+  //       }
+  //       onRetry={() => collaboratorsQuery.refetch()}
+  //     />
+  //   );
+  // }
 
   return (
     <section
@@ -283,6 +271,38 @@ export default function TeamSettingsForm({
           {successMessage}
         </p>
       )}
+
+      {/* 추방 안내 모달
+      {isKicked && (
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md scale-100 rounded-2xl border border-border bg-surface/90 p-6 shadow-2xl backdrop-blur-md text-center animate-in zoom-in-95">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-todak-coral-50 text-xl mx-auto">
+              🚨
+            </div>
+            <p className="todak-section-label text-todak-coral-500 font-black mt-4">
+              ACCESS DENIED
+            </p>
+            <h3 className="mt-2 text-base font-black text-foreground">
+              룸 권한이 제거됐습니다.
+            </h3>
+            <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">
+              이 프로젝트 룸의 GitHub 협업자 명단에서 제외되었거나
+              추방되었습니다.
+              <br />
+              <span className="font-bold text-foreground">안전한 이용</span>을
+              위해 메인 화면으로 이동합니다.
+            </p>
+            <div className="mt-6 flex justify-center">
+              <Button
+                className="h-9 rounded-xl bg-foreground px-5 text-xs font-black text-background shadow-sm hover:bg-slate-800"
+                onPress={() => window.location.assign('/')}
+              >
+                확인 및 홈으로 이동 🚀
+              </Button>
+            </div>
+          </div>
+        </div>
+      )} */}
     </section>
   );
 }
