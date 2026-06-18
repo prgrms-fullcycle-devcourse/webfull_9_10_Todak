@@ -5,6 +5,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { logger } from '@/lib/logger.js';
 import { prisma } from '@/lib/prisma.js';
 import { createNotifications } from '@/services/notifications/notifications.service.js';
 import { getIO } from '@/socket/index.js';
@@ -92,7 +93,7 @@ describe('createNotifications', () => {
   });
 
   it('일부 유저 실패해도 throw 하지 않고 나머지는 발송(best-effort)', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
     db.notification.create.mockImplementation(async (args: { data: any }) => {
       if (args.data.userId === 'u1') {
         throw new Error('DB down');

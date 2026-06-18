@@ -9,6 +9,7 @@ import { AppError } from '../../../errors/AppError.js';
 import { Prisma } from '../../../generated/prisma/client/index.js';
 import { addJob } from '../../../jobs/queues/index.js';
 import { splitMeetingInfoHeader } from '../../../jobs/workers/minutes-header.js';
+import { logger } from '../../../lib/logger.js';
 import { prisma } from '../../../lib/prisma.js';
 import { refineMinutesContent } from '../../ai/anthropic.service.js';
 import {
@@ -538,7 +539,7 @@ export class MinutesService {
       data: { status: 'failed' },
     });
 
-    console.log(`[Sweeper] stuck generating minutes → failed: ${count}`);
+    logger.info(`[Sweeper] stuck generating minutes → failed: ${count}`);
 
     return stuck;
   }

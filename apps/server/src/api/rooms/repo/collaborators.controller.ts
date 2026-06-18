@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 
 import { AppError } from '../../../errors/AppError.js';
+import { logger } from '../../../lib/logger.js';
 import { prisma } from '../../../lib/prisma.js';
 import {
   addCollaborator,
@@ -149,7 +150,7 @@ export async function removeCollaboratorHandler(
     try {
       await removeCollaborator(accessToken, owner, repoName, username);
     } catch (err) {
-      console.error('[removeCollaborator] GitHub 협업자 제거 실패:', err);
+      logger.error({ err }, '[removeCollaborator] GitHub 협업자 제거 실패');
     }
 
     res

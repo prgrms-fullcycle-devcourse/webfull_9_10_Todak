@@ -1,3 +1,4 @@
+import { logger } from '../../lib/logger.js';
 import { updateRoomMemberStatus } from '../../services/rooms/members/room-member.service.js';
 import {
   enterPrivateRoom,
@@ -35,11 +36,11 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
       // 최신 상태 broadcast
       await broadcastPrivateRooms(io, roomId);
 
-      console.log(
+      logger.info(
         `[private-room:enter] ${user.login} → privateRoom:${privateRoomId}`,
       );
     } catch (err) {
-      console.error('[private-room:enter] error:', err);
+      logger.error({ err }, '[private-room:enter] error');
       socket.emit(
         'error',
         toSocketError(
@@ -71,11 +72,11 @@ export function registerPrivateRoomHandlers(io: TypedIO, socket: TypedSocket) {
       // 최신 상태 broadcast
       await broadcastPrivateRooms(io, roomId);
 
-      console.log(
+      logger.info(
         `[private-room:leave] ${user.login} → privateRoom:${privateRoomId}`,
       );
     } catch (err) {
-      console.error('[private-room:leave] error:', err);
+      logger.error({ err }, '[private-room:leave] error');
       socket.emit(
         'error',
         toSocketError(

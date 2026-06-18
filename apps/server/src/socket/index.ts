@@ -3,6 +3,7 @@ import { Server as HttpServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 
 import { env } from '../config/env.js';
+import { logger } from '../lib/logger.js';
 import { setUserStatusInAllRooms } from '../services/rooms/members/room-member.service.js';
 import { clearActivePrivateRoomSessions } from '../services/rooms/private-room/private-room.service.js';
 
@@ -49,7 +50,7 @@ export function initSocket(httpServer: HttpServer): TypedIO {
 
   io.on('connection', socket => {
     const { id: userId, login } = socket.data.user;
-    console.log(`🔌 [${login}] connected (${socket.id})`);
+    logger.info(`🔌 [${login}] connected (${socket.id})`);
 
     const previousSocketId = claimActiveSession(userId, socket.id);
     if (previousSocketId !== null) {
@@ -61,7 +62,7 @@ export function initSocket(httpServer: HttpServer): TypedIO {
             '다른 탭 또는 브라우저에서 접속하여 이 연결이 종료되었습니다.',
         });
         previousSocket.disconnect(true);
-        console.log(
+        logger.info(
           `🔌 [${login}] replaced previous session (${previousSocketId})`,
         );
       }
@@ -73,7 +74,7 @@ export function initSocket(httpServer: HttpServer): TypedIO {
     registerHandlers(io, socket);
 
     socket.on('disconnect', async () => {
-      console.log(`🔌 [${login}] disconnected (${socket.id})`);
+      logger.info(`🔌 [${login}] disconnected (${socket.id})`);
 
       if (
         socket.data.replacedByNewSession ||
@@ -94,7 +95,7 @@ export function initSocket(httpServer: HttpServer): TypedIO {
           });
         }
       } catch {
-        console.error(`[disconnect] status away 처리 실패: ${login}`);
+        logger.error(`[disconnect] status away 처리 실패: ${login}`);
       }
 
       // 비정상 종료(새로고침/탭닫기)로 남은 프라이빗룸 세션 정리 + 다른 멤버 화면 갱신
@@ -106,7 +107,7 @@ export function initSocket(httpServer: HttpServer): TypedIO {
           await broadcastPrivateRooms(io, roomId);
         }
       } catch {
-        console.error(`[disconnect] 프라이빗룸 세션 정리 실패: ${login}`);
+        logger.error(`[disconnect] 프라이빗룸 세션 정리 실패: ${login}`);
       }
     });
   });
@@ -134,7 +135,7 @@ export function closeSocket() {
   // close: true → 하부 연결까지 강제로 종료해 httpServer가 드레인될 수 있게 한다
   io.disconnectSockets(true);
   clearAllActiveSessions();
-  console.log('✅ Socket connections closed');
+  logger.info('✅ Socket connections closed');
 }
 
 export function getIO(): TypedIO {

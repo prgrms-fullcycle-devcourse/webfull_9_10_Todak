@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { env } from '../../config/env.js';
 import { Prisma } from '../../generated/prisma/client/index.js';
+import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 import { redis } from '../../lib/redis.js';
 import { getIO } from '../../socket/index.js';
@@ -314,7 +315,7 @@ async function handlePullRequestEvent(
     payload.repository.owner.login,
     payload.repository.name,
   ).catch((error: unknown) => {
-    console.warn('[webhook] PR 목록 캐시 무효화 실패:', error);
+    logger.warn({ err: error }, '[webhook] PR 목록 캐시 무효화 실패');
   });
 
   const data = {
@@ -455,7 +456,7 @@ export async function handleGithubEvent(
    */
   const base = WebhookBaseSchema.safeParse(payload);
   if (!base.success) {
-    console.warn(`[webhook] repository 누락/형식 오류로 무시 (event=${event})`);
+    logger.warn(`[webhook] repository 누락/형식 오류로 무시 (event=${event})`);
     return;
   }
   const { owner, name } = base.data.repository;

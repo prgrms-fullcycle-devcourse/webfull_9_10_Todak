@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { AppError } from '../../errors/AppError.js';
+import { logger } from '../../lib/logger.js';
 import { consumeRateLimit } from '../../middleware/rateLimit.middleware.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../services/ai/attachment.service.js';
 import { createChat } from '../../services/ai/chat.service.js';
@@ -100,7 +101,7 @@ export function registerChatHandlers(io: TypedIO, socket: TypedSocket) {
         '채팅 전송에 실패했습니다.',
       );
 
-      console.error(`[chat:send] ${user.login} error:`, err);
+      logger.error({ err }, `[chat:send] ${user.login} error`);
 
       safeAck?.({ ok: false, ...payload });
       socket.emit('error', payload);
@@ -142,7 +143,7 @@ export function registerChatHandlers(io: TypedIO, socket: TypedSocket) {
         '반응 처리에 실패했습니다.',
       );
 
-      console.error(`[chat:react] ${user.login} error:`, err);
+      logger.error({ err }, `[chat:react] ${user.login} error`);
 
       safeAck?.({ ok: false, ...payload });
       socket.emit('error', payload);

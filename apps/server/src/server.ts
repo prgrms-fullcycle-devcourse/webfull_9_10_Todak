@@ -3,21 +3,22 @@ import http from 'http';
 import app from './app.js';
 import { env } from './config/env.js';
 import { closeWorkers, startWorkers } from './jobs/workers/index.js';
+import { logger } from './lib/logger.js';
 import { prisma } from './lib/prisma.js';
 import { redis } from './lib/redis.js';
 import { closeSocket, initSocket } from './socket/index.js';
 
 async function bootstrap() {
   await prisma.$connect();
-  console.log('✅ Database connected');
+  logger.info('✅ Database connected');
 
   const httpServer = http.createServer(app);
   initSocket(httpServer);
   await startWorkers();
 
   httpServer.listen(env.PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${env.PORT}`);
-    console.log(
+    logger.info(`🚀 Server running on http://localhost:${env.PORT}`);
+    logger.info(
       `📄 OpenAPI docs: http://localhost:${env.PORT}/api/docs/openapi.json`,
     );
   });
@@ -42,7 +43,7 @@ async function bootstrap() {
       return;
     }
     isShuttingDown = true;
-    console.log(`\n📥 ${signal} 수신, graceful shutdown 시작...`);
+    logger.info(`📥 ${signal} 수신, graceful shutdown 시작...`);
 
     try {
       // 1. 새 요청 차단 + 기존 요청 드레인 대기
@@ -51,23 +52,23 @@ async function bootstrap() {
         // 이미 열린 소켓 연결을 끊어줘야 httpServer가 드레인될 수 있다
         closeSocket();
       });
-      console.log('✅ HTTP server closed');
+      logger.info('✅ HTTP server closed');
 
       // 2. 처리 중인 잡 마무리 후 worker 종료
       await closeWorkers();
 
       // 3. DB 연결 종료
       await prisma.$disconnect();
-      console.log('✅ Database disconnected');
+      logger.info('✅ Database disconnected');
 
       // 4. Redis 연결 종료
       await redis.quit();
-      console.log('✅ Redis disconnected');
+      logger.info('✅ Redis disconnected');
 
-      console.log('👋 Graceful shutdown 완료');
+      logger.info('👋 Graceful shutdown 완료');
       process.exit(0);
     } catch (err) {
-      console.error('❌ Graceful shutdown 중 오류:', err);
+      logger.error({ err }, '❌ Graceful shutdown 중 오류');
       process.exit(1);
     }
   }
@@ -85,16 +86,16 @@ async function bootstrap() {
    * ────────────────────────────────────────────────────────────
    */
   process.on('unhandledRejection', reason => {
-    console.error('⚠️ Unhandled Rejection:', reason);
+    logger.error({ reason }, '⚠️ Unhandled Rejection');
   });
 
   process.on('uncaughtException', err => {
-    console.error('💥 Uncaught Exception:', err);
+    logger.error({ err }, '💥 Uncaught Exception');
     void shutdown('uncaughtException');
   });
 }
 
 bootstrap().catch(err => {
-  console.error('❌ Failed to start server:', err);
+  logger.error({ err }, '❌ Failed to start server');
   process.exit(1);
 });

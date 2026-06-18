@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { env } from '../../config/env.js';
 import { AppError } from '../../errors/AppError.js';
 import { Prisma } from '../../generated/prisma/client/index.js';
+import { logger } from '../../lib/logger.js';
 import { formatChatLog } from '../rooms/minutes/minutes-input.js';
 
 const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
@@ -41,7 +42,7 @@ export async function refineMinutesContent(
       throw error;
     }
 
-    console.error('❌ 회의록 AI 다듬기 실패:', error);
+    logger.error({ err: error }, '❌ 회의록 AI 다듬기 실패');
     throw new AppError('AI_API_ERROR');
   }
 }
@@ -230,7 +231,7 @@ export async function generateMinutesSummary(
   }
 
   // 도구 호출이 없을 경우(이론상 발생하지 않음)의 안전한 기본값
-  console.error('❌ Claude가 save_minutes 도구를 호출하지 않았습니다.');
+  logger.error('❌ Claude가 save_minutes 도구를 호출하지 않았습니다.');
   return {
     title: '',
     contentMd: '',

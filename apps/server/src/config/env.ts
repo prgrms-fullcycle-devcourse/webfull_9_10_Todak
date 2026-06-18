@@ -9,6 +9,11 @@ const EnvSchema = z.object({
     .default('development'),
   PORT: z.coerce.number().default(4000),
 
+  // pino 로그 레벨 (trace/debug/info/warn/error/fatal/silent)
+  LOG_LEVEL: z
+    .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent'])
+    .default('info'),
+
   DATABASE_URL: z.string().url(),
 
   REDIS_URL: z.string().default('redis://localhost:6379'),
@@ -35,6 +40,10 @@ const EnvSchema = z.object({
 const parsed = EnvSchema.safeParse(process.env);
 
 if (!parsed.success) {
+  /*
+   * logger 는 env(LOG_LEVEL 등)에 의존하므로, env 검증 실패 시점엔 아직 못 쓴다.
+   * 이 부팅 단계 한정으로 console.error 를 그대로 사용한다.
+   */
   console.error('❌ Invalid environment variables:');
   console.error(parsed.error.flatten().fieldErrors);
   process.exit(1);
