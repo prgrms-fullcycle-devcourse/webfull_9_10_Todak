@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Button, Tabs } from '@heroui/react';
 import dynamic from 'next/dynamic';
-import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { MinuteDetail } from '@/services/minutes/model';
 import { refineMinutes } from '@/services/minutes/api';
 
@@ -41,7 +41,7 @@ export default function MeetingMinutes({
 }: MeetingMinutesProps) {
   const params = useParams();
   const roomId = params.room_id as string;
-  const currentMinutesId = useSpaceStore(state => state.currentMinutesId);
+  const currentMinutesId = useRoomUiStore(state => state.currentMinutesId);
 
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
   const [showCustomInput, setShowCustomInput] = useState(false);

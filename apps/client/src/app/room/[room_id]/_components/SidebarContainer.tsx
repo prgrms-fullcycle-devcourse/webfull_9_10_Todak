@@ -3,15 +3,15 @@
 import { Button } from '@heroui/react';
 import type { ReactNode } from 'react';
 
-import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 
 interface SidebarContainerProps {
   children: ReactNode;
 }
 
 export default function SidebarContainer({ children }: SidebarContainerProps) {
-  const isSidebarOpen = useSpaceStore(state => state.isSidebarOpen);
-  const toggleSidebar = useSpaceStore(state => state.toggleSidebar);
+  const isSidebarOpen = useRoomUiStore(state => state.isSidebarOpen);
+  const toggleSidebar = useRoomUiStore(state => state.toggleSidebar);
 
   return (
     <div

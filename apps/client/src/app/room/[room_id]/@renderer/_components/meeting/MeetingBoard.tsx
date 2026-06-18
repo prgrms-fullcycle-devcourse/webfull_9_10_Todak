@@ -13,6 +13,7 @@ import {
   MinutesLockEvent,
 } from '@/services/minutes/model';
 import { fetchMinutes, updateMinutes } from '@/services/minutes/api';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import { useSocket } from '@/providers/SocketProvider';
 import { useSocketEvent } from '@/hooks/useSocketEvent';
@@ -26,7 +27,7 @@ const GENERATION_FAIL_MESSAGES: Record<string, string> = {
 export default function MeetingBoard() {
   const params = useParams();
   const roomId = params.room_id as string;
-  const currentMinutesId = useSpaceStore(state => state.currentMinutesId);
+  const currentMinutesId = useRoomUiStore(state => state.currentMinutesId);
   const myId = useSpaceStore(state => state.myChar.id);
   const queryClient = useQueryClient();
   const { socket } = useSocket();

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
 import { AnimalType, useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { loadAllAnimalAssets } from './_animals/animalAssets';
 import {
   createPlayer,
@@ -481,12 +482,12 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         useSpaceStore.getState().setMembers(updatedMembers);
 
         // 현재 열려있는 모달창의 유저 정보 실시간 갱신
-        const currentSelected = useSpaceStore.getState().selectedMember;
+        const currentSelected = useRoomUiStore.getState().selectedMember;
         if (
           currentSelected &&
           String(currentSelected.id) === String(data.userId)
         ) {
-          useSpaceStore.getState().openCharacterModal({
+          useRoomUiStore.getState().openCharacterModal({
             ...currentSelected,
             status: data.status,
           });
@@ -586,7 +587,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       );
 
       // 상세 모달 오픈 시, pixi 그래픽 일시정지
-      unsubscribeModal = useSpaceStore.subscribe(
+      unsubscribeModal = useRoomUiStore.subscribe(
         state => state.isCharacterModalOpen,
         isOpen => {
           if (!newApp) return;
@@ -601,7 +602,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       // 빈 공간 클릭 시 링 메뉴 닫기
       app.stage.eventMode = 'static';
       app.stage.on('pointerdown', () => {
-        useSpaceStore.getState().setMenuOpen(false);
+        useRoomUiStore.getState().setMenuOpen(false);
       });
 
       // 이동 제한 구역 데이터
@@ -801,11 +802,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       state => state.currentPrivateRoomId,
       currentRoomId => {
         if (currentRoomId !== null) {
-          const store = useSpaceStore.getState();
-
           openChatSafely();
 
-          store.setActiveChatTab('private');
+          useRoomUiStore.getState().setActiveChatTab('private');
         }
       },
     );

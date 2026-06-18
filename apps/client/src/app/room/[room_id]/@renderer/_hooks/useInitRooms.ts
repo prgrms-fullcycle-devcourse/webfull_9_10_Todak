@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimalType, useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { STATIC_ROOM_BOUNDS } from '../_constants/roomBounds';
 import { useSocket } from '@/providers/SocketProvider';
 import {
@@ -189,11 +190,11 @@ export function useInitRooms(roomId: string) {
     }: {
       minutes_id: string;
     }) => {
-      useSpaceStore.getState().setCurrentMinutesId(minutes_id);
+      useRoomUiStore.getState().setCurrentMinutesId(minutes_id);
     };
 
     const handleMinutesGenerated = ({ minutes_id }: { minutes_id: string }) => {
-      useSpaceStore.getState().setCurrentMinutesId(minutes_id);
+      useRoomUiStore.getState().setCurrentMinutesId(minutes_id);
     };
 
     const handleMinutesGenerationFailed = () => {

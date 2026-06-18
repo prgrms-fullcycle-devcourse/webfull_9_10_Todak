@@ -10,6 +10,7 @@ import {
   type AnimalType,
   type CharacterInfo,
 } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { type RoomProfile } from '@/services/rooms/model';
 import { fetchRoomMembers, updateRoomProfile } from '@/services/rooms/api';
 import ModalTodoTabs from './ModalTodoTabs';
@@ -89,7 +90,7 @@ function getUnifiedMember(
 
 export default function CharacterDetailModal() {
   const { isCharacterModalOpen, selectedMember, closeCharacterModal } =
-    useSpaceStore();
+    useRoomUiStore();
   const { room_id: roomID } = useParams<{ room_id: string }>();
   const { data: memberListData } = useQuery<RoomMembersResponse>({
     queryKey: ['room-members', roomID],

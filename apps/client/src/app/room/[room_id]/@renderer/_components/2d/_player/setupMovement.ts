@@ -5,6 +5,7 @@ import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
 import { enterPrivateRoom, updateMemberStatus } from '@/services/rooms/api';
 import type { Socket } from 'socket.io-client';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { endMeeting, generateMinutes } from '@/services/minutes/api';
 
 const SPEED = 6;
@@ -283,7 +284,7 @@ export function setupMovement(
                   const endedAt = new Date(endedMeeting.ended_at);
                   const minutesTitle = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
 
-                  useSpaceStore.getState().notifyMinutesGenerationRequested();
+                  useRoomUiStore.getState().notifyMinutesGenerationRequested();
                   void generateMinutes(
                     roomId,
                     currentMeetingId,
@@ -315,7 +316,7 @@ export function setupMovement(
           });
 
           // zustand 스토어를 통한 리액트 모달 오픈
-          useSpaceStore.getState().openExitModal(confirmEnd => {
+          useRoomUiStore.getState().openExitModal((confirmEnd: boolean) => {
             executeLeaveProcedure(confirmEnd);
           });
         } else {

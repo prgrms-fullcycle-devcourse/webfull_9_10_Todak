@@ -3,8 +3,6 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import { PrivateRoom, RoomProfile } from '../services/rooms/model';
 
 export type AnimalType = 'cat' | 'dog' | 'rabbit' | 'bear' | 'hamster';
-export type ViewType = '2d' | 'meeting';
-export type ChatTabType = 'all' | 'private';
 
 export interface CharacterInfo {
   id: string;
@@ -20,35 +18,16 @@ interface SpaceState {
   myChar: CharacterInfo;
   currentAnimal: AnimalType;
   setMyChar: (info: Partial<CharacterInfo>) => void;
-  currentView: ViewType;
-  isSidebarOpen: boolean;
-  isMenuOpen: boolean;
-  menuPos: { x: number; y: number };
 
   // 상태 변경 액션
   setMyStatus: (status: string) => void;
   setCurrentAnimal: (animal: AnimalType) => void;
-  setCurrentView: (view: ViewType) => void;
-  setSidebarOpen: (open: boolean) => void;
-  toggleSidebar: () => void;
-  setMenuOpen: (open: boolean) => void;
-  setMenuPos: (x: number, y: number) => void;
-
-  // 캐릭터 모달 상태
-  isCharacterModalOpen: boolean;
-  selectedMember: RoomProfile | CharacterInfo | null;
-  openCharacterModal: (member: RoomProfile | CharacterInfo) => void;
-  closeCharacterModal: () => void;
 
   // 프라이빗 룸 전역 상태
   privateRooms: PrivateRoom[];
   setPrivateRooms: (rooms: PrivateRoom[]) => void;
   currentPrivateRoomId: string | null;
   setCurrentPrivateRoomId: (roomId: string | null) => void;
-
-  // 전역 채팅 탭 상태 및 스위치 오퍼레이터
-  activeChatTab: ChatTabType;
-  setActiveChatTab: (tab: ChatTabType) => void;
 
   // 룸 맴버 상태와 액션
   members: RoomProfile[];
@@ -58,23 +37,9 @@ interface SpaceState {
   currentMeetingId: string | null;
   setCurrentMeetingId: (id: string | null) => void;
 
-  // AI 생성 회의록 id
-  currentMinutesId: string | null;
-  setCurrentMinutesId: (id: string | null) => void;
-  meetingMinutesUpdateSeq: number;
-  notifyMeetingMinutesUpdated: () => void;
-  minutesGenerationNoticeSeq: number;
-  notifyMinutesGenerationRequested: () => void;
-
   // 내 캐릭터 위치 기억용
   lastPosition: { x: number; y: number } | null;
   setLastPosition: (x: number, y: number) => void;
-
-  // 커스텀 퇴장 모달 상태
-  isExitModalOpen: boolean;
-  exitModalCallback: ((confirm: boolean) => void) | null;
-  openExitModal: (callback: (confirm: boolean) => void) => void;
-  closeExitModal: () => void;
 }
 
 export const useSpaceStore = create<SpaceState>()(
@@ -94,36 +59,16 @@ export const useSpaceStore = create<SpaceState>()(
         const updatedChar = { ...state.myChar, ...info };
         return { myChar: updatedChar, currentAnimal: updatedChar.avatarId };
       }),
-    currentView: '2d',
-    isSidebarOpen: true,
-    isMenuOpen: false,
-    menuPos: { x: 0, y: 0 },
-
-    isCharacterModalOpen: false,
-    selectedMember: null,
-    openCharacterModal: member =>
-      set({ isCharacterModalOpen: true, selectedMember: member }),
-    closeCharacterModal: () =>
-      set({ isCharacterModalOpen: false, selectedMember: null }),
 
     setMyStatus: status =>
       set(state => ({ myChar: { ...state.myChar, status } })),
     setCurrentAnimal: animal => set({ currentAnimal: animal }), //  <- 상태 반영
-    setCurrentView: view => set({ currentView: view }),
-    setSidebarOpen: open => set({ isSidebarOpen: open }),
-    toggleSidebar: () =>
-      set(state => ({ isSidebarOpen: !state.isSidebarOpen })),
-    setMenuOpen: open => set({ isMenuOpen: open }),
-    setMenuPos: (x, y) => set({ menuPos: { x, y } }),
 
     // 프라이빗 룸 상태 초기값과 업데이트 액션
     privateRooms: [],
     setPrivateRooms: rooms => set({ privateRooms: rooms }),
     currentPrivateRoomId: null,
     setCurrentPrivateRoomId: roomId => set({ currentPrivateRoomId: roomId }),
-
-    activeChatTab: 'all',
-    setActiveChatTab: tab => set({ activeChatTab: tab }),
 
     // 룸 맴버 상태 초기값과 업데이트 액션
     members: [],
@@ -133,30 +78,8 @@ export const useSpaceStore = create<SpaceState>()(
     currentMeetingId: null,
     setCurrentMeetingId: id => set({ currentMeetingId: id }),
 
-    // AI 생성 회의록 id 초기값
-    currentMinutesId: null,
-    setCurrentMinutesId: id => set({ currentMinutesId: id }),
-    meetingMinutesUpdateSeq: 0,
-    notifyMeetingMinutesUpdated: () =>
-      set(state => ({
-        meetingMinutesUpdateSeq: state.meetingMinutesUpdateSeq + 1,
-      })),
-    minutesGenerationNoticeSeq: 0,
-    notifyMinutesGenerationRequested: () =>
-      set(state => ({
-        minutesGenerationNoticeSeq: state.minutesGenerationNoticeSeq + 1,
-      })),
-
     // 캐릭터 스폰 장소 및 초기값
     lastPosition: null,
     setLastPosition: (x, y) => set({ lastPosition: { x, y } }),
-
-    // 커스텀 퇴장 상태 초기값
-    isExitModalOpen: false,
-    exitModalCallback: null,
-    openExitModal: callback =>
-      set({ isExitModalOpen: true, exitModalCallback: callback }),
-    closeExitModal: () =>
-      set({ isExitModalOpen: false, exitModalCallback: null }),
   })),
 );

@@ -6,7 +6,7 @@ import {
   type MinutesSocketEvent,
   useMinutesSocket,
 } from '@/services/minutes/useMinutesSocket';
-import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 
 import { Accordion, Button, Chip } from '@heroui/react';
 import { useParams } from 'next/navigation';
@@ -20,8 +20,10 @@ interface Props {
 export default function RecentMeetingLogs({ meetingLogs }: Props) {
   const { room_id: roomID } = useParams<{ room_id: string }>();
 
-  const setCurrentMinutesId = useSpaceStore(state => state.setCurrentMinutesId);
-  const setCurrentView = useSpaceStore(state => state.setCurrentView);
+  const setCurrentMinutesId = useRoomUiStore(
+    state => state.setCurrentMinutesId,
+  );
+  const setCurrentView = useRoomUiStore(state => state.setCurrentView);
   const [hasMeetingLogUpdate, setHasMeetingLogUpdate] = useState(false);
   const [isGenerationNoticeVisible, setIsGenerationNoticeVisible] =
     useState(false);
@@ -98,7 +100,7 @@ export default function RecentMeetingLogs({ meetingLogs }: Props) {
   }, [refetch]);
 
   useEffect(() => {
-    const unsubscribe = useSpaceStore.subscribe(
+    const unsubscribe = useRoomUiStore.subscribe(
       state => state.minutesGenerationNoticeSeq,
       minutesGenerationNoticeSeq => {
         if (minutesGenerationNoticeSeq === 0) {

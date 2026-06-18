@@ -1,11 +1,11 @@
 'use client';
 
-import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 
 export default function ExitConfirmModal() {
-  const isExitModalOpen = useSpaceStore(state => state.isExitModalOpen);
-  const exitModalCallback = useSpaceStore(state => state.exitModalCallback);
-  const closeExitModal = useSpaceStore(state => state.closeExitModal);
+  const isExitModalOpen = useRoomUiStore(state => state.isExitModalOpen);
+  const exitModalCallback = useRoomUiStore(state => state.exitModalCallback);
+  const closeExitModal = useRoomUiStore(state => state.closeExitModal);
 
   if (!isExitModalOpen) return null;
 

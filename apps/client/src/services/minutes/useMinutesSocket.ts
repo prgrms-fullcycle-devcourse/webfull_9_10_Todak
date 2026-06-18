@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useSocketEvent } from '@/hooks/useSocketEvent';
-import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 
 import { minutesQueryKeys } from './query';
 
@@ -45,7 +45,7 @@ export function useMinutesSocket({
       }
 
       queryClient.invalidateQueries({ queryKey: minutesQueryKeys.all });
-      useSpaceStore.getState().notifyMeetingMinutesUpdated();
+      useRoomUiStore.getState().notifyMeetingMinutesUpdated();
       onEvent?.(eventName);
       onUpdated?.();
     },
