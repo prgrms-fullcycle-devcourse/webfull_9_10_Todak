@@ -30,6 +30,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { loadMascotNpcAssets } from '../2d/_npcs/npcAssets';
 import { createMascotNpc, MascotNpcContainer } from '../2d/_npcs/createNpc';
 import { useNotifications } from '@/services/notifications/query';
+import { useNotificationSocket } from '@/services/notifications/useNotificationSocket';
 import NotificationHistoryModal from './NotificationHistoryModal';
 import { openChatSafely } from '../../../@chats/_components/ChatOpenButton';
 import rawWallData from '@/app/room/[room_id]/@renderer/_constants/walls.json';
@@ -74,6 +75,8 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   const prevNotificationIdRef = useRef<string | null>(null);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const notifications = notificationData?.notifications ?? [];
+
+  useNotificationSocket({ roomId });
 
   useEffect(() => {
     let isMounted = true;

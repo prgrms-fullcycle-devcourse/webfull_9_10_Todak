@@ -1,19 +1,10 @@
 'use client';
 
-import type {
-  RoomNotification,
-  SocketPrPayload,
-  SocketReviewPayload,
-  SocketIssuePayload,
-} from '@/services/notifications/model';
-import {
-  notificationQueryKeys,
-  useNotifications,
-} from '@/services/notifications/query';
+import type { RoomNotification } from '@/services/notifications/model';
+import { useNotifications } from '@/services/notifications/query';
+import { useNotificationSocket } from '@/services/notifications/useNotificationSocket';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { useSocketEvent } from '@/hooks/useSocketEvent';
-import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useState } from 'react';
 
 function getNotificationLabel(type: RoomNotification['type']) {
   switch (type) {
@@ -42,8 +33,6 @@ export default function RollingNotificationBanner() {
   const { room_id: roomID } = useParams<{ room_id: string }>();
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const queryClient = useQueryClient();
-
   const { data, isError, isPending } = useNotifications(roomID);
 
   const notifications = data?.notifications ?? [];
@@ -52,58 +41,14 @@ export default function RollingNotificationBanner() {
       ? notifications[activeIndex % notifications.length]
       : undefined;
 
-  const refreshNotifications = () => {
-    queryClient.invalidateQueries({
-      queryKey: notificationQueryKeys.room(roomID),
-    });
+  const handleNotificationUpdated = useCallback(() => {
     setActiveIndex(0);
-  };
+  }, []);
 
-  useSocketEvent<[RoomNotification]>(
-    'notification:created',
-    incomingData => {
-      if (incomingData.room_id === roomID) {
-        refreshNotifications();
-      }
-    },
-    { enabled: Boolean(roomID) },
-  );
-  useSocketEvent<[SocketPrPayload]>(
-    'pr:opened',
-    incomingData => {
-      if (incomingData.roomId === roomID) {
-        refreshNotifications();
-      }
-    },
-    { enabled: Boolean(roomID) },
-  );
-  useSocketEvent<[SocketPrPayload]>(
-    'pr:merged',
-    incomingData => {
-      if (incomingData.roomId === roomID) {
-        refreshNotifications();
-      }
-    },
-    { enabled: Boolean(roomID) },
-  );
-  useSocketEvent<[SocketReviewPayload]>(
-    'pr:reviewed',
-    incomingData => {
-      if (incomingData.roomId === roomID) {
-        refreshNotifications();
-      }
-    },
-    { enabled: Boolean(roomID) },
-  );
-  useSocketEvent<[SocketIssuePayload]>(
-    'issue:created',
-    incomingData => {
-      if (incomingData.roomId === roomID) {
-        refreshNotifications();
-      }
-    },
-    { enabled: Boolean(roomID) },
-  );
+  useNotificationSocket({
+    roomId: roomID,
+    onUpdated: handleNotificationUpdated,
+  });
 
   useEffect(() => {
     if (notifications.length <= 1) {
