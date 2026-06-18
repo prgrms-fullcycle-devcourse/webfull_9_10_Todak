@@ -24,7 +24,9 @@ export default function ChatMeetingButton({ onToggle, roomId }: Props) {
   const privateRooms = useSpaceStore(state => state.privateRooms);
   const currentMeetingId = useSpaceStore(state => state.currentMeetingId);
   const setCurrentMeetingId = useSpaceStore(state => state.setCurrentMeetingId);
-  const setCurrentView = useSpaceStore(state => state.setCurrentView);
+  const notifyMinutesGenerationRequested = useSpaceStore(
+    state => state.notifyMinutesGenerationRequested,
+  );
   const currentPrivateRoom = privateRooms.find(
     room => room.id === currentPrivateRoomId,
   );
@@ -59,16 +61,17 @@ export default function ChatMeetingButton({ onToggle, roomId }: Props) {
         const endedAt = new Date(endedMeeting.ended_at);
         const title = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
 
-        const newMinutes = await generateMinutes(
-          roomId,
-          currentMeetingId,
-          title,
-        );
-        setCurrentMinutesId(newMinutes.id);
+        notifyMinutesGenerationRequested();
+        void generateMinutes(roomId, currentMeetingId, title)
+          .then(newMinutes => {
+            setCurrentMinutesId(newMinutes.id);
+          })
+          .catch(error => {
+            console.error('AI 회의록 생성 요청 실패:', error);
+          });
 
         setCurrentMeetingId(null);
         onToggle();
-        setCurrentView('meeting'); // 회의 보드로 전환
       }
     } catch (error) {
       console.error('회의 시작/종료 실패:', error);

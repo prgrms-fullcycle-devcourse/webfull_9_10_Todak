@@ -63,6 +63,8 @@ interface SpaceState {
   setCurrentMinutesId: (id: string | null) => void;
   meetingMinutesUpdateSeq: number;
   notifyMeetingMinutesUpdated: () => void;
+  minutesGenerationNoticeSeq: number;
+  notifyMinutesGenerationRequested: () => void;
 
   // 내 캐릭터 위치 기억용
   lastPosition: { x: number; y: number } | null;
@@ -138,6 +140,11 @@ export const useSpaceStore = create<SpaceState>()(
     notifyMeetingMinutesUpdated: () =>
       set(state => ({
         meetingMinutesUpdateSeq: state.meetingMinutesUpdateSeq + 1,
+      })),
+    minutesGenerationNoticeSeq: 0,
+    notifyMinutesGenerationRequested: () =>
+      set(state => ({
+        minutesGenerationNoticeSeq: state.minutesGenerationNoticeSeq + 1,
       })),
 
     // 캐릭터 스폰 장소 및 초기값

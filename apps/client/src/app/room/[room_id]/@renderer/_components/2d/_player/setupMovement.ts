@@ -283,8 +283,14 @@ export function setupMovement(
                   const endedAt = new Date(endedMeeting.ended_at);
                   const minutesTitle = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
 
-                  await generateMinutes(roomId, currentMeetingId, minutesTitle);
-                  useSpaceStore.getState().setCurrentView?.('meeting');
+                  useSpaceStore.getState().notifyMinutesGenerationRequested();
+                  void generateMinutes(
+                    roomId,
+                    currentMeetingId,
+                    minutesTitle,
+                  ).catch(error => {
+                    console.error('❌ AI 회의록 생성 요청 실패:', error);
+                  });
                 }
 
                 // 회의 세션 ID 청소는 공통 적용
