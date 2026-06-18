@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildDisplayNameMap,
   buildMeetingInfoHeader,
   splitMeetingInfoHeader,
 } from '@/jobs/workers/minutes-header.js';
@@ -60,5 +61,37 @@ describe('splitMeetingInfoHeader', () => {
 
     expect(result.header).toBeNull();
     expect(result.body).toBe(contentMd);
+  });
+});
+
+describe('buildDisplayNameMap', () => {
+  it('닉네임이 고유하면 닉네임만 사용한다', () => {
+    const map = buildDisplayNameMap([
+      { id: 'u1', nickname: '수정', githubUsername: 'sujeong' },
+      { id: 'u2', nickname: '민호', githubUsername: 'minho' },
+    ]);
+    expect(map.get('u1')).toBe('수정');
+    expect(map.get('u2')).toBe('민호');
+  });
+
+  it('닉네임이 중복되면 githubUsername 을 병기한다', () => {
+    const map = buildDisplayNameMap([
+      { id: 'u1', nickname: '수정', githubUsername: 'sujeong-a' },
+      { id: 'u2', nickname: '수정', githubUsername: 'sujeong-b' },
+      { id: 'u3', nickname: '민호', githubUsername: 'minho' },
+    ]);
+    expect(map.get('u1')).toBe('수정 (sujeong-a)');
+    expect(map.get('u2')).toBe('수정 (sujeong-b)');
+    // 중복 아닌 멤버는 그대로
+    expect(map.get('u3')).toBe('민호');
+  });
+
+  it('닉네임이 없으면 githubUsername 을 쓰고 중복 병기는 하지 않는다', () => {
+    const map = buildDisplayNameMap([
+      { id: 'u1', nickname: null, githubUsername: 'octocat' },
+      { id: 'u2', nickname: '', githubUsername: 'hubot' },
+    ]);
+    expect(map.get('u1')).toBe('octocat');
+    expect(map.get('u2')).toBe('hubot');
   });
 });

@@ -42,6 +42,43 @@ export function buildMeetingInfoHeader(
 }
 
 /*
+ * 멤버별 표시명(userId → 표시명) 맵을 만든다.
+ * 표시명 우선순위: nickname(있으면) > githubUsername.
+ * 단 같은 닉네임을 가진 멤버가 둘 이상이면 "닉네임(githubUsername)" 으로 구분한다.
+ * (githubUsername 은 고유하므로 닉네임 없는 멤버끼리는 충돌하지 않음)
+ */
+export function buildDisplayNameMap(
+  members: Array<{
+    id: string;
+    nickname: string | null;
+    githubUsername: string;
+  }>,
+): Map<string, string> {
+  const baseName = (m: { nickname: string | null; githubUsername: string }) =>
+    m.nickname !== null && m.nickname !== '' ? m.nickname : m.githubUsername;
+
+  // 표시명별 등장 횟수 — 중복 판별용
+  const counts = new Map<string, number>();
+  for (const m of members) {
+    const name = baseName(m);
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+
+  const displayByUserId = new Map<string, string>();
+  for (const m of members) {
+    const name = baseName(m);
+    // 중복되는 닉네임만 githubUsername 병기 (이미 username 이면 "x (x)" 방지)
+    const display =
+      (counts.get(name) ?? 0) > 1 && name !== m.githubUsername
+        ? `${name} (${m.githubUsername})`
+        : name;
+    displayByUserId.set(m.id, display);
+  }
+
+  return displayByUserId;
+}
+
+/*
  * content_md 를 '회의 정보' 헤더와 본문으로 분리한다.
  * 헤더(buildMeetingInfoHeader 생성물)는 '---' 구분선으로 끝나므로 그 지점에서 자른다.
  * 헤더가 없으면(수동 회의록 등) header=null, body=원본 전체.
