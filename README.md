@@ -350,7 +350,6 @@ pnpm test:integration  # 통합 테스트 (임베디드 PostgreSQL)
   </tr>
 </table>
 
-> 💡 `<!-- 사진 URL -->` 부분에 각자 사진(또는 GitHub 아바타 `https://github.com/<id>.png`)과 GitHub 링크를 넣어주세요.
 
 <br/>
 
