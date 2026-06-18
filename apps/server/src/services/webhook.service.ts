@@ -11,6 +11,7 @@ import {
   getRoomMemberIds,
   resolveMemberIdByLogin,
 } from '../services/notifications.service.js';
+import { invalidatePullRequestListCache } from '../services/prs.service.js';
 import { getIO } from '../socket/index.js';
 import { TodoEventPayload } from '../socket/socket.types.js';
 
@@ -304,6 +305,17 @@ async function handlePullRequestEvent(
 ): Promise<void> {
   const { action, pull_request: pr } = payload;
   const io = getIO();
+
+  /*
+   * PR 변경(열림/머지/닫힘 등)으로 목록 캐시를 무효화해 다음 조회가 최신을 받게 한다.
+   * 캐시 정리는 비핵심이라 실패해도 웹훅 처리를 막지 않는다(best-effort, TTL 이 백업).
+   */
+  await invalidatePullRequestListCache(
+    payload.repository.owner.login,
+    payload.repository.name,
+  ).catch((error: unknown) => {
+    console.warn('[webhook] PR 목록 캐시 무효화 실패:', error);
+  });
 
   const data = {
     roomId,

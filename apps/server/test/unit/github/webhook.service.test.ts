@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '@/lib/prisma.js';
 import { redis } from '@/lib/redis.js';
+import { invalidatePullRequestListCache } from '@/services/prs.service.js';
 import { handleGithubEvent } from '@/services/webhook.service.js';
 import { getIO } from '@/socket/index.js';
 
@@ -27,12 +28,19 @@ vi.mock('@/socket/index.js', () => ({
   getIO: vi.fn(),
 }));
 
+// PR 목록 캐시 무효화는 prs.service 의 별도 검증 대상 — 호출 여부만 관찰
+vi.mock('@/services/prs.service.js', () => ({
+  invalidatePullRequestListCache: vi.fn(),
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const r = redis as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const io = getIO as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const invalidateCache = invalidatePullRequestListCache as any;
 
 const ROOM_ID = 'room-1';
 const REPO_ID = 'repo-1';
@@ -242,5 +250,33 @@ describe('handleGithubEvent - 페이로드 형식 검증 (I35)', () => {
     // envelope 통과로 dedup 은 소비되지만, 깨진 페이로드는 핸들러로 안 감
     expect(r.set).toHaveBeenCalledTimes(1);
     expect(db.todo.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleGithubEvent - pull_request 캐시 무효화 (I36)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    r.set.mockResolvedValue('OK');
+    r.del.mockResolvedValue(1);
+    db.repo.findFirst.mockResolvedValue({ id: REPO_ID, roomId: ROOM_ID });
+    db.roomMember.findFirst.mockResolvedValue(null);
+    db.roomMember.findMany.mockResolvedValue([]);
+    invalidateCache.mockResolvedValue(undefined);
+    io.mockReturnValue({ to: () => ({ emit: () => true }) });
+  });
+
+  it('PR 이벤트 처리 시 해당 레포 PR 목록 캐시를 무효화한다', async () => {
+    await handleGithubEvent('pull_request', 'PR1', {
+      action: 'opened',
+      pull_request: {
+        number: 9,
+        title: '새 PR',
+        state: 'open',
+        merged: false,
+      },
+      repository: { name: 'repo', owner: { login: 'owner' } },
+    });
+
+    expect(invalidateCache).toHaveBeenCalledWith('owner', 'repo');
   });
 });
