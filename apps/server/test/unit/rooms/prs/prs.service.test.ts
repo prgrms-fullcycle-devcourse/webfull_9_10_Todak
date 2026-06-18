@@ -30,7 +30,7 @@ vi.mock('@/lib/prisma.js', () => ({
   },
 }));
 
-vi.mock('@/services/github.service.js', () => ({
+vi.mock('@/services/github/github.service.js', () => ({
   getPullRequest: vi.fn(),
   listPullRequests: vi.fn(),
   listPullRequestReviews: vi.fn(),

@@ -29,7 +29,7 @@ vi.mock('@/socket/index.js', () => ({
 }));
 
 // PR 목록 캐시 무효화는 prs.service 의 별도 검증 대상 — 호출 여부만 관찰
-vi.mock('@/services/prs.service.js', () => ({
+vi.mock('@/services/rooms/prs/prs.service.js', () => ({
   invalidatePullRequestListCache: vi.fn(),
 }));
 

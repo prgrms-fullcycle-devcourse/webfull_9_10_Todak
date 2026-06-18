@@ -44,7 +44,7 @@ vi.mock('@/lib/prisma.js', () => ({
 }));
 
 // GitHub API 호출을 가짜로 대체
-vi.mock('@/services/github.service.js', () => ({
+vi.mock('@/services/github/github.service.js', () => ({
   createRepo: vi.fn(),
   deleteRepo: vi.fn(),
   registerWebhook: vi.fn(),

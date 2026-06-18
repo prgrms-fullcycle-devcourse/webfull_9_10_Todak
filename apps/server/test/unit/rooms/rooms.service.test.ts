@@ -77,7 +77,7 @@ vi.mock('@/lib/prisma.js', () => ({
 }));
 
 // webhook 등록/해제는 GitHub API 를 호출하므로 가짜로 대체
-vi.mock('@/services/github.service.js', () => ({
+vi.mock('@/services/github/github.service.js', () => ({
   registerWebhook: vi.fn(),
   unregisterWebhook: vi.fn(),
 }));
