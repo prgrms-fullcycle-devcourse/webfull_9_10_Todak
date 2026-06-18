@@ -381,36 +381,36 @@ async function autoAddGithubCollaborator(
   roomId: string,
   joiningUserId: string,
 ): Promise<void> {
-  const [repo, joiningUser, hostMember] = await Promise.all([
-    prisma.repo.findFirst({
-      where: { roomId },
-      select: { fullName: true },
-    }),
-    prisma.user.findUnique({
-      where: { id: joiningUserId },
-      select: { accessToken: true, githubUsername: true },
-    }),
-    prisma.roomMember.findFirst({
-      where: { roomId, isHost: true },
-      select: { user: { select: { accessToken: true } } },
-    }),
-  ]);
-
-  if (
-    repo === null ||
-    joiningUser?.accessToken === null ||
-    joiningUser?.accessToken === undefined ||
-    joiningUser?.githubUsername === '' ||
-    joiningUser?.githubUsername === undefined ||
-    hostMember?.user.accessToken === null ||
-    hostMember?.user.accessToken === undefined
-  ) {
-    return;
-  }
-
-  const [owner, repoName] = repo.fullName.split('/');
-
   try {
+    const [repo, joiningUser, hostMember] = await Promise.all([
+      prisma.repo.findFirst({
+        where: { roomId },
+        select: { fullName: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: joiningUserId },
+        select: { accessToken: true, githubUsername: true },
+      }),
+      prisma.roomMember.findFirst({
+        where: { roomId, isHost: true },
+        select: { user: { select: { accessToken: true } } },
+      }),
+    ]);
+
+    if (
+      repo === null ||
+      joiningUser?.accessToken === null ||
+      joiningUser?.accessToken === undefined ||
+      joiningUser?.githubUsername === '' ||
+      joiningUser?.githubUsername === undefined ||
+      hostMember?.user.accessToken === null ||
+      hostMember?.user.accessToken === undefined
+    ) {
+      return;
+    }
+
+    const [owner, repoName] = repo.fullName.split('/');
+
     const { invitationId } = await addCollaborator(
       hostMember.user.accessToken,
       owner,

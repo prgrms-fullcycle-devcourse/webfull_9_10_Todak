@@ -50,8 +50,19 @@ export function useNotificationSocket({
       const payloadRoomId = getNotificationEventRoomId(payload);
 
       if (payloadRoomId && payloadRoomId !== roomId) {
+        console.info('[notification-socket] ignored room event', {
+          eventName,
+          payloadRoomId,
+          roomId,
+        });
         return;
       }
+
+      console.info('[notification-socket] received event', {
+        eventName,
+        payload,
+        roomId,
+      });
 
       queryClient.invalidateQueries({
         queryKey: notificationQueryKeys.room(roomId),
