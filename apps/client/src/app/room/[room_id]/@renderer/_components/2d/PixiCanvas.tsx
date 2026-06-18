@@ -86,6 +86,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     let cleanupMovement: (() => void) | null = null;
     let cleanupCamera: (() => void) | null = null;
     let handleResize: (() => void) | null = null;
+    let handleVisibilityChange: (() => void) | null = null;
     let localPlayerContainer: PIXI.Container | null = null;
     let resizeAnimationFrameId: number | null = null; // 애니메이션 프레임 ID를 기억할 로컬 변수
 
@@ -639,6 +640,25 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       handleResize();
       window.addEventListener('resize', handleResize);
+
+      // 디싱크를 원천 차단하는 리스너 바인딩
+      handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          fetchRoomMembers(roomId).then(res => {
+            if (res?.members) {
+              for (const remotePlayer of remotePlayers.values()) {
+                world.removeChild(remotePlayer.container);
+                remotePlayer.container.destroy({ children: true });
+              }
+              remotePlayers.clear();
+
+              useSpaceStore.getState().setMembers(res.members);
+              syncMembers(res.members);
+            }
+          });
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
     };
 
     initPixi();
@@ -683,6 +703,15 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       if (handleResize) {
         window.removeEventListener('resize', handleResize);
       }
+
+      // 컴포넌트가 언마운트될 때 리스너 클린업
+      if (handleVisibilityChange) {
+        document.removeEventListener(
+          'visibilitychange',
+          handleVisibilityChange,
+        );
+      }
+
       if (app) {
         app.destroy(true, { children: true, texture: false });
       }
