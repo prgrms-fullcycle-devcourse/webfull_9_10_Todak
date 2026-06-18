@@ -1,5 +1,5 @@
-import { AppError } from '../errors/AppError.js';
-import { prisma } from '../lib/prisma.js';
+import { AppError } from '../../errors/AppError.js';
+import { prisma } from '../../lib/prisma.js';
 
 /*
  * 룸/프라이빗룸 접근 검증 가드.

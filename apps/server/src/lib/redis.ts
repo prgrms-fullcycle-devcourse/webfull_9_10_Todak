@@ -2,6 +2,8 @@ import { Redis } from 'ioredis';
 
 import { env } from '../config/env.js';
 
+import { logger } from './logger.js';
+
 const redisUrl = env.REDIS_URL;
 const isTls = redisUrl?.startsWith('rediss://');
 const tlsOptions = isTls
@@ -16,9 +18,9 @@ export const redis = new Redis(redisUrl, {
 });
 
 redis.on('connect', () => {
-  console.log('✅ Redis connected');
+  logger.info('✅ Redis connected');
 });
 
 redis.on('error', (err: Error) => {
-  console.error('❌ Redis error:', err);
+  logger.error({ err }, '❌ Redis error');
 });

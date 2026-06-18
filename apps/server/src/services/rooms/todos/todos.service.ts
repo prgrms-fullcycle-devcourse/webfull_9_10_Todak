@@ -2,13 +2,12 @@ import type {
   CreateTodosInput,
   GetTodosQuery,
   UpdateTodoInput,
-} from '../api/rooms/todos/todos.schema.js';
-import { AppError } from '../errors/AppError.js';
-import { isUniqueConstraintError } from '../errors/prisma.js';
-import { prisma } from '../lib/prisma.js';
-import type { TodoEventPayload } from '../socket/socket.types.js';
-
-import type { IssueReaction } from './github.service.js';
+} from '../../../api/rooms/todos/todos.schema.js';
+import { AppError } from '../../../errors/AppError.js';
+import { isUniqueConstraintError } from '../../../errors/prisma.js';
+import { prisma } from '../../../lib/prisma.js';
+import type { TodoEventPayload } from '../../../socket/socket.types.js';
+import type { IssueReaction } from '../../github/github.service.js';
 import {
   closeIssue,
   createIssue,
@@ -27,11 +26,11 @@ import {
   updateIssue,
   updateIssueComment,
   updateLabelForRepo,
-} from './github.service.js';
+} from '../../github/github.service.js';
 import {
   createNotifications,
   getRoomMemberIds,
-} from './notifications.service.js';
+} from '../../notifications/notifications.service.js';
 
 type TodoWithAssignee = {
   id: string;
@@ -810,7 +809,7 @@ export async function createTodoReaction(
     owner,
     repoName,
     issueNumber,
-    content as import('./github.service.js').ReactionContent,
+    content as import('../../github/github.service.js').ReactionContent,
   );
 }
 

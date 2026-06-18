@@ -1,4 +1,4 @@
-import { verifyJwt } from '../services/auth.service.js';
+import { verifyJwt } from '../services/auth/auth.service.js';
 
 import { TypedSocket } from './socket.types.js';
 

@@ -1,4 +1,4 @@
-import { getPrivateRooms } from '../services/private-room.service.js';
+import { getPrivateRooms } from '../services/rooms/private-room/private-room.service.js';
 
 import { TypedIO } from './socket.types.js';
 

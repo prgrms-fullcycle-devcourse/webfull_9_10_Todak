@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 import { redis } from '../../lib/redis.js';
 import { toSocketError } from '../socket-error.js';
@@ -117,7 +118,7 @@ export function registerMinutesLockHandlers(io: TypedIO, socket: TypedSocket) {
         'MINUTES_LOCK_ERROR',
         '편집 잠금 처리에 실패했습니다.',
       );
-      console.error(`[minutes:request-lock] ${user.login} error:`, err);
+      logger.error({ err }, `[minutes:request-lock] ${user.login} error`);
       socket.emit('error', payload);
     }
   });
@@ -132,7 +133,7 @@ export function registerMinutesLockHandlers(io: TypedIO, socket: TypedSocket) {
         'MINUTES_LOCK_ERROR',
         '편집 잠금 해제에 실패했습니다.',
       );
-      console.error(`[minutes:release-lock] ${user.login} error:`, err);
+      logger.error({ err }, `[minutes:release-lock] ${user.login} error`);
       socket.emit('error', payload);
     }
   });

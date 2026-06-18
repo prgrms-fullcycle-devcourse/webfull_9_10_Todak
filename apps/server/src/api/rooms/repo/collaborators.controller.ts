@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 
 import { AppError } from '../../../errors/AppError.js';
+import { logger } from '../../../lib/logger.js';
 import { prisma } from '../../../lib/prisma.js';
 import {
   addCollaborator,
@@ -9,11 +10,11 @@ import {
   listInvitations,
   deleteInvitation,
   CollaboratorPermission,
-} from '../../../services/github.service.js';
+} from '../../../services/github/github.service.js';
 import {
   assertRoomMember,
   assertRoomHost,
-} from '../../../services/room-guards.js';
+} from '../../../services/rooms/room-guards.js';
 import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 
@@ -92,7 +93,24 @@ export async function listCollaboratorsHandler(
     const repo = await getLinkedRepo(roomId);
     const [owner, repoName] = repo.fullName.split('/');
 
-    const collaborators = await listCollaborators(accessToken, owner, repoName);
+    const [collaborators, ownerUser] = await Promise.all([
+      listCollaborators(accessToken, owner, repoName),
+      prisma.user.findFirst({
+        where: { githubUsername: owner },
+        select: { avatarUrl: true },
+      }),
+    ]);
+
+    // GitHub listCollaborators 는 오너를 포함하지 않으므로 직접 추가
+    const alreadyIncluded = collaborators.some(c => c.login === owner);
+    if (!alreadyIncluded) {
+      collaborators.unshift({
+        login: owner,
+        avatarUrl: ownerUser?.avatarUrl ?? '',
+        permission: 'admin',
+      });
+    }
+
     res.status(200).json({ success: true, data: collaborators });
   } catch (err) {
     next(err);
@@ -149,7 +167,7 @@ export async function removeCollaboratorHandler(
     try {
       await removeCollaborator(accessToken, owner, repoName, username);
     } catch (err) {
-      console.error('[removeCollaborator] GitHub 협업자 제거 실패:', err);
+      logger.error({ err }, '[removeCollaborator] GitHub 협업자 제거 실패');
     }
 
     res

@@ -13,14 +13,14 @@ import {
   listPullRequestReviews as ghListReviews,
   listPullRequests as ghListPullRequests,
   mergePullRequest as ghMergePullRequest,
-} from '@/services/github.service.js';
+} from '@/services/github/github.service.js';
 import {
   createPullRequestReview,
   getPullRequestDetail,
   getPullRequests,
   invalidatePullRequestListCache,
   mergePullRequest,
-} from '@/services/prs.service.js';
+} from '@/services/rooms/prs/prs.service.js';
 
 vi.mock('@/lib/prisma.js', () => ({
   prisma: {
@@ -30,7 +30,7 @@ vi.mock('@/lib/prisma.js', () => ({
   },
 }));
 
-vi.mock('@/services/github.service.js', () => ({
+vi.mock('@/services/github/github.service.js', () => ({
   getPullRequest: vi.fn(),
   listPullRequests: vi.fn(),
   listPullRequestReviews: vi.fn(),

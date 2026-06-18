@@ -1,12 +1,12 @@
 import { Response, NextFunction } from 'express';
 
 import { getUserId } from '../../../middleware/auth.middleware.js';
-import { getPrivateRoomChats } from '../../../services/chat.service.js';
+import { getPrivateRoomChats } from '../../../services/ai/chat.service.js';
 import {
   getPrivateRoomsForUser,
   enterPrivateRoom,
   leavePrivateRoom,
-} from '../../../services/private-room.service.js';
+} from '../../../services/rooms/private-room/private-room.service.js';
 import { broadcastPrivateRooms } from '../../../socket/broadcast.js';
 import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';

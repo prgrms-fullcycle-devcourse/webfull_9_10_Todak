@@ -1,4 +1,5 @@
 import { Prisma } from '@/generated/prisma/client/index.js';
+import { logger } from '@/lib/logger.js';
 import { prisma } from '@/lib/prisma.js';
 import { getIO } from '@/socket/index.js';
 
@@ -100,9 +101,9 @@ export async function createNotifications(
 
   for (const result of results) {
     if (result.status === 'rejected') {
-      console.error(
-        `❌ 알림 생성 실패 (type=${data.type}, room=${data.roomId}):`,
-        result.reason,
+      logger.error(
+        { err: result.reason },
+        `❌ 알림 생성 실패 (type=${data.type}, room=${data.roomId})`,
       );
     }
   }

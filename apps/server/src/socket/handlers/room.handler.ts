@@ -1,6 +1,7 @@
+import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
-import { clearActivePrivateRoomSessions } from '../../services/private-room.service.js';
-import { assertRoomMember } from '../../services/room-guards.js';
+import { clearActivePrivateRoomSessions } from '../../services/rooms/private-room/private-room.service.js';
+import { assertRoomMember } from '../../services/rooms/room-guards.js';
 import { broadcastPrivateRooms } from '../broadcast.js';
 import { toSocketError } from '../socket-error.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
@@ -33,7 +34,7 @@ export function registerRoomHandlers(io: TypedIO, socket: TypedSocket) {
       login: user.login,
       avatarUrl: user.avatarUrl,
     });
-    console.log(`[room:join] ${user.login} → ${roomId}`);
+    logger.info(`[room:join] ${user.login} → ${roomId}`);
 
     // 안전망: 이전 비정상 종료로 남은 프라이빗룸 세션 정리 (disconnect 청소 누락/경합 대비)
     try {
@@ -42,7 +43,7 @@ export function registerRoomHandlers(io: TypedIO, socket: TypedSocket) {
         await broadcastPrivateRooms(io, affectedRoomId);
       }
     } catch {
-      console.error(`[room:join] 프라이빗룸 세션 정리 실패: ${user.login}`);
+      logger.error(`[room:join] 프라이빗룸 세션 정리 실패: ${user.login}`);
     }
   });
 
@@ -50,7 +51,7 @@ export function registerRoomHandlers(io: TypedIO, socket: TypedSocket) {
   socket.on('room:leave', async (roomId: string) => {
     await socket.leave(roomId);
     socket.to(roomId).emit('room:user-left', { userId: user.id });
-    console.log(`[room:leave] ${user.login} → ${roomId}`);
+    logger.info(`[room:leave] ${user.login} → ${roomId}`);
   });
 
   // 캐릭터 상태 변경 (focus | rest | meeting | away)
@@ -89,7 +90,7 @@ export function registerRoomHandlers(io: TypedIO, socket: TypedSocket) {
           data: { posX, posY },
         });
       } catch {
-        console.error(`[room:move] 좌표 저장 실패: ${user.login}`);
+        logger.error(`[room:move] 좌표 저장 실패: ${user.login}`);
       }
     }
   });

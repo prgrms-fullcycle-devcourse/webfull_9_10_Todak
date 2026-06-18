@@ -54,7 +54,7 @@ vi.mock('bullmq', () => {
 vi.mock('@/lib/redis.js', () => ({ redis: {} }));
 
 // import 시점에 Anthropic 클라이언트(API 키 필요)가 만들어지지 않도록 대체
-vi.mock('@/services/anthropic.service.js', () => ({
+vi.mock('@/services/ai/anthropic.service.js', () => ({
   reviewCode: vi.fn(),
   generateMinutesSummary: vi.fn(),
 }));

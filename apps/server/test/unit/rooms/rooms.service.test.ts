@@ -27,7 +27,7 @@ import { prisma } from '@/lib/prisma.js';
 import {
   registerWebhook,
   unregisterWebhook,
-} from '@/services/github.service.js';
+} from '@/services/github/github.service.js';
 import {
   createRoom,
   deleteRoom,
@@ -36,7 +36,7 @@ import {
   joinRoom,
   leaveRoom,
   updateRoom,
-} from '@/services/rooms.service.js';
+} from '@/services/rooms/rooms.service.js';
 
 // prisma 를 가짜로 대체 — 서비스가 쓰는 메서드만 vi.fn() 으로 채운다
 vi.mock('@/lib/prisma.js', () => ({
@@ -77,7 +77,7 @@ vi.mock('@/lib/prisma.js', () => ({
 }));
 
 // webhook 등록/해제는 GitHub API 를 호출하므로 가짜로 대체
-vi.mock('@/services/github.service.js', () => ({
+vi.mock('@/services/github/github.service.js', () => ({
   registerWebhook: vi.fn(),
   unregisterWebhook: vi.fn(),
 }));

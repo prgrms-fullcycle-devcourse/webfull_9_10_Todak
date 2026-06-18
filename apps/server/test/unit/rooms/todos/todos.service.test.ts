@@ -38,11 +38,11 @@ import {
   updateIssue,
   updateIssueComment,
   updateLabelForRepo,
-} from '@/services/github.service.js';
+} from '@/services/github/github.service.js';
 import {
   createNotifications,
   getRoomMemberIds,
-} from '@/services/notifications.service.js';
+} from '@/services/notifications/notifications.service.js';
 import {
   createTodoComment,
   createTodoLabel,
@@ -59,7 +59,7 @@ import {
   getTodoMilestones,
   getTodos,
   updateTodo,
-} from '@/services/todos.service.js';
+} from '@/services/rooms/todos/todos.service.js';
 
 // prisma 를 가짜로 대체 — 서비스가 쓰는 메서드만 vi.fn() 으로 채운다
 vi.mock('@/lib/prisma.js', () => ({
@@ -85,7 +85,7 @@ vi.mock('@/lib/prisma.js', () => ({
 }));
 
 // GitHub 이슈 생성/종료(createIssue/closeIssue)를 가짜로 대체
-vi.mock('@/services/github.service.js', () => ({
+vi.mock('@/services/github/github.service.js', () => ({
   createIssue: vi.fn(),
   closeIssue: vi.fn(),
   updateIssue: vi.fn(),
@@ -106,7 +106,7 @@ vi.mock('@/services/github.service.js', () => ({
 }));
 
 // 알림(영속/소켓)은 best-effort 부수효과라 가짜로 대체 — 호출 인자만 관찰
-vi.mock('@/services/notifications.service.js', () => ({
+vi.mock('@/services/notifications/notifications.service.js', () => ({
   createNotifications: vi.fn(),
   getRoomMemberIds: vi.fn(),
 }));

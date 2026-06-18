@@ -2,18 +2,19 @@ import crypto from 'node:crypto';
 
 import { z } from 'zod';
 
-import { env } from '../config/env.js';
-import { Prisma } from '../generated/prisma/client/index.js';
-import { prisma } from '../lib/prisma.js';
-import { redis } from '../lib/redis.js';
+import { env } from '../../config/env.js';
+import { Prisma } from '../../generated/prisma/client/index.js';
+import { logger } from '../../lib/logger.js';
+import { prisma } from '../../lib/prisma.js';
+import { redis } from '../../lib/redis.js';
+import { getIO } from '../../socket/index.js';
+import { TodoEventPayload } from '../../socket/socket.types.js';
 import {
   createNotifications,
   getRoomMemberIds,
   resolveMemberIdByLogin,
-} from '../services/notifications.service.js';
-import { invalidatePullRequestListCache } from '../services/prs.service.js';
-import { getIO } from '../socket/index.js';
-import { TodoEventPayload } from '../socket/socket.types.js';
+} from '../notifications/notifications.service.js';
+import { invalidatePullRequestListCache } from '../rooms/prs/prs.service.js';
 
 // 같은 배달(X-GitHub-Delivery) 재처리 방지용 멱등 키 TTL (초)
 const WEBHOOK_DEDUP_TTL_SEC = 600;
@@ -314,7 +315,7 @@ async function handlePullRequestEvent(
     payload.repository.owner.login,
     payload.repository.name,
   ).catch((error: unknown) => {
-    console.warn('[webhook] PR 목록 캐시 무효화 실패:', error);
+    logger.warn({ err: error }, '[webhook] PR 목록 캐시 무효화 실패');
   });
 
   const data = {
@@ -455,7 +456,7 @@ export async function handleGithubEvent(
    */
   const base = WebhookBaseSchema.safeParse(payload);
   if (!base.success) {
-    console.warn(`[webhook] repository 누락/형식 오류로 무시 (event=${event})`);
+    logger.warn(`[webhook] repository 누락/형식 오류로 무시 (event=${event})`);
     return;
   }
   const { owner, name } = base.data.repository;

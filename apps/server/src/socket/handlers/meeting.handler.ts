@@ -1,6 +1,7 @@
 import { AppError } from '../../errors/AppError.js';
+import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
-import { assertRoomMember } from '../../services/room-guards.js';
+import { assertRoomMember } from '../../services/rooms/room-guards.js';
 import { toSocketError } from '../socket-error.js';
 import { TypedIO, TypedSocket } from '../socket.types.js';
 
@@ -34,9 +35,9 @@ export function registerMeetingHandlers(_io: TypedIO, socket: TypedSocket) {
         userId: user.id,
         login: user.login,
       });
-      console.log(`[meeting:join] ${user.login} → meeting:${meetingId}`);
+      logger.info(`[meeting:join] ${user.login} → meeting:${meetingId}`);
     } catch (err) {
-      console.error(`[meeting:join] ${user.login} error:`, err);
+      logger.error({ err }, `[meeting:join] ${user.login} error`);
       socket.emit(
         'error',
         toSocketError(err, 'MEETING_JOIN_ERROR', '회의 참여에 실패했습니다.'),
@@ -49,9 +50,9 @@ export function registerMeetingHandlers(_io: TypedIO, socket: TypedSocket) {
     try {
       await socket.leave(meetingId);
       socket.to(meetingId).emit('meeting:user-left', { userId: user.id });
-      console.log(`[meeting:leave] ${user.login} → meeting:${meetingId}`);
+      logger.info(`[meeting:leave] ${user.login} → meeting:${meetingId}`);
     } catch (err) {
-      console.error(`[meeting:leave] ${user.login} error:`, err);
+      logger.error({ err }, `[meeting:leave] ${user.login} error`);
       socket.emit(
         'error',
         toSocketError(err, 'MEETING_LEAVE_ERROR', '회의 퇴장에 실패했습니다.'),

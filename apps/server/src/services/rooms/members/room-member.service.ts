@@ -1,9 +1,9 @@
 import {
   SetupRoomMemberInput,
   UpdateRoomMemberInput,
-} from '../api/rooms/members/members.schema.js';
-import { AppError } from '../errors/AppError.js';
-import { prisma } from '../lib/prisma.js';
+} from '../../../api/rooms/members/members.schema.js';
+import { AppError } from '../../../errors/AppError.js';
+import { prisma } from '../../../lib/prisma.js';
 
 // 룸 전체 멤버 목록 조회 (멤버만 호출 가능)
 export async function getRoomMembers(userId: string, roomId: string) {

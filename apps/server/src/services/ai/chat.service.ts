@@ -1,16 +1,16 @@
-import { AppError } from '../errors/AppError.js';
-import { prisma } from '../lib/prisma.js';
+import { AppError } from '../../errors/AppError.js';
+import { prisma } from '../../lib/prisma.js';
+import {
+  assertInPrivateRoomSession,
+  assertPrivateRoomBelongsToRoom,
+  assertRoomMember,
+} from '../rooms/room-guards.js';
 
 import {
   assertAllowedAttachment,
   createDownloadUrl,
   headAttachment,
 } from './attachment.service.js';
-import {
-  assertInPrivateRoomSession,
-  assertPrivateRoomBelongsToRoom,
-  assertRoomMember,
-} from './room-guards.js';
 
 export interface ReactionSummary {
   emoji: string;

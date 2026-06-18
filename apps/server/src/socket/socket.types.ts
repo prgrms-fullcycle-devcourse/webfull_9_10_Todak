@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { Server, Socket } from 'socket.io';
 
-import { PrivateRoomInfo } from '../services/private-room.service.js';
+import { PrivateRoomInfo } from '../services/rooms/private-room/private-room.service.js';
 
 /*
  * Chat 이벤트 페이로드 (REST 응답과 동일한 snake_case)

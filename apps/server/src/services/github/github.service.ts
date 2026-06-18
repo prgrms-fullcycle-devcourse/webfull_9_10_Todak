@@ -1,9 +1,10 @@
 import { RequestError } from '@octokit/request-error';
 import { Octokit } from '@octokit/rest';
 
-import { env } from '../config/env.js';
-import { AppError } from '../errors/AppError.js';
-import { ErrorCodeKey } from '../errors/error.code.js';
+import { env } from '../../config/env.js';
+import { AppError } from '../../errors/AppError.js';
+import { ErrorCodeKey } from '../../errors/error.code.js';
+import { logger } from '../../lib/logger.js';
 
 export function createGithubClient(accessToken: string): Octokit {
   return new Octokit({ auth: accessToken });
@@ -80,7 +81,10 @@ export async function createRepo(
     };
   } catch (err) {
     if (err instanceof RequestError) {
-      console.error('[createRepo] GitHub API Error:', err.status, err.message);
+      logger.error(
+        { status: err.status, message: err.message },
+        '[createRepo] GitHub API Error',
+      );
     }
     mapGithubError(err, {
       403: 'FORBIDDEN',
@@ -919,19 +923,19 @@ function derivePermission(perms?: {
     return 'pull';
   }
 
-  if (perms.admin) {
+  if (perms.admin === true) {
     return 'admin';
   }
 
-  if (perms.maintain) {
+  if (perms.maintain === true) {
     return 'maintain';
   }
 
-  if (perms.push) {
+  if (perms.push === true) {
     return 'push';
   }
 
-  if (perms.triage) {
+  if (perms.triage === true) {
     return 'triage';
   }
 
@@ -962,9 +966,7 @@ export async function addCollaborator(
 
     // status 201 = 초대 발송됨, 204 = 이미 협업자
     const invitationId =
-      response.status === 201 && response.data
-        ? (response.data as { id: number }).id
-        : null;
+      response.status === 201 ? (response.data as { id: number }).id : null;
 
     return { invitationId };
   } catch (err) {

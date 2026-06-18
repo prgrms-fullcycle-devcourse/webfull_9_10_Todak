@@ -1,6 +1,6 @@
 import type { NextFunction, Response } from 'express';
 
-import { NotificationsService } from '../../services/notifications.service.js';
+import { NotificationsService } from '../../services/notifications/notifications.service.js';
 import { AuthenticatedRequest } from '../../types/index.js';
 
 import {

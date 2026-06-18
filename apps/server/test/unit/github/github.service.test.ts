@@ -20,7 +20,7 @@ import {
   getPullRequest,
   listPullRequests,
   mergePullRequest,
-} from '@/services/github.service.js';
+} from '@/services/github/github.service.js';
 
 function ghError(status: number) {
   return new RequestError('boom', status, {

@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '@/lib/prisma.js';
 import { redis } from '@/lib/redis.js';
-import { invalidatePullRequestListCache } from '@/services/prs.service.js';
-import { handleGithubEvent } from '@/services/webhook.service.js';
+import { invalidatePullRequestListCache } from '@/services/rooms/prs/prs.service.js';
+import { handleGithubEvent } from '@/services/github/webhook.service.js';
 import { getIO } from '@/socket/index.js';
 
 vi.mock('@/lib/prisma.js', () => ({
@@ -29,7 +29,7 @@ vi.mock('@/socket/index.js', () => ({
 }));
 
 // PR 목록 캐시 무효화는 prs.service 의 별도 검증 대상 — 호출 여부만 관찰
-vi.mock('@/services/prs.service.js', () => ({
+vi.mock('@/services/rooms/prs/prs.service.js', () => ({
   invalidatePullRequestListCache: vi.fn(),
 }));
 

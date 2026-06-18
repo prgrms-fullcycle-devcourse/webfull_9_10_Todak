@@ -36,9 +36,9 @@ vi.mock('@/middleware/rateLimit.middleware.js', () => {
   };
 });
 
-vi.mock('@/services/github.service.js', async importActual => {
+vi.mock('@/services/github/github.service.js', async importActual => {
   const actual =
-    await importActual<typeof import('@/services/github.service.js')>();
+    await importActual<typeof import('@/services/github/github.service.js')>();
   return {
     ...actual,
     registerWebhook: vi.fn().mockResolvedValue('webhook_test_id'),
