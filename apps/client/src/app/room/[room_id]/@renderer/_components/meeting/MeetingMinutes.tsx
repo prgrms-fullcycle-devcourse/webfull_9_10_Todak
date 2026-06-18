@@ -241,69 +241,71 @@ export default function MeetingMinutes({
       </div>
 
       {/* 하단 버튼 */}
-      <div className="shrink-0 border-t border-border bg-surface px-6 py-3">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            onClick={() => handleRefine('SHORTEN')}
-            isDisabled={refineStatus === 'loading'}
-            className="rounded-xl border border-border bg-surface px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-          >
-            {refineStatus === 'loading' ? '⏳' : '✂️'} 더 짧게
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => handleRefine('BULLET')}
-            isDisabled={refineStatus === 'loading'}
-            className="rounded-xl border border-border bg-surface px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-          >
-            {refineStatus === 'loading' ? '⏳' : '📋'} 개조식으로
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => setShowCustomInput(prev => !prev)}
-            className="rounded-xl border border-border bg-surface px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
-          >
-            ✏️ 직접 입력
-          </Button>
-          <span className="ml-auto text-[10px] text-slate-400">
-            ✨ AI로 회의록 다듬기
-          </span>
-        </div>
-
-        {/* AI 다듬기 에러 */}
-        {refineError && (
-          <p className="mt-1.5 text-[10px] text-red-400">{refineError}</p>
-        )}
-
-        {/* 커스텀 입력 */}
-        {showCustomInput && (
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              value={customPrompt}
-              onChange={e => setCustomPrompt(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && customPrompt.trim()) {
-                  handleRefine('CUSTOM', customPrompt.trim());
-                }
-              }}
-              placeholder="AI에게 요청할 내용을 입력하세요..."
-              className="flex-1 rounded-xl border border-border bg-surface px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:border-todak-coral-500 focus:outline-none"
-            />
+      {isEditable && (
+        <div className="shrink-0 border-t border-border bg-surface px-6 py-3">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
-              onClick={() => {
-                if (customPrompt.trim())
-                  handleRefine('CUSTOM', customPrompt.trim());
-              }}
-              isDisabled={!customPrompt.trim() || refineStatus === 'loading'}
-              className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50"
+              onClick={() => handleRefine('SHORTEN')}
+              isDisabled={refineStatus === 'loading'}
+              className="rounded-xl border border-border bg-surface px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
             >
-              {refineStatus === 'loading' ? '처리 중...' : '요청'}
+              {refineStatus === 'loading' ? '⏳' : '✂️'} 더 짧게
             </Button>
+            <Button
+              variant="ghost"
+              onClick={() => handleRefine('BULLET')}
+              isDisabled={refineStatus === 'loading'}
+              className="rounded-xl border border-border bg-surface px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {refineStatus === 'loading' ? '⏳' : '📋'} 개조식으로
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setShowCustomInput(prev => !prev)}
+              className="rounded-xl border border-border bg-surface px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            >
+              ✏️ 직접 입력
+            </Button>
+            <span className="ml-auto text-[10px] text-slate-400">
+              ✨ AI로 회의록 다듬기
+            </span>
           </div>
-        )}
-      </div>
+
+          {/* AI 다듬기 에러 */}
+          {refineError && (
+            <p className="mt-1.5 text-[10px] text-red-400">{refineError}</p>
+          )}
+
+          {/* 커스텀 입력 */}
+          {showCustomInput && (
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                value={customPrompt}
+                onChange={e => setCustomPrompt(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && customPrompt.trim()) {
+                    handleRefine('CUSTOM', customPrompt.trim());
+                  }
+                }}
+                placeholder="AI에게 요청할 내용을 입력하세요..."
+                className="flex-1 rounded-xl border border-border bg-surface px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:border-todak-coral-500 focus:outline-none"
+              />
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (customPrompt.trim())
+                    handleRefine('CUSTOM', customPrompt.trim());
+                }}
+                isDisabled={!customPrompt.trim() || refineStatus === 'loading'}
+                className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:bg-accent-hover disabled:opacity-50"
+              >
+                {refineStatus === 'loading' ? '처리 중...' : '요청'}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
