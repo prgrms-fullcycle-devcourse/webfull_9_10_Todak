@@ -85,6 +85,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     let unsubscribeStatus: (() => void) | null = null;
     let unsubscribeAnimal: (() => void) | null = null;
     let unsubscribePlayer: (() => void) | null = null;
+    let unsubscribeMembers: (() => void) | null = null;
     let unsubscribeModal: (() => void) | null = null;
     let unsubscribeMeetingId: (() => void) | null = null;
     let unsubscribeRoomsList: (() => void) | null = null;
@@ -94,6 +95,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     let handleVisibilityChange: (() => void) | null = null;
     let localPlayerContainer: PIXI.Container | null = null;
     let resizeAnimationFrameId: number | null = null; // 애니메이션 프레임 ID를 기억할 로컬 변수
+    const recentlyLeftUserIds = new Map<string, number>();
     // 이 effect 가 등록한 소켓 리스너 해제 함수 모음 (자기 핸들러만 off)
     const socketOffs: Array<() => void> = [];
 
@@ -345,11 +347,34 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
       // 룸 내 팀원 렌더링
       const remotePlayers = new Map<string, RemotePlayer>();
+      const normalizeUserId = (userId: string) => String(userId);
+      const isRecentlyLeft = (userId: string) => {
+        const leftAt = recentlyLeftUserIds.get(normalizeUserId(userId));
+        if (!leftAt) return false;
+
+        if (Date.now() - leftAt > 5000) {
+          recentlyLeftUserIds.delete(normalizeUserId(userId));
+          return false;
+        }
+
+        return true;
+      };
+      const withoutRecentlyLeftMembers = (members: RoomProfile[]) =>
+        members.filter(
+          member =>
+            !isRecentlyLeft(member.id) &&
+            member.status !== 'away' &&
+            member.status !== '💤 부재',
+        );
+
       const syncMembers = (currentMembers: RoomProfile[]) => {
         const currentMyId = useSpaceStore.getState().myChar.id;
+        const visibleMembers = withoutRecentlyLeftMembers(currentMembers);
 
         // 나간 사람 캔버스에서 제거
-        const currentMemberIds = new Set(currentMembers.map(m => m.id));
+        const currentMemberIds = new Set(
+          visibleMembers.map(m => normalizeUserId(m.id)),
+        );
         for (const [userId, remotePlayer] of remotePlayers.entries()) {
           if (!currentMemberIds.has(userId)) {
             world.removeChild(remotePlayer.container);
@@ -359,10 +384,12 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         }
 
         // 새로 들어온 사람 캔버스에 추가
-        currentMembers.forEach(member => {
+        visibleMembers.forEach(member => {
           if (String(member.id) === String(currentMyId)) return;
 
-          if (!remotePlayers.has(member.id)) {
+          const memberId = normalizeUserId(member.id);
+
+          if (!remotePlayers.has(memberId)) {
             const memberTextures =
               animalAssets[member.character_type as AnimalType] ??
               animalAssets.rabbit;
@@ -376,54 +403,105 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
             remotePlayer.container.zIndex = 9;
 
             world.addChild(remotePlayer.container);
-            remotePlayers.set(member.id, remotePlayer);
+            remotePlayers.set(memberId, remotePlayer);
           }
         });
 
         world.sortChildren();
       };
+
+      const refreshMembersAndSync = async () => {
+        const freshRoomData = await fetchRoomMembers(roomId);
+        if (!isMounted) return;
+        if (!freshRoomData?.members) return;
+
+        queryClient.setQueryData<RoomMembers>(
+          ['room-members', roomId],
+          freshRoomData,
+        );
+        const visibleMembers = withoutRecentlyLeftMembers(
+          freshRoomData.members,
+        );
+        useSpaceStore.getState().setMembers(visibleMembers);
+        syncMembers(visibleMembers);
+      };
+
+      const scheduleMembersRefresh = (
+        delays = [0, 300, 1000],
+        targetUserId?: string,
+      ) => {
+        delays.forEach(delay => {
+          window.setTimeout(() => {
+            void refreshMembersAndSync().then(() => {
+              if (!targetUserId) return;
+
+              const hasTarget = useSpaceStore
+                .getState()
+                .members.some(
+                  member =>
+                    normalizeUserId(member.id) ===
+                    normalizeUserId(targetUserId),
+                );
+
+              if (hasTarget) {
+                recentlyLeftUserIds.delete(normalizeUserId(targetUserId));
+              }
+            });
+          }, delay);
+        });
+      };
+
+      const removeRemotePlayer = (userId: string) => {
+        const remotePlayer = remotePlayers.get(userId);
+
+        if (!remotePlayer) {
+          return;
+        }
+
+        world.removeChild(remotePlayer.container);
+        remotePlayer.container.destroy({ children: true });
+        remotePlayers.delete(userId);
+      };
+
       syncMembers(useSpaceStore.getState().members);
 
-      const handleUserJoined = () => {
-        setTimeout(async () => {
-          const store = useSpaceStore.getState();
+      const handleUserJoined = (data?: { userId?: string }) => {
+        if (data?.userId) {
+          recentlyLeftUserIds.delete(normalizeUserId(data.userId));
+        }
 
-          const freshRoomData = await fetchRoomMembers(roomId);
-          if (!freshRoomData || !freshRoomData.members) return;
-          for (const remotePlayer of remotePlayers.values()) {
-            world.removeChild(remotePlayer.container);
-            remotePlayer.container.destroy({ children: true });
-          }
-          remotePlayers.clear();
-
-          queryClient.setQueryData<RoomMembers>(
-            ['room-members', roomId],
-            freshRoomData,
-          );
-          store.setMembers(freshRoomData.members);
-          const myId = store.myChar.id;
-          const myFreshProfile = freshRoomData.members.find(m => m.id === myId);
-          if (myFreshProfile && player) {
-            player.nameText.text = myFreshProfile.nickname ?? '미지정';
-
-            store.setMyChar({
-              id: myFreshProfile.id,
-              name: myFreshProfile.nickname ?? '미지정',
-              avatarId: myFreshProfile.character_type as AnimalType,
-              status:
-                STATUS_TO_LABEL_MAP[myFreshProfile.status] ||
-                myFreshProfile.status ||
-                '🔥 집중',
-              roles: myFreshProfile.roles ?? ['frontend'],
-              detailedRole: myFreshProfile.detailed_role ?? 'Team Member',
-            });
-          }
-
-          syncMembers(freshRoomData.members);
-        }, 200);
+        scheduleMembersRefresh([0, 300, 1000, 2000], data?.userId);
       };
       socket.on('room:user-joined', handleUserJoined);
       socketOffs.push(() => socket.off('room:user-joined', handleUserJoined));
+
+      const handleUserLeft = (data?: { userId?: string }) => {
+        if (data?.userId) {
+          const leftUserId = normalizeUserId(data.userId);
+          recentlyLeftUserIds.set(leftUserId, Date.now());
+          removeRemotePlayer(leftUserId);
+          useSpaceStore
+            .getState()
+            .setMembers(
+              useSpaceStore
+                .getState()
+                .members.filter(
+                  member => normalizeUserId(member.id) !== leftUserId,
+                ),
+            );
+        }
+
+        scheduleMembersRefresh([300, 1000]);
+      };
+      socket.on('room:user-left', handleUserLeft);
+      socketOffs.push(() => socket.off('room:user-left', handleUserLeft));
+
+      unsubscribeMembers = useSpaceStore.subscribe(
+        state => state.members,
+        members => {
+          syncMembers(members);
+        },
+      );
 
       // 맴버 소켓 이벤트 수신
       const handleMemberMoved = (data: {
@@ -431,14 +509,17 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         posX: number;
         posY: number;
       }) => {
-        const targetPlayer = remotePlayers.get(data.userId);
+        if (isRecentlyLeft(data.userId)) return;
+
+        const targetPlayer = remotePlayers.get(normalizeUserId(data.userId));
         if (targetPlayer) {
           targetPlayer.updatePosition(data.posX, data.posY);
         } else {
           fetchRoomMembers(roomId).then(res => {
             if (res?.members) {
-              useSpaceStore.getState().setMembers(res.members);
-              syncMembers(res.members);
+              const visibleMembers = withoutRecentlyLeftMembers(res.members);
+              useSpaceStore.getState().setMembers(visibleMembers);
+              syncMembers(visibleMembers);
             }
           });
         }
@@ -451,7 +532,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         userId: string;
         status: string;
       }) => {
-        const targetPlayer = remotePlayers.get(data.userId);
+        if (isRecentlyLeft(data.userId)) return;
+
+        const targetPlayer = remotePlayers.get(normalizeUserId(data.userId));
         if (targetPlayer) {
           const hangulStatus = STATUS_TO_LABEL_MAP[data.status] || data.status;
           const color = getStatusColor(hangulStatus);
@@ -511,6 +594,9 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
           // 최신 목록 수신 및 안전망 검증
           const freshRoomData = await fetchRoomMembers(roomId);
           if (!freshRoomData || !freshRoomData.members) return;
+          const visibleMembers = withoutRecentlyLeftMembers(
+            freshRoomData.members,
+          );
 
           // 기존 화면의 그래픽 제거
           for (const remotePlayer of remotePlayers.values()) {
@@ -524,7 +610,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
             ['room-members', roomId],
             freshRoomData,
           );
-          store.setMembers(freshRoomData.members);
+          store.setMembers(visibleMembers);
 
           // 변경 주체가 '나'인지 '타인'인지 판별 후 처리
           const isMe = String(data.userId) === String(store.myChar.id);
@@ -551,22 +637,13 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
               });
             }
           }
-          syncMembers(freshRoomData.members);
+          syncMembers(visibleMembers);
         }, 200);
       };
       socket.on('room:member-profile-changed', handleMemberProfileChanged);
       socketOffs.push(() =>
         socket.off('room:member-profile-changed', handleMemberProfileChanged),
       );
-
-      socket.on('room:user-left', () => {
-        fetchRoomMembers(roomId).then(res => {
-          if (res?.members) {
-            useSpaceStore.getState().setMembers(res.members);
-            syncMembers(res.members);
-          }
-        });
-      });
 
       unsubscribeStatus = useSpaceStore.subscribe(
         state => state.myChar.status,
@@ -660,14 +737,15 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         if (document.visibilityState === 'visible') {
           fetchRoomMembers(roomId).then(res => {
             if (res?.members) {
+              const visibleMembers = withoutRecentlyLeftMembers(res.members);
               for (const remotePlayer of remotePlayers.values()) {
                 world.removeChild(remotePlayer.container);
                 remotePlayer.container.destroy({ children: true });
               }
               remotePlayers.clear();
 
-              useSpaceStore.getState().setMembers(res.members);
-              syncMembers(res.members);
+              useSpaceStore.getState().setMembers(visibleMembers);
+              syncMembers(visibleMembers);
             }
           });
         }
@@ -685,6 +763,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       unsubscribeStatus?.();
       unsubscribeAnimal?.();
       unsubscribePlayer?.();
+      unsubscribeMembers?.();
       unsubscribeModal?.();
       unsubscribeMeetingId?.();
       unsubscribeRoomsList?.();

@@ -169,14 +169,6 @@ export function useInitRooms(roomId: string) {
       setMembers(updatedMembers);
     };
 
-    const handleUserJoined = () => {
-      fetchAndUpdateRooms();
-    };
-
-    const handleUserLeft = () => {
-      fetchAndUpdateRooms();
-    };
-
     const handleMeetingStarted = ({ meetingId }: { meetingId: string }) => {
       useSpaceStore.getState().setCurrentMeetingId(meetingId);
     };
@@ -204,8 +196,6 @@ export function useInitRooms(roomId: string) {
     socket.on('connect_error', handleConnectError);
     socket.on('room:private-rooms-updated', handlePrivateRoomsUpdated);
     socket.on('room:member-status-changed', handleMemberStatusChanged);
-    socket.on('room:user-joined', handleUserJoined);
-    socket.on('room:user-left', handleUserLeft);
     socket.on('meeting:started', handleMeetingStarted);
     socket.on('meeting:ended', handleMeetingEnded);
     socket.on('minutes:generation-started', handleMinutesGenerationStarted);
@@ -217,8 +207,6 @@ export function useInitRooms(roomId: string) {
       socket.off('connect_error', handleConnectError);
       socket.off('room:private-rooms-updated', handlePrivateRoomsUpdated);
       socket.off('room:member-status-changed', handleMemberStatusChanged);
-      socket.off('room:user-joined', handleUserJoined);
-      socket.off('room:user-left', handleUserLeft);
       socket.off('meeting:started', handleMeetingStarted);
       socket.off('meeting:ended', handleMeetingEnded);
       socket.off('minutes:generation-started', handleMinutesGenerationStarted);
