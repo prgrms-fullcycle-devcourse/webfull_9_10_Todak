@@ -23,7 +23,6 @@ export default function IssueHub({
   onSaveWithItems,
   onActionItemsChange,
 }: IssueHubProps) {
-  const members = useSpaceStore(state => state.members);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [modal, setModal] = useState<'none' | 'review' | 'complete'>('none');
   const [completedIssues, setCompletedIssues] = useState<ActionItem[]>([]);
@@ -190,7 +189,6 @@ export default function IssueHub({
             setCompletedIssues(editedIssues);
             setModal('complete');
           }}
-          members={members}
           minutesId={minutesId}
           roomId={roomId}
         />

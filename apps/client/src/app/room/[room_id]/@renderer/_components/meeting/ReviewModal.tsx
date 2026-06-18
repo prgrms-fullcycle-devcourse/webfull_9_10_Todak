@@ -2,30 +2,49 @@
 
 import { useState } from 'react';
 import { Button } from '@heroui/react';
+import { useQuery } from '@tanstack/react-query';
 import type { ActionItem } from '@/services/minutes/model';
-import { RoomProfile } from '@/services/rooms/model';
 import { createTodos } from '@/services/todos/api';
+import { apiClient } from '@/lib/api';
 
 const LABEL_OPTIONS = ['feat', 'bug', 'docs', 'refactor', 'enhancement'];
+
+interface Collaborator {
+  login: string;
+  avatarUrl: string;
+  permission: string;
+}
 
 interface Props {
   issues: ActionItem[];
   onClose: () => void;
   onUpload: (editedIssues: ActionItem[]) => void;
-  members: RoomProfile[];
   minutesId: string | null;
   roomId: string;
+}
+
+async function fetchCollaborators(roomId: string): Promise<Collaborator[]> {
+  return apiClient.get<Collaborator[]>(`rooms/${roomId}/repo/collaborators`);
 }
 
 export default function ReviewModal({
   issues,
   onClose,
   onUpload,
-  members,
   minutesId,
   roomId,
 }: Props) {
   const [editedIssues, setEditedIssues] = useState<ActionItem[]>(issues);
+
+  const {
+    data: collaborators = [],
+    isLoading: isCollabLoading,
+    isError: isCollabError,
+  } = useQuery({
+    queryKey: ['collaborators', roomId],
+    queryFn: () => fetchCollaborators(roomId),
+    staleTime: 1000 * 60 * 5, // 5분 캐시
+  });
 
   const updateIssue = <K extends keyof ActionItem>(
     idx: number,
@@ -96,29 +115,40 @@ export default function ReviewModal({
                   <label className="mb-1 block text-[10px] font-bold text-slate-500">
                     👤 담당 배정 (Assignee)
                   </label>
-                  <select
-                    value={issue.assignee?.id ?? ''}
-                    onChange={e => {
-                      const member = members.find(m => m.id === e.target.value);
-                      const assignee = member
-                        ? {
-                            id: member.id,
-                            github_username: member.github_username,
-                            avatar_url: member.avatar_url ?? '', // ⭐ 핵심
-                          }
-                        : null;
-
-                      updateIssue(idx, 'assignee', assignee);
-                    }}
-                    className="w-full rounded-lg border border-border px-3 py-2 text-xs text-slate-700 focus:border-todak-coral-500 focus:outline-none"
-                  >
-                    <option value="">미배정</option>
-                    {members.map(m => (
-                      <option key={m.id} value={m.id}>
-                        @{m.github_username}
-                      </option>
-                    ))}
-                  </select>
+                  {isCollabLoading ? (
+                    <div className="flex h-8 items-center rounded-lg border border-border px-3 text-[10px] text-slate-400">
+                      불러오는 중...
+                    </div>
+                  ) : isCollabError ? (
+                    <div className="flex h-8 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-[10px] text-red-400">
+                      협업자 목록을 불러올 수 없습니다
+                    </div>
+                  ) : (
+                    <select
+                      value={issue.assignee?.github_username ?? ''}
+                      onChange={e => {
+                        const collab = collaborators.find(
+                          c => c.login === e.target.value,
+                        );
+                        const assignee = collab
+                          ? {
+                              id: collab.login, // collaborator API엔 id가 없으므로 login 사용
+                              github_username: collab.login,
+                              avatar_url: collab.avatarUrl,
+                            }
+                          : null;
+                        updateIssue(idx, 'assignee', assignee);
+                      }}
+                      className="w-full rounded-lg border border-border px-3 py-2 text-xs text-slate-700 focus:border-todak-coral-500 focus:outline-none"
+                    >
+                      <option value="">미배정</option>
+                      {collaborators.map(c => (
+                        <option key={c.login} value={c.login}>
+                          @{c.login}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="mb-1 block text-[10px] font-bold text-slate-500">
@@ -178,7 +208,6 @@ export default function ReviewModal({
                   }));
 
                   await createTodos(roomId, { todos });
-
                   onUpload(editedIssues);
                 } catch (e) {
                   console.error('❌ API 에러:', e);
