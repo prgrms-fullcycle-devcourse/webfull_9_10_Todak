@@ -291,6 +291,33 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       darkOverlay.eventMode = 'none';
       world.addChild(darkOverlay);
 
+      // 회의실에 서 있는 상태라면 탭 전환해도 오버레이 상태 복원
+      const currentPrivateRoomId =
+        useSpaceStore.getState().currentPrivateRoomId;
+      if (currentPrivateRoomId) {
+        const ROOMS_CONFIG =
+          (window as CustomWindow).DYNAMIC_ROOMS_CONFIG || [];
+        const currentRoomConfig = ROOMS_CONFIG.find(
+          r => r.id === currentPrivateRoomId,
+        );
+
+        if (currentRoomConfig) {
+          darkOverlay
+            .clear()
+            .rect(0, 0, WORLD_WIDTH, WORLD_HEIGHT)
+            .fill({ color: 0x111111, alpha: 0.65 })
+            .roundRect(
+              currentRoomConfig.bounds.x,
+              currentRoomConfig.bounds.y,
+              currentRoomConfig.bounds.width,
+              currentRoomConfig.bounds.height,
+              16,
+            )
+            .cut();
+          darkOverlay.visible = true;
+        }
+      }
+
       // 플레이어 생성 (스프라이트 + 이름표 + 상태창 + 클릭 메뉴)
       const player = createPlayer(app, activeTextures, roomId);
       player.container.zIndex = 10;
