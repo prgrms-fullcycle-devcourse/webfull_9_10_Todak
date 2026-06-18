@@ -64,7 +64,7 @@ import {
 // prisma 를 가짜로 대체 — 서비스가 쓰는 메서드만 vi.fn() 으로 채운다
 vi.mock('@/lib/prisma.js', () => ({
   prisma: {
-    roomMember: { findFirst: vi.fn() },
+    roomMember: { findFirst: vi.fn(), findMany: vi.fn() },
     room: { findUnique: vi.fn() },
     repo: { findUnique: vi.fn() },
     user: { findUnique: vi.fn(), findMany: vi.fn() },
@@ -221,9 +221,9 @@ describe('createTodos', () => {
       repos: [{ fullName: 'jiyun/todak' }],
     });
     db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
-    // 담당자(assignee) 의 GitHub username 선조회
-    db.user.findMany.mockResolvedValue([
-      { id: 'assignee-1', githubUsername: 'jiyun-dev' },
+    // 담당자(assignee) 의 GitHub username 선조회 — 룸 멤버 검증 겸용
+    db.roomMember.findMany.mockResolvedValue([
+      { userId: 'assignee-1', user: { githubUsername: 'jiyun-dev' } },
     ]);
     vi.mocked(createIssue).mockResolvedValue(42); // 발행된 이슈 번호
     db.todo.create.mockResolvedValue({
@@ -315,6 +315,28 @@ describe('createTodos', () => {
     );
   });
 
+  it('담당자가 룸 멤버가 아니면 BAD_REQUEST (크로스룸 배정 차단)', async () => {
+    db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
+    db.room.findUnique.mockResolvedValue({
+      id: ROOM_ID,
+      repos: [{ fullName: 'jiyun/todak' }],
+    });
+    db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
+    // 룸 멤버 조회 결과가 비어 있음 = 지정한 담당자가 이 룸의 멤버가 아님
+    db.roomMember.findMany.mockResolvedValue([]);
+
+    await expectAppError(
+      createTodos(USER_ID, ROOM_ID, {
+        todos: [{ ...baseTodo, create_issue: true, assignee_id: 'outsider-1' }],
+      }),
+      'BAD_REQUEST',
+    );
+
+    // 검증 실패 시 GitHub 이슈/DB 생성으로 진행하지 않는다
+    expect(createIssue).not.toHaveBeenCalled();
+    expect(db.todo.create).not.toHaveBeenCalled();
+  });
+
   it('레이스(P2002): 웹훅이 만든 Todo 를 update 로 보강(화해)한다', async () => {
     db.roomMember.findFirst.mockResolvedValue({ id: 'rm-1' });
     db.room.findUnique.mockResolvedValue({
@@ -322,8 +344,8 @@ describe('createTodos', () => {
       repos: [{ id: REPO_ID, fullName: 'jiyun/todak' }],
     });
     db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
-    db.user.findMany.mockResolvedValue([
-      { id: 'assignee-1', githubUsername: 'jiyun-dev' },
+    db.roomMember.findMany.mockResolvedValue([
+      { userId: 'assignee-1', user: { githubUsername: 'jiyun-dev' } },
     ]);
     vi.mocked(createIssue).mockResolvedValue(42);
 
@@ -693,7 +715,10 @@ describe('updateTodo', () => {
       fullName: 'jiyun/todak',
     });
     db.user.findUnique.mockResolvedValue({ accessToken: 'gho_token' });
-    db.user.findMany.mockResolvedValue([{ githubUsername: 'assignee-github' }]);
+    // 담당자 룸 멤버 검증 겸 username 조회
+    db.roomMember.findMany.mockResolvedValue([
+      { user: { githubUsername: 'assignee-github' } },
+    ]);
     vi.mocked(updateIssue).mockResolvedValue(undefined);
     db.todo.update.mockResolvedValue({
       ...existingTodo,
