@@ -22,7 +22,10 @@ import { getIO } from '../../socket/index.js';
 import { addJob } from '../queues/index.js';
 
 import { classifyMinutesFailReason } from './minutes-fail-reason.js';
-import { buildMeetingInfoHeader } from './minutes-header.js';
+import {
+  buildDisplayNameMap,
+  buildMeetingInfoHeader,
+} from './minutes-header.js';
 
 const connection = redis;
 
@@ -130,16 +133,16 @@ export const minutesGenerationWorker = new Worker(
 
     /*
      * '회의 정보' 헤더는 AI 추측이 아니라 DB 사실로 채운다(진행자/일시/참석자).
-     * 표시명은 룸 nickname 우선(없으면 githubUsername). 진행자는 룸을 떠났어도
-     * host 의 githubUsername 으로 폴백한다. (참석자 중 룸을 떠난 사람은 명단에서 생략)
+     * 표시명은 룸 nickname 우선(없으면 githubUsername), 닉네임 중복 시 username 병기.
+     * 진행자는 룸을 떠났어도 host 의 githubUsername 으로 폴백한다.
+     * (참석자 중 룸을 떠난 사람은 명단에서 생략)
      */
-    const displayNameByUserId = new Map(
-      members.map(m => [
-        m.user.id,
-        m.nickname !== null && m.nickname !== ''
-          ? m.nickname
-          : m.user.githubUsername,
-      ]),
+    const displayNameByUserId = buildDisplayNameMap(
+      members.map(m => ({
+        id: m.user.id,
+        nickname: m.nickname,
+        githubUsername: m.user.githubUsername,
+      })),
     );
     const participantIds = await getMeetingParticipantIds(meetingId);
     const hostName =
