@@ -2,12 +2,12 @@
 
 import type { Minute, MinutesList } from '@/services/minutes/model';
 import { useRecentMeetingMinutes } from '@/services/minutes/query';
-import { useMinutesSocketSync } from '@/services/minutes/useMinutesSocketSync';
+import { useMinutesSocket } from '@/services/minutes/useMinutesSocket';
 import { useSpaceStore } from '@/store/useSpaceStore';
 
 import { Accordion, Button, Chip } from '@heroui/react';
 import { useParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface Props {
   meetingLogs: MinutesList;
@@ -15,13 +15,9 @@ interface Props {
 
 export default function RecentMeetingLogs({ meetingLogs }: Props) {
   const { room_id: roomID } = useParams<{ room_id: string }>();
-  useMinutesSocketSync(roomID);
 
   const setCurrentMinutesId = useSpaceStore(state => state.setCurrentMinutesId);
   const setCurrentView = useSpaceStore(state => state.setCurrentView);
-  const meetingMinutesUpdateSeq = useSpaceStore(
-    state => state.meetingMinutesUpdateSeq,
-  );
   const [hasMeetingLogUpdate, setHasMeetingLogUpdate] = useState(false);
   const [isMeetingLogsExpanded, setIsMeetingLogsExpanded] = useState(false);
   const isMeetingLogsExpandedRef = useRef(isMeetingLogsExpanded);
@@ -44,15 +40,16 @@ export default function RecentMeetingLogs({ meetingLogs }: Props) {
     isMeetingLogsExpandedRef.current = isMeetingLogsExpanded;
   }, [isMeetingLogsExpanded]);
 
-  useEffect(() => {
-    if (meetingMinutesUpdateSeq === 0) {
-      return;
-    }
-
+  const handleMinutesUpdated = useCallback(() => {
     if (!isMeetingLogsExpandedRef.current) {
       setHasMeetingLogUpdate(true);
     }
-  }, [meetingMinutesUpdateSeq]);
+  }, []);
+
+  useMinutesSocket({
+    roomId: roomID,
+    onUpdated: handleMinutesUpdated,
+  });
 
   const handleClick = (minutesId: string) => {
     setCurrentMinutesId(minutesId);
