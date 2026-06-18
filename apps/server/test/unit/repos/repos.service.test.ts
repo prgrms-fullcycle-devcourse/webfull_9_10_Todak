@@ -20,12 +20,12 @@ import {
   deleteRepo,
   registerWebhook,
   unregisterWebhook,
-} from '@/services/github.service.js';
+} from '@/services/github/github.service.js';
 import {
   connectRepo,
   createGithubRepo,
   deleteGithubRepo,
-} from '@/services/repos.service.js';
+} from '@/services/repos/repos.service.js';
 
 // prisma 를 가짜로 대체 — 서비스가 쓰는 메서드만 vi.fn() 으로 채운다
 vi.mock('@/lib/prisma.js', () => ({

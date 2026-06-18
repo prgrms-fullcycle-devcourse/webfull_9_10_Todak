@@ -4,18 +4,17 @@ import {
   GetMinutesListQuery,
   RefineMinutesBody,
   UpdateMinutesBody,
-} from '../api/minutes/minutes.schema.js';
-import { AppError } from '../errors/AppError.js';
-import { Prisma } from '../generated/prisma/client/index.js';
-import { addJob } from '../jobs/queues/index.js';
-import { splitMeetingInfoHeader } from '../jobs/workers/minutes-header.js';
-import { prisma } from '../lib/prisma.js';
-
-import { refineMinutesContent } from './anthropic.service.js';
+} from '../../../api/minutes/minutes.schema.js';
+import { AppError } from '../../../errors/AppError.js';
+import { Prisma } from '../../../generated/prisma/client/index.js';
+import { addJob } from '../../../jobs/queues/index.js';
+import { splitMeetingInfoHeader } from '../../../jobs/workers/minutes-header.js';
+import { prisma } from '../../../lib/prisma.js';
+import { refineMinutesContent } from '../../ai/anthropic.service.js';
 import {
   createNotifications,
   getMeetingParticipantIds,
-} from './notifications.service.js';
+} from '../../notifications/notifications.service.js';
 
 /*
  * 프리셋 다듬기 지시문(서버 소유). 프론트는 refine_type 만 보내고,

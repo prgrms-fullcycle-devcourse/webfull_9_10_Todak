@@ -2,9 +2,9 @@ import { z } from 'zod';
 
 import { AppError } from '../../errors/AppError.js';
 import { consumeRateLimit } from '../../middleware/rateLimit.middleware.js';
-import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../services/attachment.service.js';
-import { createChat } from '../../services/chat.service.js';
-import { toggleReaction } from '../../services/reaction.service.js';
+import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../services/ai/attachment.service.js';
+import { createChat } from '../../services/ai/chat.service.js';
+import { toggleReaction } from '../../services/rooms/reaction.service.js';
 import { toSocketError } from '../socket-error.js';
 import {
   ChatReactionEventPayload,

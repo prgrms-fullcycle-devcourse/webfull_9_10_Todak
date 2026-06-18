@@ -22,7 +22,7 @@ import {
   setupRoomMember,
   updateRoomMember,
   updateRoomMemberStatus,
-} from '@/services/room-member.service.js';
+} from '@/services/rooms/members/room-member.service.js';
 
 // prisma 를 가짜로 대체 — 서비스가 쓰는 roomMember 메서드만 vi.fn() 으로 채운다
 vi.mock('@/lib/prisma.js', () => ({

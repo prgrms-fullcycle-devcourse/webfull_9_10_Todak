@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '@/lib/prisma.js';
-import { createNotifications } from '@/services/notifications.service.js';
+import { createNotifications } from '@/services/notifications/notifications.service.js';
 import { getIO } from '@/socket/index.js';
 
 vi.mock('@/lib/prisma.js', () => ({

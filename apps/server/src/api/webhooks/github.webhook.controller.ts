@@ -4,7 +4,7 @@ import { AppError } from '../../errors/AppError.js';
 import {
   handleGithubEvent,
   verifyGithubSignature,
-} from '../../services/webhook.service.js';
+} from '../../services/github/webhook.service.js';
 
 /*
  * GitHub Webhook 수신 핸들러.

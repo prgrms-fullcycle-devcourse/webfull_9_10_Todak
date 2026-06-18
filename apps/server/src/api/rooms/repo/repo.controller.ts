@@ -4,7 +4,7 @@ import { AppError } from '../../../errors/AppError.js';
 import {
   connectRepo,
   disconnectRepo,
-} from '../../../services/repos.service.js';
+} from '../../../services/repos/repos.service.js';
 import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';
 

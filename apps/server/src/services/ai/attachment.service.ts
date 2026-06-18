@@ -7,9 +7,9 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-import { env } from '../config/env.js';
-import { AppError } from '../errors/AppError.js';
-import { s3 } from '../lib/s3.js';
+import { env } from '../../config/env.js';
+import { AppError } from '../../errors/AppError.js';
+import { s3 } from '../../lib/s3.js';
 
 /*
  * 채팅 첨부(이미지/PDF) 스토리지 어댑터 + 허용 정책.

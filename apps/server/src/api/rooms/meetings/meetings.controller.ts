@@ -1,17 +1,17 @@
 import { Response, NextFunction } from 'express';
 
 import { getUserId } from '../../../middleware/auth.middleware.js';
-import { createMeetingSystemMessage } from '../../../services/chat.service.js';
+import { createMeetingSystemMessage } from '../../../services/ai/chat.service.js';
+import {
+  createNotifications,
+  getRoomMemberIds,
+} from '../../../services/notifications/notifications.service.js';
 import {
   endMeeting,
   getMeetingChats,
   listMeetings,
   startMeeting,
-} from '../../../services/meeting.service.js';
-import {
-  createNotifications,
-  getRoomMemberIds,
-} from '../../../services/notifications.service.js';
+} from '../../../services/rooms/meetings/meeting.service.js';
 import { broadcastPrivateRooms } from '../../../socket/broadcast.js';
 import { getIO } from '../../../socket/index.js';
 import { AuthenticatedRequest } from '../../../types/index.js';

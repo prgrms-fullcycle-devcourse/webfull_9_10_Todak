@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '@/lib/prisma.js';
 import { redis } from '@/lib/redis.js';
-import { invalidatePullRequestListCache } from '@/services/prs.service.js';
-import { handleGithubEvent } from '@/services/webhook.service.js';
+import { invalidatePullRequestListCache } from '@/services/rooms/prs/prs.service.js';
+import { handleGithubEvent } from '@/services/github/webhook.service.js';
 import { getIO } from '@/socket/index.js';
 
 vi.mock('@/lib/prisma.js', () => ({

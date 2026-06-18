@@ -1,5 +1,5 @@
-import { AppError } from '../errors/AppError.js';
-import { prisma } from '../lib/prisma.js';
+import { AppError } from '../../../errors/AppError.js';
+import { prisma } from '../../../lib/prisma.js';
 
 /*
  * "룸 멤버가 연결된 레포에 GitHub 작업을 하기 위한 컨텍스트".

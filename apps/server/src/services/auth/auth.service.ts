@@ -1,9 +1,9 @@
 import jwt from 'jsonwebtoken';
 
-import { env } from '../config/env.js';
-import { AppError } from '../errors/AppError.js';
-import { prisma } from '../lib/prisma.js';
-import { redis } from '../lib/redis.js';
+import { env } from '../../config/env.js';
+import { AppError } from '../../errors/AppError.js';
+import { prisma } from '../../lib/prisma.js';
+import { redis } from '../../lib/redis.js';
 
 export const ACCESS_TOKEN_TTL_SECONDS = 60 * 60; // 1시간
 export const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7; // 7일

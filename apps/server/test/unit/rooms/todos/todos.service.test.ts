@@ -38,11 +38,11 @@ import {
   updateIssue,
   updateIssueComment,
   updateLabelForRepo,
-} from '@/services/github.service.js';
+} from '@/services/github/github.service.js';
 import {
   createNotifications,
   getRoomMemberIds,
-} from '@/services/notifications.service.js';
+} from '@/services/notifications/notifications.service.js';
 import {
   createTodoComment,
   createTodoLabel,
@@ -59,7 +59,7 @@ import {
   getTodoMilestones,
   getTodos,
   updateTodo,
-} from '@/services/todos.service.js';
+} from '@/services/rooms/todos/todos.service.js';
 
 // prisma 를 가짜로 대체 — 서비스가 쓰는 메서드만 vi.fn() 으로 채운다
 vi.mock('@/lib/prisma.js', () => ({

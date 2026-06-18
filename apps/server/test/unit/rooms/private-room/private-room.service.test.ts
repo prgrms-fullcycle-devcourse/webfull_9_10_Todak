@@ -21,7 +21,7 @@ import {
   getPrivateRooms,
   getPrivateRoomsForUser,
   leavePrivateRoom,
-} from '@/services/private-room.service.js';
+} from '@/services/rooms/private-room/private-room.service.js';
 
 // prisma 를 가짜로 대체 — 서비스가 쓰는 메서드만 vi.fn()(가짜 함수)으로 채운다
 vi.mock('@/lib/prisma.js', () => ({

@@ -2,18 +2,18 @@ import crypto from 'node:crypto';
 
 import { z } from 'zod';
 
-import { env } from '../config/env.js';
-import { Prisma } from '../generated/prisma/client/index.js';
-import { prisma } from '../lib/prisma.js';
-import { redis } from '../lib/redis.js';
+import { env } from '../../config/env.js';
+import { Prisma } from '../../generated/prisma/client/index.js';
+import { prisma } from '../../lib/prisma.js';
+import { redis } from '../../lib/redis.js';
+import { getIO } from '../../socket/index.js';
+import { TodoEventPayload } from '../../socket/socket.types.js';
 import {
   createNotifications,
   getRoomMemberIds,
   resolveMemberIdByLogin,
-} from '../services/notifications.service.js';
-import { invalidatePullRequestListCache } from '../services/prs.service.js';
-import { getIO } from '../socket/index.js';
-import { TodoEventPayload } from '../socket/socket.types.js';
+} from '../notifications/notifications.service.js';
+import { invalidatePullRequestListCache } from '../rooms/prs/prs.service.js';
 
 // 같은 배달(X-GitHub-Delivery) 재처리 방지용 멱등 키 TTL (초)
 const WEBHOOK_DEDUP_TTL_SEC = 600;

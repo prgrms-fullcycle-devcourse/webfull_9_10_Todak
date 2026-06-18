@@ -2,17 +2,16 @@ import type {
   CreatePullRequestReviewBody,
   GetPullRequestsQuery,
   MergePullRequestBody,
-} from '../api/rooms/prs/prs.schema.js';
-import { redis } from '../lib/redis.js';
-
+} from '../../../api/rooms/prs/prs.schema.js';
+import { redis } from '../../../lib/redis.js';
 import {
   createPullRequestReview as createPullRequestReviewOnGithub,
   getPullRequest,
   listPullRequestReviews,
   listPullRequests,
   mergePullRequest as mergePullRequestOnGithub,
-} from './github.service.js';
-import { getRoomRepoContext } from './room-repo-context.service.js';
+} from '../../github/github.service.js';
+import { getRoomRepoContext } from '../repo/room-repo-context.service.js';
 
 /*
  * PR 목록은 매 요청 GitHub 라이브 호출이라 단기 TTL 캐시로 호출수·지연을 줄인다.

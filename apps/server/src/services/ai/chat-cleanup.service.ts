@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../../lib/prisma.js';
 
 // 프라이빗 룸 채팅 보관 기간 (일). 이 기간이 지난 메시지는 자동 삭제된다.
 export const PRIVATE_ROOM_CHAT_RETENTION_DAYS = 7;
