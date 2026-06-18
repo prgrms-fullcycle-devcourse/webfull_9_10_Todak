@@ -1,10 +1,11 @@
 'use client';
 
 import { fetchMyTodos, fetchTodos } from '@/services/todos/api';
-import { Button, Tabs } from '@heroui/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { todoQueryKeys } from '@/services/todos/query';
+import { useTodoSocket } from '@/services/todos/useTodoSocket';
+import { Tabs } from '@heroui/react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
 import TodoList, { TodoListProps } from './List';
 import TodoDetailModal from './TodoDetailModal';
 
@@ -23,14 +24,12 @@ type TodoTabId = (typeof TODO_TAB_OPTIONS)[number]['id'];
 
 export default function BottomTodoTabs() {
   const { room_id: roomID } = useParams<{ room_id: string }>();
-  const queryClient = useQueryClient();
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const {
     data: teamTodos,
     isError: isTeamTodosError,
     isPending: isTeamTodosPending,
   } = useQuery({
-    queryKey: ['todos', roomID],
+    queryKey: todoQueryKeys.room(roomID),
     queryFn: () => fetchTodos(roomID),
   });
   const {
@@ -38,9 +37,11 @@ export default function BottomTodoTabs() {
     isError: isMyTodosError,
     isPending: isMyTodosPending,
   } = useQuery({
-    queryKey: ['todos', roomID, 'me'],
+    queryKey: todoQueryKeys.mine(roomID),
     queryFn: () => fetchMyTodos(roomID),
   });
+
+  useTodoSocket({ roomId: roomID });
 
   const todoPanels: Record<
     TodoTabId,
@@ -58,26 +59,6 @@ export default function BottomTodoTabs() {
     },
   };
 
-  const handleRefreshTodos = async () => {
-    if (isRefreshing) return;
-
-    setIsRefreshing(true);
-    try {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          exact: true,
-          queryKey: ['todos', roomID],
-        }),
-        queryClient.invalidateQueries({
-          exact: true,
-          queryKey: ['todos', roomID, 'me'],
-        }),
-      ]);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   return (
     <>
       <Tabs defaultSelectedKey="team" className="gap-0">
@@ -86,15 +67,6 @@ export default function BottomTodoTabs() {
             <h2 className="min-w-0 truncate text-sm font-black text-foreground">
               📋 To-Do 목록
             </h2>
-            <Button
-              aria-label="To-Do 목록 새로고침"
-              className="flex size-8 min-w-8 shrink-0 items-center justify-center bg-transparent p-0 text-muted hover:text-foreground disabled:opacity-60"
-              isDisabled={isRefreshing}
-              onPress={() => void handleRefreshTodos()}
-              type="button"
-            >
-              <RefreshIcon isRefreshing={isRefreshing} />
-            </Button>
           </div>
           <Tabs.ListContainer className="shrink-0">
             <Tabs.List className="overflow-hidden rounded-lg border border-border bg-surface p-0 text-xs font-black">
@@ -124,24 +96,5 @@ export default function BottomTodoTabs() {
       </Tabs>
       <TodoDetailModal />
     </>
-  );
-}
-
-function RefreshIcon({ isRefreshing }: { isRefreshing: boolean }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <path
-        d="M20 11a8 8 0 1 0-2.34 5.66M20 5v6h-6"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-      />
-    </svg>
   );
 }
