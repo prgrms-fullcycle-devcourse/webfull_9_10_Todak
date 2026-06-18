@@ -1,8 +1,8 @@
 'use client';
 
 import { ReactNode, useEffect, useState } from 'react';
-import { useSpaceStore } from '@/store/useSpaceStore';
 import { useChatNotificationStore } from '@/store/useChatNotificationStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import ChatOpenButton from '../@chats/_components/ChatOpenButton';
 
 interface RoomMainContainerProps {
@@ -14,7 +14,7 @@ export default function RoomMainContainer({
   children,
   chats,
 }: RoomMainContainerProps) {
-  const currentView = useSpaceStore(state => state.currentView);
+  const currentView = useRoomUiStore(state => state.currentView);
   const setChatOpen = useChatNotificationStore(state => state.setChatOpen);
   const clearUnreadChatCount = useChatNotificationStore(
     state => state.clearUnreadChatCount,

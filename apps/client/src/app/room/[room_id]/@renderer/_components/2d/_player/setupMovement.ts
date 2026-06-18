@@ -3,8 +3,9 @@ import type { AnimalAssetPack } from '../_animals/types';
 import { type Player, CHAR_HEIGHT, CHAR_WIDTH } from './createPlayer';
 import { WORLD_HEIGHT, WORLD_WIDTH } from '../_background/createBackground';
 import { enterPrivateRoom, updateMemberStatus } from '@/services/rooms/api';
-import { getSocket } from '@/lib/socket';
+import type { Socket } from 'socket.io-client';
 import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { endMeeting, generateMinutes } from '@/services/minutes/api';
 
 const SPEED = 6;
@@ -61,6 +62,7 @@ export function setupMovement(
   darkOverlay: PIXI.Graphics,
   roomId: string,
   walls: PIXI.Rectangle[],
+  socket: Socket,
 ): () => void {
   const keys: Record<string, boolean> = {};
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -146,7 +148,7 @@ export function setupMovement(
     container.y = Math.max(50, Math.min(1170 - 50, container.y));
 
     if (container.x !== lastSentX || container.y !== lastSentY) {
-      getSocket().emit('room:move', {
+      socket.emit('room:move', {
         roomId: roomId,
         posX: container.x,
         posY: container.y,
@@ -192,7 +194,7 @@ export function setupMovement(
 
         enterPrivateRoom(roomId, newRoomId)
           .then(() => {
-            getSocket().emit('private-room:enter', {
+            socket.emit('private-room:enter', {
               roomId: roomId,
               privateRoomId: newRoomId,
             });
@@ -263,7 +265,7 @@ export function setupMovement(
           useSpaceStore.getState().setCurrentPrivateRoomId(null);
           useSpaceStore.getState().setMyStatus('🔥 집중');
 
-          getSocket().emit('private-room:leave', {
+          socket.emit('private-room:leave', {
             roomId: roomId,
             privateRoomId: roomToLeave,
           });
@@ -282,8 +284,14 @@ export function setupMovement(
                   const endedAt = new Date(endedMeeting.ended_at);
                   const minutesTitle = `${endedAt.getFullYear()}.${String(endedAt.getMonth() + 1).padStart(2, '0')}.${String(endedAt.getDate()).padStart(2, '0')} ${String(endedAt.getHours()).padStart(2, '0')}:${String(endedAt.getMinutes()).padStart(2, '0')} 회의록`;
 
-                  await generateMinutes(roomId, currentMeetingId, minutesTitle);
-                  useSpaceStore.getState().setCurrentView?.('meeting');
+                  useRoomUiStore.getState().notifyMinutesGenerationRequested();
+                  void generateMinutes(
+                    roomId,
+                    currentMeetingId,
+                    minutesTitle,
+                  ).catch(error => {
+                    console.error('❌ AI 회의록 생성 요청 실패:', error);
+                  });
                 }
 
                 // 회의 세션 ID 청소는 공통 적용
@@ -308,7 +316,7 @@ export function setupMovement(
           });
 
           // zustand 스토어를 통한 리액트 모달 오픈
-          useSpaceStore.getState().openExitModal(confirmEnd => {
+          useRoomUiStore.getState().openExitModal((confirmEnd: boolean) => {
             executeLeaveProcedure(confirmEnd);
           });
         } else {

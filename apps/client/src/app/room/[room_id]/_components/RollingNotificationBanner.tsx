@@ -1,19 +1,10 @@
 'use client';
 
-import type {
-  RoomNotification,
-  SocketPrPayload,
-  SocketReviewPayload,
-  SocketIssuePayload,
-} from '@/services/notifications/model';
-import {
-  notificationQueryKeys,
-  useNotifications,
-} from '@/services/notifications/query';
+import type { RoomNotification } from '@/services/notifications/model';
+import { useNotifications } from '@/services/notifications/query';
+import { useNotificationSocket } from '@/services/notifications/useNotificationSocket';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { getSocket } from '@/lib/socket';
-import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useState } from 'react';
 
 function getNotificationLabel(type: RoomNotification['type']) {
   switch (type) {
@@ -42,8 +33,6 @@ export default function RollingNotificationBanner() {
   const { room_id: roomID } = useParams<{ room_id: string }>();
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const queryClient = useQueryClient();
-
   const { data, isError, isPending } = useNotifications(roomID);
 
   const notifications = data?.notifications ?? [];
@@ -52,68 +41,14 @@ export default function RollingNotificationBanner() {
       ? notifications[activeIndex % notifications.length]
       : undefined;
 
-  // 실시간 알림 소켓 리스너
-  useEffect(() => {
-    if (!roomID) return;
+  const handleNotificationUpdated = useCallback(() => {
+    setActiveIndex(0);
+  }, []);
 
-    const socket = getSocket();
-
-    // 싱글톤 소켓 버그 방지 기명 핸들러 정의
-    const handleNotificationCreated = (incomingData: RoomNotification) => {
-      if (incomingData.room_id !== roomID) return;
-
-      queryClient.invalidateQueries({
-        queryKey: notificationQueryKeys.room(roomID),
-      });
-      setActiveIndex(0);
-    };
-
-    // PR 오픈/머지 룸 공용 핸들러
-    const handlePrRoomEvent = (incomingData: SocketPrPayload) => {
-      if (incomingData.roomId !== roomID) return;
-
-      // 소켓 신호 감지 시 즉시 변경
-      queryClient.invalidateQueries({
-        queryKey: notificationQueryKeys.room(roomID),
-      });
-      setActiveIndex(0);
-    };
-
-    // PR 리뷰 룸 공용 핸들러
-    const handleReviewRoomEvent = (incomingData: SocketReviewPayload) => {
-      if (incomingData.roomId !== roomID) return;
-
-      queryClient.invalidateQueries({
-        queryKey: notificationQueryKeys.room(roomID),
-      });
-      setActiveIndex(0);
-    };
-
-    // 이슈 생성 공용 핸들러
-    const handleIssueRoomEvent = (incomingData: SocketIssuePayload) => {
-      if (incomingData.roomId !== roomID) return;
-      queryClient.invalidateQueries({
-        queryKey: notificationQueryKeys.room(roomID),
-      });
-      setActiveIndex(0);
-    };
-
-    // 통합 주파수 수신 대기 모드 ON
-    socket.on('notification:created', handleNotificationCreated);
-    socket.on('pr:opened', handlePrRoomEvent);
-    socket.on('pr:merged', handlePrRoomEvent);
-    socket.on('pr:reviewed', handleReviewRoomEvent);
-    socket.on('issue:created', handleIssueRoomEvent);
-
-    return () => {
-      // 리스너 클린업
-      socket.off('notification:created', handleNotificationCreated);
-      socket.off('pr:opened', handlePrRoomEvent);
-      socket.off('pr:merged', handlePrRoomEvent);
-      socket.off('pr:reviewed', handleReviewRoomEvent);
-      socket.off('issue:created', handleIssueRoomEvent);
-    };
-  }, [roomID, queryClient]);
+  useNotificationSocket({
+    roomId: roomID,
+    onUpdated: handleNotificationUpdated,
+  });
 
   useEffect(() => {
     if (notifications.length <= 1) {

@@ -1,9 +1,10 @@
 'use client';
 
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/providers/SocketProvider';
 import { isSystemError, isTodakApiError } from '@/services/error';
 import { leaveRoom } from '@/services/rooms/api';
 import type { MyRooms } from '@/services/rooms/model';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { useSpaceStore } from '@/store/useSpaceStore';
 import { Button, Modal } from '@heroui/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -24,13 +25,14 @@ export default function LeaveRoomModal({
   userID,
 }: LeaveRoomModalProps) {
   const router = useRouter();
+  const { socket } = useSocket();
   const queryClient = useQueryClient();
   const [leaveError, setLeaveError] = useState<string | null>(null);
 
   const leaveRoomMutation = useMutation({
     mutationFn: () => leaveRoom(roomID),
     onSuccess: () => {
-      getSocket().emit('room:leave', roomID);
+      socket.emit('room:leave', roomID);
       queryClient.setQueryData<MyRooms>(['myRooms'], rooms =>
         rooms?.filter(room => room.id !== roomID),
       );
@@ -40,9 +42,10 @@ export default function LeaveRoomModal({
       spaceStore.setPrivateRooms([]);
       spaceStore.setCurrentPrivateRoomId(null);
       spaceStore.setCurrentMeetingId(null);
-      spaceStore.setCurrentMinutesId(null);
-      spaceStore.closeCharacterModal();
       spaceStore.setMyChar({ id: '', githubUsername: '' });
+      const roomUiStore = useRoomUiStore.getState();
+      roomUiStore.setCurrentMinutesId(null);
+      roomUiStore.closeCharacterModal();
 
       router.replace(`/${encodeURIComponent(userID)}/join`);
       router.refresh();

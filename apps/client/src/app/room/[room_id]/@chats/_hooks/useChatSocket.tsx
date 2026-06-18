@@ -1,6 +1,8 @@
-import { useEffect, useCallback } from 'react';
-import { getSocket } from '@/lib/socket';
-import { getAuthToken } from '@/lib/auth';
+'use client';
+
+import { useCallback } from 'react';
+import { useSocketEvent } from '@/hooks/useSocketEvent';
+import { useSocket } from '@/providers/SocketProvider';
 import {
   ChatMessage,
   ChatReactionEvent,
@@ -14,19 +16,34 @@ interface UseChatSocketParams {
   onReaction: (reaction: ChatReactionEvent) => void;
 }
 
+interface ChatSendAck {
+  ok: boolean;
+  chat?: ChatMessage;
+  code?: string;
+  message?: string;
+}
+
+interface ChatReactAck {
+  ok: boolean;
+  reaction?: ChatReactionEvent;
+  code?: string;
+  message?: string;
+}
+
 export function useChatSocket({
   roomId,
   privateRoomId,
   onMessage,
   onReaction,
 }: UseChatSocketParams) {
+  const { socket, isConnected } = useSocket();
+
   const sendMessage = useCallback(
     (
       content: string,
       attachments?: PendingAttachment[],
     ): Promise<ChatMessage | null> => {
       return new Promise((resolve, reject) => {
-        const socket = getSocket();
         socket.emit(
           'chat:send',
           {
@@ -36,12 +53,7 @@ export function useChatSocket({
             ...(attachments && attachments.length > 0 ? { attachments } : {}),
             ...(privateRoomId ? { privateRoomId } : {}),
           },
-          (ack: {
-            ok: boolean;
-            chat?: ChatMessage;
-            code?: string;
-            message?: string;
-          }) => {
+          (ack: ChatSendAck) => {
             if (ack.ok) {
               resolve(ack.chat ?? null);
             } else {
@@ -51,13 +63,12 @@ export function useChatSocket({
         );
       });
     },
-    [roomId, privateRoomId],
+    [socket, roomId, privateRoomId],
   );
 
   const sendReaction = useCallback(
     (messageId: string, emoji: string): Promise<ChatReactionEvent> => {
       return new Promise((resolve, reject) => {
-        const socket = getSocket();
         socket.emit(
           'chat:react',
           {
@@ -66,12 +77,7 @@ export function useChatSocket({
             emoji,
             ...(privateRoomId ? { privateRoomId } : {}),
           },
-          (ack: {
-            ok: boolean;
-            reaction?: ChatReactionEvent;
-            code?: string;
-            message?: string;
-          }) => {
+          (ack: ChatReactAck) => {
             if (ack.ok && ack.reaction !== undefined) {
               resolve(ack.reaction);
               return;
@@ -82,41 +88,54 @@ export function useChatSocket({
         );
       });
     },
-    [roomId, privateRoomId],
+    [socket, roomId, privateRoomId],
   );
 
-  useEffect(() => {
-    const token = getAuthToken();
-    const socket = getSocket(token ?? undefined);
-
-    if (!socket.connected) {
-      socket.connect();
-    }
-
-    const handleMessage = (message: ChatMessage) => {
-      if (privateRoomId) {
-        if (message.private_room_id === privateRoomId) {
-          onMessage(message);
-        }
-      } else {
-        if (!message.private_room_id) {
-          onMessage(message);
-        }
+  useSocketEvent<[ChatMessage]>(
+    'chat:message',
+    message => {
+      if (isChatMessageForChannel(message, roomId, privateRoomId)) {
+        onMessage(message);
       }
-    };
+    },
+    { socket },
+  );
 
-    const handleReaction = (reaction: ChatReactionEvent) => {
-      onReaction(reaction);
-    };
+  useSocketEvent<[ChatReactionEvent]>(
+    'chat:reaction',
+    reaction => {
+      if (isChatReactionForChannel(reaction, roomId, privateRoomId)) {
+        onReaction(reaction);
+      }
+    },
+    { socket },
+  );
 
-    socket.on('chat:message', handleMessage);
-    socket.on('chat:reaction', handleReaction);
+  return { sendMessage, sendReaction, isConnected };
+}
 
-    return () => {
-      socket.off('chat:message', handleMessage);
-      socket.off('chat:reaction', handleReaction);
-    };
-  }, [roomId, privateRoomId, onMessage, onReaction]);
+function isChatMessageForChannel(
+  message: ChatMessage,
+  roomId: string,
+  privateRoomId?: string | null,
+) {
+  return (
+    message.room_id === roomId &&
+    (privateRoomId
+      ? message.private_room_id === privateRoomId
+      : !message.private_room_id)
+  );
+}
 
-  return { sendMessage, sendReaction };
+function isChatReactionForChannel(
+  reaction: ChatReactionEvent,
+  roomId: string,
+  privateRoomId?: string | null,
+) {
+  return (
+    reaction.room_id === roomId &&
+    (privateRoomId
+      ? reaction.private_room_id === privateRoomId
+      : reaction.private_room_id === null)
+  );
 }

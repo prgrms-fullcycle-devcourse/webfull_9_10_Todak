@@ -9,9 +9,13 @@ import {
   useMergePullRequest,
   useRoomPullRequestDetail,
 } from '@/services/github/query';
+import {
+  type PullRequestSocketEvent,
+  usePullRequestSocket,
+} from '@/services/github/usePullRequestSocket';
 import { Button, Chip, Modal } from '@heroui/react';
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { PullRequestModalData } from './types';
@@ -47,6 +51,45 @@ export default function PullRequestModal({
   const approvePullRequest = useApprovePullRequest();
   const mergePullRequest = useMergePullRequest();
   const currentGithubUsername = getStoredAuthUser()?.login ?? '';
+
+  const handlePullRequestSocketEvent = useCallback(
+    (eventName: PullRequestSocketEvent) => {
+      if (eventName === 'pr:reviewed') {
+        setHasApproved(false);
+        setActionMessage('새 PR 리뷰가 반영되었습니다.');
+        return;
+      }
+
+      if (eventName === 'pr:merged') {
+        setHasMerged(true);
+        setActionMessage('PR이 머지되었습니다.');
+        return;
+      }
+
+      if (eventName === 'pr:closed') {
+        setHasMerged(false);
+        setActionMessage('PR이 닫혔습니다.');
+        return;
+      }
+
+      if (eventName === 'commit:pushed') {
+        setActionMessage('새 커밋이 반영되었습니다.');
+        return;
+      }
+
+      if (eventName === 'pr:opened') {
+        setActionMessage('PR 정보가 업데이트되었습니다.');
+      }
+    },
+    [],
+  );
+
+  usePullRequestSocket({
+    enabled: isOpen,
+    onEvent: handlePullRequestSocketEvent,
+    pullNumber: pullRequest.id,
+    roomId: roomID,
+  });
 
   if (typeof document === 'undefined') {
     return null;

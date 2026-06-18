@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Button, Tabs } from '@heroui/react';
 import dynamic from 'next/dynamic';
-import { useSpaceStore } from '@/store/useSpaceStore';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { MinuteDetail } from '@/services/minutes/model';
 import { refineMinutes } from '@/services/minutes/api';
 
@@ -41,7 +41,7 @@ export default function MeetingMinutes({
 }: MeetingMinutesProps) {
   const params = useParams();
   const roomId = params.room_id as string;
-  const currentMinutesId = useSpaceStore(state => state.currentMinutesId);
+  const currentMinutesId = useRoomUiStore(state => state.currentMinutesId);
 
   const [tab, setTab] = useState<'edit' | 'preview'>('edit');
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -109,26 +109,16 @@ export default function MeetingMinutes({
     );
   }
 
-  // 로딩 중 / AI 생성 중 / 서버 데이터 준비 전
+  // 로딩 중 / AI 생성 중 / 서버 데이터 준비 전에는 2D 화면을 방해하지 않도록 비워둔다.
   if (isLoading || minutes?.status === 'generating') {
+    if (!generationError) {
+      return <div className="min-h-0 flex-1" />;
+    }
+
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3">
-        {generationError ? (
-          <>
-            <span className="text-2xl">⚠️</span>
-            <p className="text-xs text-red-400">{generationError}</p>
-          </>
-        ) : (
-          <>
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-todak-coral-500 border-t-transparent" />
-            <p className="text-xs text-slate-400">
-              AI가 회의록을 생성하고 있어요...
-            </p>
-            <p className="text-[10px] text-slate-300">
-              완료되면 실시간으로 알림이 전송됩니다
-            </p>
-          </>
-        )}
+        <span className="text-2xl">⚠️</span>
+        <p className="text-xs text-red-400">{generationError}</p>
       </div>
     );
   }

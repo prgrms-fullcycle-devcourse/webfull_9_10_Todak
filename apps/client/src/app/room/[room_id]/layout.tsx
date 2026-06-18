@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { fetchRoomInfo } from '@/services/rooms/api.server';
 import { SITE_CONFIG } from '@/constants/metadata';
 import { isApiServerNotFoundError } from '@/lib/api.server';
+import { RoomSocketProvider } from '@/providers/RoomSocketProvider';
 
 type Props = {
   params: Promise<{ room_id: string }>;
@@ -76,12 +77,14 @@ export default async function RoomLayout({
   }
 
   return (
-    <div className="room-layout-container">
-      <SidebarContainer>{sidebar}</SidebarContainer>
-      <RoomMainContainer chats={chats}>
-        {renderer ?? children}
-      </RoomMainContainer>
-    </div>
+    <RoomSocketProvider roomId={roomID}>
+      <div className="room-layout-container">
+        <SidebarContainer>{sidebar}</SidebarContainer>
+        <RoomMainContainer chats={chats}>
+          {renderer ?? children}
+        </RoomMainContainer>
+      </div>
+    </RoomSocketProvider>
   );
 }
 
