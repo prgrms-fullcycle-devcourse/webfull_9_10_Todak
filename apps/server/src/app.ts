@@ -27,15 +27,20 @@ app.use(cookieParser());
 /*
  * GitHub Webhook 은 서명 검증을 위해 raw body 가 필요하므로
  * 전역 express.json 보다 먼저 raw 파서로 마운트한다.
+ * limit: GitHub push 등 커밋 많은 페이로드도 흘리지 않도록 넉넉히(HMAC 검증 출처라 안전).
  */
 app.use(
   '/webhooks/github',
-  express.raw({ type: 'application/json' }),
+  express.raw({ type: 'application/json', limit: '5mb' }),
   githubWebhookRouter,
 );
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+/*
+ * 본문 크기 상한 명시(기본 100kb) — 회의록 content_md 등 정상 입력은 충분히 커버하되
+ * 비정상 대용량 바디로 인한 메모리 압박(DoS)을 차단한다.
+ */
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 

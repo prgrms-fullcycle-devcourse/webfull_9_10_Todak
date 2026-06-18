@@ -6,6 +6,7 @@ import {
 import { AppError } from '../../errors/AppError.js';
 import { isUniqueConstraintError } from '../../errors/prisma.js';
 import { Prisma } from '../../generated/prisma/client/index.js';
+import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 import {
   registerWebhook,
@@ -112,7 +113,7 @@ export async function createRoom(
       try {
         await unregisterWebhook(accessToken, owner, repo, webhookId);
       } catch {
-        console.error(
+        logger.error(
           `[createRoom] 중복 webhook 해제 실패: ${input.repo_full_name}`,
         );
       }
@@ -421,7 +422,7 @@ async function autoAddGithubCollaborator(
       await acceptInvitation(joiningUser.accessToken, invitationId);
     }
   } catch (err) {
-    console.error('[joinRoom] GitHub collaborator 자동 추가 실패:', err);
+    logger.error({ err }, '[joinRoom] GitHub collaborator 자동 추가 실패');
   }
 }
 
@@ -437,7 +438,7 @@ async function purgeRoom(
       await unregisterWebhook(accessToken, owner, repo, linkedRepo.webhookId);
     } catch {
       // webhook 해제 실패해도(이미 GitHub에서 삭제된 경우 등) 룸 삭제는 계속 진행
-      console.error(`[purgeRoom] webhook 해제 실패: ${linkedRepo.fullName}`);
+      logger.error(`[purgeRoom] webhook 해제 실패: ${linkedRepo.fullName}`);
     }
   }
 

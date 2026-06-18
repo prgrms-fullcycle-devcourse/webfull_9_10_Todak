@@ -1,6 +1,7 @@
 import { CreateRepoInput } from '../../api/repos/repos.schema.js';
 import { AppError } from '../../errors/AppError.js';
 import { isUniqueConstraintError } from '../../errors/prisma.js';
+import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 import {
   createRepo,
@@ -45,7 +46,7 @@ export async function disconnectRepo(
       await unregisterWebhook(accessToken, owner, repoName, repo.webhookId);
     } catch {
       // 웹훅 해제 실패해도(권한 없음·이미 삭제됨 등) 연결 해제는 계속 진행
-      console.error(`[disconnectRepo] webhook 해제 실패: ${repo.fullName}`);
+      logger.error(`[disconnectRepo] webhook 해제 실패: ${repo.fullName}`);
     }
   }
 
@@ -121,7 +122,7 @@ export async function connectRepo(
       try {
         await unregisterWebhook(accessToken, owner, repo, webhookId);
       } catch {
-        console.error(`[connectRepo] 중복 webhook 해제 실패: ${repoFullName}`);
+        logger.error(`[connectRepo] 중복 webhook 해제 실패: ${repoFullName}`);
       }
       throw new AppError('REPO_ALREADY_IN_USE');
     }
@@ -140,7 +141,7 @@ export async function connectRepo(
       );
     } catch {
       // 이전 웹훅 해제 실패해도(권한 없음·이미 삭제됨 등) 연결 교체는 계속 진행
-      console.error(
+      logger.error(
         `[connectRepo] 이전 webhook 해제 실패: ${existing.fullName}`,
       );
     }
