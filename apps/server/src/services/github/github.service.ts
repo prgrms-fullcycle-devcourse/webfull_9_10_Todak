@@ -919,19 +919,19 @@ function derivePermission(perms?: {
     return 'pull';
   }
 
-  if (perms.admin) {
+  if (perms.admin === true) {
     return 'admin';
   }
 
-  if (perms.maintain) {
+  if (perms.maintain === true) {
     return 'maintain';
   }
 
-  if (perms.push) {
+  if (perms.push === true) {
     return 'push';
   }
 
-  if (perms.triage) {
+  if (perms.triage === true) {
     return 'triage';
   }
 
@@ -962,9 +962,7 @@ export async function addCollaborator(
 
     // status 201 = 초대 발송됨, 204 = 이미 협업자
     const invitationId =
-      response.status === 201 && response.data
-        ? (response.data as { id: number }).id
-        : null;
+      response.status === 201 ? (response.data as { id: number }).id : null;
 
     return { invitationId };
   } catch (err) {
