@@ -1,6 +1,5 @@
 'use client';
 
-import RouteFallbackView from '@/app/_components/RouteFallbackView';
 import type { RoomMembers, RoomProfile } from '@/services/rooms/model';
 import {
   cancelInvitation,
@@ -11,7 +10,6 @@ import {
 } from '@/services/teams/api';
 import { Button, Avatar } from '@heroui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import { useState } from 'react';
 
 interface TeamSettingsFormProps {
@@ -37,9 +35,6 @@ export default function TeamSettingsForm({
     queryFn: () => fetchCollaborators(roomID),
     retry: false,
   });
-
-  const error = collaboratorsQuery.error;
-  const isKicked = axios.isAxiosError(error) && error.response?.status === 403;
 
   // 보류 중인 깃허브 초대 대기자 목록 실시간 조회
   const invitationsQuery = useQuery({
@@ -98,27 +93,6 @@ export default function TeamSettingsForm({
     if (!canEdit || !targetName) return;
     inviteMutation.mutate(targetName);
   };
-
-  // // 추방 가드 레이어 고도화
-  // if (collaboratorsQuery.isError) {
-  //   const error = collaboratorsQuery.error;
-  //   const isKicked =
-  //     axios.isAxiosError(error) && error.response?.status === 403;
-
-  //   return (
-  //     <RouteFallbackView
-  //       variant="segment"
-  //       eyebrow={isKicked ? 'ACCESS DENIED' : 'TEAM COMPONENT ERROR'}
-  //       title={isKicked ? '룸 권한을 상실했습니다.' : '팀 목록 로드 실패'}
-  //       description={
-  //         isKicked
-  //           ? '이 프로젝트 룸의 멤버 명단에서 제외되었거나 추방 처리되었습니다.'
-  //           : '협업자 명단을 백엔드로부터 불러오지 못했습니다.'
-  //       }
-  //       onRetry={() => collaboratorsQuery.refetch()}
-  //     />
-  //   );
-  // }
 
   return (
     <section

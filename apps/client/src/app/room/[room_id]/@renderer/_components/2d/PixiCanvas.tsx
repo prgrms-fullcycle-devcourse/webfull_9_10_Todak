@@ -518,6 +518,15 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         },
       );
 
+      socket.on('room:user-left', () => {
+        fetchRoomMembers(roomId).then(res => {
+          if (res?.members) {
+            useSpaceStore.getState().setMembers(res.members);
+            syncMembers(res.members);
+          }
+        });
+      });
+
       unsubscribeStatus = useSpaceStore.subscribe(
         state => state.myChar.status,
         newStatus => {
@@ -641,6 +650,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       getSocket().off('room:member-moved');
       getSocket().off('room:member-status-changed');
       getSocket().off('room:member-profile-changed');
+      getSocket().off('room:user-left');
 
       // 리사이즈 이벤트 리스너 제거
       if (handleResize) {
