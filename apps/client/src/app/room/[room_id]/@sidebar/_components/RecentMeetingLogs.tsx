@@ -138,12 +138,6 @@ function MeetingLogItem({
   log: Minute;
   onSelect: () => void;
 }) {
-  const participantNames =
-    log.participant_names && log.participant_names.length > 0
-      ? log.participant_names
-      : [log.author.github_username];
-  const visibleParticipants = participantNames.slice(0, 2);
-  const hiddenParticipantCount = Math.max(participantNames.length - 2, 0);
   const visibleIssueNumbers = log.linked_issue_numbers.slice(0, 3);
   const hiddenIssueCount = Math.max(log.linked_issue_numbers.length - 3, 0);
   const statusMeta = getMinutesStatusMeta(log.status);
@@ -165,22 +159,6 @@ function MeetingLogItem({
           <span className="min-w-0">
             <span className="block truncate text-xs font-black text-foreground">
               {log.title}
-            </span>
-            <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
-              <span className="text-[9px] font-black text-muted">참석</span>
-              {visibleParticipants.map(name => (
-                <span
-                  className="max-w-20 truncate rounded-md bg-background/70 px-1.5 py-0.5 text-[9px] font-bold text-foreground"
-                  key={`${log.id}-participant-${name}`}
-                >
-                  {name}
-                </span>
-              ))}
-              {hiddenParticipantCount > 0 && (
-                <span className="rounded-md bg-background/70 px-1.5 py-0.5 text-[9px] font-bold text-muted">
-                  +{hiddenParticipantCount}
-                </span>
-              )}
             </span>
           </span>
           <span

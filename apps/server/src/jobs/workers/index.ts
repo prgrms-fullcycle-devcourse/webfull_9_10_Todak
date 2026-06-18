@@ -22,9 +22,21 @@ import { getIO } from '../../socket/index.js';
 import { addJob } from '../queues/index.js';
 
 import { classifyMinutesFailReason } from './minutes-fail-reason.js';
-import { buildMeetingInfoHeader } from './minutes-header.js';
+import {
+  buildDisplayNameMap,
+  buildMeetingInfoHeader,
+} from './minutes-header.js';
 
 const connection = redis;
+
+/*
+ * 회의록 생성 잡은 Anthropic 호출 대기가 대부분인 I/O-bound 라 동시 처리로 처리량을 올린다.
+ * 동시 처리 = 동시 Anthropic 호출(비용·레이트리밋) + 동시 DB 커넥션이라 보수적으로 설정.
+ * DB 풀(pg 어댑터 기본 10)에 비해 여유 — 잡당 커넥션은 짧은 쿼리 구간만 점유하고
+ * 대부분 시간은 Anthropic 대기라 커넥션을 들고 있지 않음.
+ * (chat-cleanup·minutes-sweep 은 주기적 단일 잡, ai-review 는 미사용이라 동시성 설정 불필요)
+ */
+const MINUTES_GENERATION_CONCURRENCY = 3;
 
 export const aiReviewWorker = new Worker(
   'ai-review',
@@ -121,16 +133,16 @@ export const minutesGenerationWorker = new Worker(
 
     /*
      * '회의 정보' 헤더는 AI 추측이 아니라 DB 사실로 채운다(진행자/일시/참석자).
-     * 표시명은 룸 nickname 우선(없으면 githubUsername). 진행자는 룸을 떠났어도
-     * host 의 githubUsername 으로 폴백한다. (참석자 중 룸을 떠난 사람은 명단에서 생략)
+     * 표시명은 룸 nickname 우선(없으면 githubUsername), 닉네임 중복 시 username 병기.
+     * 진행자는 룸을 떠났어도 host 의 githubUsername 으로 폴백한다.
+     * (참석자 중 룸을 떠난 사람은 명단에서 생략)
      */
-    const displayNameByUserId = new Map(
-      members.map(m => [
-        m.user.id,
-        m.nickname !== null && m.nickname !== ''
-          ? m.nickname
-          : m.user.githubUsername,
-      ]),
+    const displayNameByUserId = buildDisplayNameMap(
+      members.map(m => ({
+        id: m.user.id,
+        nickname: m.nickname,
+        githubUsername: m.user.githubUsername,
+      })),
     );
     const participantIds = await getMeetingParticipantIds(meetingId);
     const hostName =
@@ -199,7 +211,7 @@ export const minutesGenerationWorker = new Worker(
 
     return { success: true };
   },
-  { connection },
+  { connection, concurrency: MINUTES_GENERATION_CONCURRENCY },
 );
 
 aiReviewWorker.on('completed', job => {

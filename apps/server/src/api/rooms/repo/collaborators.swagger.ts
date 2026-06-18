@@ -261,8 +261,9 @@ registry.registerPath({
   tags: ['Rooms'],
   summary: '레포 협업자 제거',
   description:
-    '연동된 GitHub 레포에서 협업자를 제거합니다. 방장만 호출 가능합니다. ' +
-    '룸 멤버 자격은 유지되며 GitHub 레포 접근 권한만 해제됩니다.',
+    '연동된 GitHub 레포에서 협업자를 제거하고 룸에서도 추방합니다. 방장만 호출 가능합니다. ' +
+    '추방된 유저에게는 room:kicked 소켓 이벤트가 전송되며, ' +
+    '나머지 멤버에게는 room:user-left 이벤트가 브로드캐스트됩니다.',
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({

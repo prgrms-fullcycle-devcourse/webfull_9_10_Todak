@@ -163,11 +163,8 @@ export interface ServerToClientEvents {
     login: string;
     avatarUrl: string;
   }) => void;
-  'room:member-left': (data: {
-    roomId: string;
-    userId: string;
-    newHostUserId: string | null;
-  }) => void;
+  'room:member-left': (data: { roomId: string; userId: string }) => void;
+  'room:kicked': (data: { roomId: string }) => void;
   'room:updated': (data: {
     id: string;
     name: string;
