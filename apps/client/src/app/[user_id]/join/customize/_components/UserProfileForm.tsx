@@ -71,7 +71,7 @@ export default function UserProfileForm({
   const [selectedAvatar, setSelectedAvatar] = useState<
     (typeof avatars)[number]
   >(avatars[0]);
-  const [nickname, setNickname] = useState('수정');
+  const [nickname, setNickname] = useState('');
   const [selectedParts, setSelectedParts] = useState<(typeof parts)[number][]>([
     'Frontend',
   ]);
@@ -225,6 +225,7 @@ export default function UserProfileForm({
                 setNickname(event.target.value);
                 setProfileError(null);
               }}
+              placeholder="수정"
               required
               value={nickname}
             />
