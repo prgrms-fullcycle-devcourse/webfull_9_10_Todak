@@ -39,6 +39,10 @@ export function releaseActiveSession(
   return true;
 }
 
+export function hasActiveSession(userId: string): boolean {
+  return activeSocketByUserId.has(userId);
+}
+
 export function clearAllActiveSessions(): void {
   activeSocketByUserId.clear();
 }

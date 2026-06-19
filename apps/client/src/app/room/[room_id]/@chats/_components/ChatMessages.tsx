@@ -405,22 +405,22 @@ function MessageItem({
           </div>
         )}
 
-        <div className="relative">
+        <div className="relative min-w-0 max-w-full">
           {/* 텍스트가 있을 때만 말풍선 표시 (첨부만 있는 메시지는 생략) */}
           {msg.content && (
             <div
-              className={`flex flex-col ${
+              className={`flex min-w-0 max-w-full flex-col ${
                 isMine ? 'items-end' : 'items-start'
               }`}
             >
               <div
-                className={`flex items-end gap-1.5 ${
+                className={`flex min-w-0 max-w-full items-end gap-1.5 ${
                   isMine ? 'flex-row-reverse' : ''
                 }`}
               >
                 {isPending ? (
                   <div
-                    className={`rounded-xl border px-3 py-2 text-xs leading-relaxed transition-colors ${
+                    className={`min-w-0 max-w-full break-all rounded-xl border px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap transition-colors [overflow-wrap:anywhere] ${
                       isFailed
                         ? 'border-red-200 bg-white text-red-500'
                         : 'border-border bg-white text-foreground opacity-60'
@@ -434,7 +434,7 @@ function MessageItem({
                     onOpenChange={setShowMessageMenu}
                   >
                     <Popover.Trigger>
-                      <div className="cursor-pointer select-text rounded-xl border border-border bg-white px-3 py-2 text-left text-xs leading-relaxed text-foreground transition-colors hover:bg-slate-50">
+                      <div className="min-w-0 max-w-full cursor-pointer select-text break-all rounded-xl border border-border bg-white px-3 py-2 text-left text-xs leading-relaxed whitespace-pre-wrap text-foreground transition-colors [overflow-wrap:anywhere] hover:bg-slate-50">
                         {msg.content}
                       </div>
                     </Popover.Trigger>

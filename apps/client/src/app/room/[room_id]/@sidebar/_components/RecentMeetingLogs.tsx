@@ -320,8 +320,6 @@ function MeetingLogItem({
   log: Minute;
   onSelect: () => void;
 }) {
-  const visibleIssueNumbers = log.linked_issue_numbers.slice(0, 3);
-  const hiddenIssueCount = Math.max(log.linked_issue_numbers.length - 3, 0);
   const statusMeta = getMinutesStatusMeta(log.status);
   const isGenerating = isGeneratingStatus(log.status);
 
@@ -357,30 +355,9 @@ function MeetingLogItem({
               회의록 생성 중
             </span>
           )}
-          {visibleIssueNumbers.length > 0 ? (
-            <>
-              <span className="text-[9px] font-black text-muted">
-                생성 이슈
-              </span>
-              {visibleIssueNumbers.map(issueNumber => (
-                <span
-                  className="rounded-md bg-accent/10 px-1.5 py-0.5 font-todak-mono text-[9px] font-black text-accent"
-                  key={`${log.id}-issue-${issueNumber}`}
-                >
-                  #{issueNumber}
-                </span>
-              ))}
-              {hiddenIssueCount > 0 && (
-                <span className="rounded-md bg-background/70 px-1.5 py-0.5 text-[9px] font-bold text-muted">
-                  +{hiddenIssueCount}
-                </span>
-              )}
-            </>
-          ) : (
-            <span className="text-[9px] font-bold text-muted">
-              생성된 이슈 없음
-            </span>
-          )}
+          <span className="min-w-0 truncate text-[9px] font-bold text-muted">
+            작성자 @{log.author.github_username}
+          </span>
         </span>
       </span>
     </Button>

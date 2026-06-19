@@ -1,5 +1,6 @@
 import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
+import { updateRoomMemberStatus } from '../../services/rooms/members/room-member.service.js';
 import { clearActivePrivateRoomSessions } from '../../services/rooms/private-room/private-room.service.js';
 import { assertRoomMember } from '../../services/rooms/room-guards.js';
 import { broadcastPrivateRooms } from '../broadcast.js';
@@ -35,6 +36,17 @@ export function registerRoomHandlers(io: TypedIO, socket: TypedSocket) {
       avatarUrl: user.avatarUrl,
     });
     logger.info(`[room:join] ${user.login} → ${roomId}`);
+
+    // 재접속 시 away 상태를 focus로 복원 + 브로드캐스트
+    try {
+      await updateRoomMemberStatus(user.id, roomId, 'focus');
+      io.to(roomId).emit('room:member-status-changed', {
+        userId: user.id,
+        status: 'focus',
+      });
+    } catch {
+      logger.error(`[room:join] 상태 focus 리셋 실패: ${user.login}`);
+    }
 
     // 안전망: 이전 비정상 종료로 남은 프라이빗룸 세션 정리 (disconnect 청소 누락/경합 대비)
     try {
