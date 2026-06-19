@@ -513,7 +513,10 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
 
         const targetPlayer = remotePlayers.get(normalizeUserId(data.userId));
         if (targetPlayer) {
-          targetPlayer.updatePosition(data.posX, data.posY);
+          targetPlayer.updatePosition(
+            Math.round(data.posX),
+            Math.round(data.posY),
+          );
         } else {
           fetchRoomMembers(roomId).then(res => {
             if (res?.members) {
