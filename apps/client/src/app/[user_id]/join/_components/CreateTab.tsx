@@ -217,7 +217,7 @@ export default function CreateTab({ userID }: CreateTabProps) {
         <NumberField
           aria-label="최대 인원"
           isDisabled={isCreating}
-          maxValue={20}
+          maxValue={40}
           minValue={2}
           onChange={value => setMaxMembers(Number.isFinite(value) ? value : 4)}
           value={maxMembers}
