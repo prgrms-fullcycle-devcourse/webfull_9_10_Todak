@@ -19,7 +19,7 @@ export function getValidMaxMembers(value: number) {
     return 4;
   }
 
-  return Math.min(Math.max(Math.trunc(value), 2), 20);
+  return Math.min(Math.max(Math.trunc(value), 2), 40);
 }
 
 export function validateGithubRepositoryName(name: string) {
