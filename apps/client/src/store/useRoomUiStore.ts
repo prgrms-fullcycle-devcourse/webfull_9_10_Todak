@@ -25,6 +25,10 @@ interface RoomUiState {
   openCharacterModal: (member: RoomProfile | CharacterInfo) => void;
   closeCharacterModal: () => void;
 
+  isNotificationHistoryModalOpen: boolean;
+  openNotificationHistoryModal: () => void;
+  closeNotificationHistoryModal: () => void;
+
   activeChatTab: ChatTabType;
   setActiveChatTab: (tab: ChatTabType) => void;
 
@@ -62,6 +66,12 @@ export const useRoomUiStore = create<RoomUiState>()(
       set({ isCharacterModalOpen: true, selectedMember: member }),
     closeCharacterModal: () =>
       set({ isCharacterModalOpen: false, selectedMember: null }),
+
+    isNotificationHistoryModalOpen: false,
+    openNotificationHistoryModal: () =>
+      set({ isNotificationHistoryModalOpen: true }),
+    closeNotificationHistoryModal: () =>
+      set({ isNotificationHistoryModalOpen: false }),
 
     activeChatTab: 'all',
     setActiveChatTab: tab => set({ activeChatTab: tab }),

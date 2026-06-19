@@ -3,6 +3,7 @@
 import type { RoomNotification } from '@/services/notifications/model';
 import { useNotifications } from '@/services/notifications/query';
 import { useNotificationSocket } from '@/services/notifications/useNotificationSocket';
+import { useRoomUiStore } from '@/store/useRoomUiStore';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -31,6 +32,9 @@ function getNotificationLabel(type: RoomNotification['type']) {
 
 export default function RollingNotificationBanner() {
   const { room_id: roomID } = useParams<{ room_id: string }>();
+  const openNotificationHistoryModal = useRoomUiStore(
+    state => state.openNotificationHistoryModal,
+  );
   const [activeIndex, setActiveIndex] = useState(0);
 
   const { data, isError, isPending } = useNotifications(roomID);
@@ -93,21 +97,14 @@ export default function RollingNotificationBanner() {
           {label}
         </span>
         <div aria-live="polite" className="notification-roll-window">
-          {activeNotification?.link ? (
-            <a
-              className="notification-roll-item underline-offset-2 hover:underline"
-              href={activeNotification.link}
-              key={rollingItemKey}
-              rel="noreferrer"
-              target="_blank"
-            >
-              {message}
-            </a>
-          ) : (
-            <span className="notification-roll-item" key={rollingItemKey}>
-              {message}
-            </span>
-          )}
+          <button
+            className="notification-roll-item w-full cursor-pointer truncate text-left underline-offset-2 hover:underline"
+            key={rollingItemKey}
+            onClick={openNotificationHistoryModal}
+            type="button"
+          >
+            {message}
+          </button>
         </div>
       </div>
       <span className="font-todak-mono text-[10px] text-slate-400">

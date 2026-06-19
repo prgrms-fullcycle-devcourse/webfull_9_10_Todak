@@ -74,7 +74,15 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
   const { data: notificationData } = useNotifications(roomId);
   const npcTimeoutRef = useRef<number | null>(null);
   const prevNotificationIdRef = useRef<string | null>(null);
-  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const isNotificationModalOpen = useRoomUiStore(
+    state => state.isNotificationHistoryModalOpen,
+  );
+  const openNotificationHistoryModal = useRoomUiStore(
+    state => state.openNotificationHistoryModal,
+  );
+  const closeNotificationHistoryModal = useRoomUiStore(
+    state => state.closeNotificationHistoryModal,
+  );
   const notifications = notificationData?.notifications ?? [];
 
   useNotificationSocket({ roomId });
@@ -286,7 +294,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         500,
         '토닥이',
         () => {
-          setIsNotificationModalOpen(true);
+          openNotificationHistoryModal();
         },
       );
       helperNpc.zIndex = 8;
@@ -811,7 +819,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         window.clearTimeout(npcTimeoutRef.current);
       }
     };
-  }, [roomId, queryClient, socket]);
+  }, [openNotificationHistoryModal, queryClient, roomId, socket]);
 
   // 실시간 알림 연동
   useEffect(() => {
@@ -914,7 +922,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       </p>
       <NotificationHistoryModal
         isOpen={isNotificationModalOpen}
-        onClose={() => setIsNotificationModalOpen(false)}
+        onClose={closeNotificationHistoryModal}
         notifications={notifications}
         roomId={roomId}
       />
