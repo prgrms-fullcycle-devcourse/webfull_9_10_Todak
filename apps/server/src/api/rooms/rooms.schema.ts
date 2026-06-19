@@ -5,7 +5,7 @@ export const CreateRoomSchema = z.object({
   repo_full_name: z
     .string()
     .regex(/^[\w.-]+\/[\w.-]+$/, 'owner/repo 형식으로 입력해주세요.'),
-  max_members: z.number().int().min(2).max(20).default(6),
+  max_members: z.number().int().min(2).max(40).default(6),
 });
 
 export type CreateRoomInput = z.infer<typeof CreateRoomSchema>;
@@ -24,7 +24,7 @@ export type JoinRoomInput = z.infer<typeof JoinRoomSchema>;
 export const UpdateRoomSchema = z
   .object({
     name: z.string().min(1).max(100).optional(),
-    max_members: z.number().int().min(2).max(20).optional(),
+    max_members: z.number().int().min(2).max(40).optional(),
   })
   .refine(data => data.name !== undefined || data.max_members !== undefined, {
     message: '수정할 항목을 하나 이상 입력해주세요.',
