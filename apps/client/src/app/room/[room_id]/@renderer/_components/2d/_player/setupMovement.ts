@@ -147,15 +147,19 @@ export function setupMovement(
     container.x = Math.max(30, Math.min(2455 - 30, container.x));
     container.y = Math.max(50, Math.min(1170 - 50, container.y));
 
-    if (container.x !== lastSentX || container.y !== lastSentY) {
+    const roundedX = Math.round(container.x);
+    const roundedY = Math.round(container.y);
+
+    if (roundedX !== lastSentX || roundedY !== lastSentY) {
       socket.emit('room:move', {
         roomId: roomId,
-        posX: container.x,
-        posY: container.y,
+        posX: roundedX,
+        posY: roundedY,
       });
 
-      lastSentX = container.x;
-      lastSentY = container.y;
+      // 이전 전송 좌표도 정수 기준으로 갱신하여 픽셀 소수점 오차로 인한 무한 소켓 루프 방지
+      lastSentX = roundedX;
+      lastSentY = roundedY;
 
       const currentStatus = useSpaceStore.getState().myChar.status;
 
