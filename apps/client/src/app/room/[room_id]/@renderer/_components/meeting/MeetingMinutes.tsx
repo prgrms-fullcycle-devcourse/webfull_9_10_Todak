@@ -210,7 +210,7 @@ export default function MeetingMinutes({
       </div>
 
       {/* 본문 */}
-      <div className="h-full flex flex-col">
+      <div className="min-h-0 flex flex-col">
         <div className="flex-1 min-h-0">
           {tab === 'edit' ? (
             <MDEditor
@@ -218,14 +218,13 @@ export default function MeetingMinutes({
               onChange={val => onContentChange(val ?? '')}
               height="100%"
               preview="edit"
-              style={{ paddingBottom: '100px' }}
             />
           ) : (
             <div className="h-full overflow-auto">
               <div className="min-h-full flex flex-col">
                 <MDPreview
                   source={content}
-                  className="flex-1 rounded-xl border border-border bg-surface p-4 pb-30"
+                  className="flex-1 rounded-xl border border-border bg-surface p-4"
                 />
               </div>
             </div>
@@ -234,7 +233,7 @@ export default function MeetingMinutes({
       </div>
 
       {/* 하단 버튼 */}
-      {isEditable && (
+      {isEditable && tab === 'edit' && (
         <div className="shrink-0 border-t border-border bg-surface px-6 py-3">
           <div className="flex items-center gap-2">
             <Button
