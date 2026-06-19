@@ -30,6 +30,7 @@ export default function MeetingBoard() {
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <MeetingMinutes
+        key={currentMinutesId}
         minutes={minutes}
         isLoading={isLoading || !isContentReady}
         content={content}
