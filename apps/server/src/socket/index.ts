@@ -12,6 +12,7 @@ import { registerHandlers } from './handlers/index.js';
 import {
   claimActiveSession,
   clearAllActiveSessions,
+  hasActiveSession,
   releaseActiveSession,
 } from './socket-session.js';
 import { socketAuthMiddleware } from './socket.auth.js';
@@ -76,39 +77,50 @@ export function initSocket(httpServer: HttpServer): TypedIO {
     socket.on('disconnect', async () => {
       logger.info(`🔌 [${login}] disconnected (${socket.id})`);
 
-      if (
-        socket.data.replacedByNewSession ||
-        !releaseActiveSession(userId, socket.id)
-      ) {
+      if (!releaseActiveSession(userId, socket.id)) {
         return;
       }
 
-      try {
-        const roomIds = await setUserStatusInAllRooms(
-          socket.data.user.id,
-          'away',
-        );
-        for (const roomId of roomIds) {
-          io.to(roomId).emit('room:member-status-changed', {
-            userId: socket.data.user.id,
-            status: 'away',
-          });
+      const runAwayCleanup = async () => {
+        try {
+          const roomIds = await setUserStatusInAllRooms(
+            socket.data.user.id,
+            'away',
+          );
+          for (const roomId of roomIds) {
+            io.to(roomId).emit('room:member-status-changed', {
+              userId: socket.data.user.id,
+              status: 'away',
+            });
+          }
+        } catch {
+          logger.error(`[disconnect] status away 처리 실패: ${login}`);
         }
-      } catch {
-        logger.error(`[disconnect] status away 처리 실패: ${login}`);
+
+        // 비정상 종료(새로고침/탭닫기)로 남은 프라이빗룸 세션 정리 + 다른 멤버 화면 갱신
+        try {
+          const affectedRoomIds = await clearActivePrivateRoomSessions(
+            socket.data.user.id,
+          );
+          for (const roomId of affectedRoomIds) {
+            await broadcastPrivateRooms(io, roomId);
+          }
+        } catch {
+          logger.error(`[disconnect] 프라이빗룸 세션 정리 실패: ${login}`);
+        }
+      };
+
+      if (socket.data.replacedByNewSession) {
+        // Socket.IO 자동 재연결로 교체된 경우: 3초 후에도 재접속이 없으면 away 처리
+        setTimeout(() => {
+          if (!hasActiveSession(userId)) {
+            void runAwayCleanup();
+          }
+        }, 3000);
+        return;
       }
 
-      // 비정상 종료(새로고침/탭닫기)로 남은 프라이빗룸 세션 정리 + 다른 멤버 화면 갱신
-      try {
-        const affectedRoomIds = await clearActivePrivateRoomSessions(
-          socket.data.user.id,
-        );
-        for (const roomId of affectedRoomIds) {
-          await broadcastPrivateRooms(io, roomId);
-        }
-      } catch {
-        logger.error(`[disconnect] 프라이빗룸 세션 정리 실패: ${login}`);
-      }
+      await runAwayCleanup();
     });
   });
 
