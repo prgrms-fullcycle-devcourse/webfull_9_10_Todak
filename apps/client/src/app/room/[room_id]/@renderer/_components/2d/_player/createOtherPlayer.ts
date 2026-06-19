@@ -3,6 +3,7 @@ import type { AnimalAssetPack } from '../_animals/types';
 import { CHAR_WIDTH, CHAR_HEIGHT } from './createPlayer';
 import { RoomProfile } from '@/services/rooms/api';
 import { useRoomUiStore } from '@/store/useRoomUiStore';
+import { createChatBubbleController } from './chatBubble';
 
 export interface RemotePlayer {
   container: PIXI.Container;
@@ -13,6 +14,8 @@ export interface RemotePlayer {
   baseScaleX: number;
   updatePosition: (newX: number, newY: number) => void;
   updateStatus: (hangulStatus: string, color: number) => void;
+  say: (message: string) => void;
+  destroyChatBubble: () => void;
 }
 
 interface ExtendedRoomProfile extends RoomProfile {
@@ -86,6 +89,8 @@ export function createOtherPlayer(
   nameText.y = 70;
   container.addChild(nameText);
 
+  const chatBubble = createChatBubbleController(container);
+
   container.eventMode = 'static';
   container.cursor = 'pointer';
 
@@ -104,5 +109,7 @@ export function createOtherPlayer(
     baseScaleX,
     updatePosition,
     updateStatus,
+    say: chatBubble.say,
+    destroyChatBubble: chatBubble.destroy,
   };
 }
