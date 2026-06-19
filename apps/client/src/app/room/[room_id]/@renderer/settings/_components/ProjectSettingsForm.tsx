@@ -166,8 +166,8 @@ export default function ProjectSettingsForm({
       return;
     }
 
-    if (nextMaxMembers < 2 || nextMaxMembers > 20) {
-      setSettingsError('최대 인원은 2명 이상 20명 이하로 입력해주세요.');
+    if (nextMaxMembers < 2 || nextMaxMembers > 40) {
+      setSettingsError('최대 인원은 2명 이상 40명 이하로 입력해주세요.');
       setSuccessMessage(null);
       return;
     }
@@ -254,7 +254,7 @@ export default function ProjectSettingsForm({
             <input
               className="todak-input h-9 rounded-xl px-3.5 py-0 text-xs font-semibold"
               disabled={updateSettingsMutation.isPending || !canEdit}
-              max={20}
+              max={40}
               min={Math.max(2, room.member_count)}
               onChange={event => {
                 setMaxMembers(event.target.value);
