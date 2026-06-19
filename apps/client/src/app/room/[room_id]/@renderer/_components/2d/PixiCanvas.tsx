@@ -32,6 +32,7 @@ import { loadMascotNpcAssets } from '../2d/_npcs/npcAssets';
 import { createMascotNpc, MascotNpcContainer } from '../2d/_npcs/createNpc';
 import { useNotifications } from '@/services/notifications/query';
 import { useNotificationSocket } from '@/services/notifications/useNotificationSocket';
+import type { ChatMessage } from '@/services/chats/model';
 import NotificationHistoryModal from './NotificationHistoryModal';
 import { openChatSafely } from '../../../@chats/_components/ChatOpenButton';
 import rawWallData from '@/app/room/[room_id]/@renderer/_constants/walls.json';
@@ -99,6 +100,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
     let unsubscribeRoomsList: (() => void) | null = null;
     let cleanupMovement: (() => void) | null = null;
     let cleanupCamera: (() => void) | null = null;
+    let cleanupLocalChatBubble: (() => void) | null = null;
     let handleResize: (() => void) | null = null;
     let handleVisibilityChange: (() => void) | null = null;
     let localPlayerContainer: PIXI.Container | null = null;
@@ -340,6 +342,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       const player = createPlayer(app, activeTextures, roomId);
       player.container.zIndex = 10;
       world.addChild(player.container);
+      cleanupLocalChatBubble = player.destroyChatBubble;
 
       // 플레이어 생성 직후 스토어에 과거 저장 좌표가 있다면 강제 복원 스냅
       const savedPosition = useSpaceStore.getState().lastPosition;
@@ -356,6 +359,10 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       // 룸 내 팀원 렌더링
       const remotePlayers = new Map<string, RemotePlayer>();
       const normalizeUserId = (userId: string) => String(userId);
+      const findMemberByGithubUsername = (githubUsername: string) =>
+        useSpaceStore
+          .getState()
+          .members.find(member => member.github_username === githubUsername);
       const isRecentlyLeft = (userId: string) => {
         const leftAt = recentlyLeftUserIds.get(normalizeUserId(userId));
         if (!leftAt) return false;
@@ -386,6 +393,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         for (const [userId, remotePlayer] of remotePlayers.entries()) {
           if (!currentMemberIds.has(userId)) {
             world.removeChild(remotePlayer.container);
+            remotePlayer.destroyChatBubble();
             remotePlayer.container.destroy({ children: true });
             remotePlayers.delete(userId);
           }
@@ -467,6 +475,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         }
 
         world.removeChild(remotePlayer.container);
+        remotePlayer.destroyChatBubble();
         remotePlayer.container.destroy({ children: true });
         remotePlayers.delete(userId);
       };
@@ -592,6 +601,34 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
         socket.off('room:member-status-changed', handleMemberStatusChanged),
       );
 
+      const handleChatMessage = (message: ChatMessage) => {
+        if (
+          message.room_id !== roomId ||
+          message.private_room_id !== null ||
+          message.type !== 'text' ||
+          !message.content
+        ) {
+          return;
+        }
+
+        const myChar = useSpaceStore.getState().myChar;
+
+        if (message.user.github_username === myChar.githubUsername) {
+          player.say(message.content);
+          return;
+        }
+
+        const member = findMemberByGithubUsername(message.user.github_username);
+        if (!member) {
+          return;
+        }
+
+        const remotePlayer = remotePlayers.get(normalizeUserId(member.id));
+        remotePlayer?.say(message.content);
+      };
+      socket.on('chat:message', handleChatMessage);
+      socketOffs.push(() => socket.off('chat:message', handleChatMessage));
+
       const handleMemberProfileChanged = (data: {
         userId: string;
         nickname: string | null;
@@ -612,6 +649,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
           // 기존 화면의 그래픽 제거
           for (const remotePlayer of remotePlayers.values()) {
             world.removeChild(remotePlayer.container);
+            remotePlayer.destroyChatBubble();
             remotePlayer.container.destroy({ children: true });
           }
           remotePlayers.clear();
@@ -751,6 +789,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
               const visibleMembers = withoutRecentlyLeftMembers(res.members);
               for (const remotePlayer of remotePlayers.values()) {
                 world.removeChild(remotePlayer.container);
+                remotePlayer.destroyChatBubble();
                 remotePlayer.container.destroy({ children: true });
               }
               remotePlayers.clear();
@@ -813,6 +852,7 @@ export default function PixiCanvas({ roomId }: PixiCanvasProps) {
       }
 
       if (app) {
+        cleanupLocalChatBubble?.();
         app.destroy(true, { children: true, texture: false });
       }
       if (npcTimeoutRef.current) {

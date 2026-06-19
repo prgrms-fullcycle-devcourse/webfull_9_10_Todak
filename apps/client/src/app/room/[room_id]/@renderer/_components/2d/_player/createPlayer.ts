@@ -4,6 +4,7 @@ import { useRoomUiStore } from '@/store/useRoomUiStore';
 import type { AnimalAssetPack } from '../_animals/types';
 import { updateMemberStatus } from '@/services/rooms/api';
 import { MemberStatus } from '@/services/rooms/model';
+import { createChatBubbleController } from './chatBubble';
 
 export const CHAR_WIDTH = 90;
 export const CHAR_HEIGHT = 120;
@@ -15,6 +16,8 @@ export interface Player {
   baseScaleY: number;
   statusText: PIXI.Text;
   nameText: PIXI.Text;
+  say: (message: string) => void;
+  destroyChatBubble: () => void;
   unsubscribePlayerStatus: () => void;
 }
 
@@ -98,6 +101,8 @@ export function createPlayer(
   nameText.anchor.set(0.5);
   nameText.y = 70;
   container.addChild(nameText);
+
+  const chatBubble = createChatBubbleController(container);
 
   // 훅에서 설정된 이름을 비동기로 가져와서 텍스트 업데이트
   useSpaceStore.subscribe(
@@ -245,6 +250,8 @@ export function createPlayer(
     baseScaleY,
     statusText,
     nameText,
+    say: chatBubble.say,
+    destroyChatBubble: chatBubble.destroy,
     unsubscribePlayerStatus,
   };
 }
