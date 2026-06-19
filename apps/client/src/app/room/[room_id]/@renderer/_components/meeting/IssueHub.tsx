@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import CompleteModal from './CompleteModal';
 import ReviewModal from './ReviewModal';
-import { ActionItem } from '@/services/minutes/model';
+import { useSocketEvent } from '@/hooks/useSocketEvent';
+import { ActionItem, MinutesUpdatedEvent } from '@/services/minutes/model';
+import { minutesQueryKeys } from '@/services/minutes/query';
 import { fetchTodos } from '@/services/todos/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface IssueHubProps {
   actionItems: ActionItem[];
@@ -22,6 +24,7 @@ export default function IssueHub({
   onSaveWithItems,
   onActionItemsChange,
 }: IssueHubProps) {
+  const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [modal, setModal] = useState<'none' | 'review' | 'complete'>('none');
   const [completedIssues, setCompletedIssues] = useState<ActionItem[]>([]);
@@ -34,6 +37,20 @@ export default function IssueHub({
   });
 
   const issuedTitles = new Set(issuedTodos?.todos.map(t => t.title) ?? []);
+
+  useSocketEvent<[MinutesUpdatedEvent]>(
+    'minutes:updated',
+    data => {
+      if (minutesId === null || data.minutes_id !== minutesId) {
+        return;
+      }
+
+      queryClient.invalidateQueries({
+        queryKey: minutesQueryKeys.detail(roomId, minutesId),
+      });
+    },
+    { enabled: Boolean(minutesId && roomId) },
+  );
 
   const toggleSelect = (idx: number) => {
     if (issuedTitles.has(actionItems[idx]?.title)) return;

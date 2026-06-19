@@ -3,6 +3,7 @@
 import { useSocketEvent } from '@/hooks/useSocketEvent';
 import { useSocket } from '@/providers/SocketProvider';
 import { fetchMinutes, updateMinutes } from '@/services/minutes/api';
+import { minutesQueryKeys } from '@/services/minutes/query';
 import type {
   ActionItem,
   MinutesGeneratedEvent,
@@ -32,9 +33,13 @@ export function useMeetingBoardState({
   const myId = useSpaceStore(state => state.myChar.id);
   const queryClient = useQueryClient();
   const { socket } = useSocket();
+  const minutesDetailQueryKey =
+    currentMinutesId === null
+      ? null
+      : minutesQueryKeys.detail(roomId, currentMinutesId);
 
   const { data: minutes, isLoading } = useQuery({
-    queryKey: ['minutes', currentMinutesId],
+    queryKey: minutesDetailQueryKey ?? minutesQueryKeys.all,
     queryFn: () => fetchMinutes(roomId, currentMinutesId!),
     enabled: !!currentMinutesId && !!roomId,
   });
@@ -95,7 +100,9 @@ export function useMeetingBoardState({
 
     isDirtyRef.current = false;
     socket.emit('minutes:release-lock', { minutes_id: currentMinutesId });
-    queryClient.invalidateQueries({ queryKey: ['minutes', currentMinutesId] });
+    queryClient.invalidateQueries({
+      queryKey: minutesQueryKeys.detail(roomId, currentMinutesId),
+    });
   };
 
   const handleSaveWithItems = async (items: ActionItem[]) => {
@@ -131,7 +138,7 @@ export function useMeetingBoardState({
       setGenerationError(null);
       isDirtyRef.current = false;
       queryClient.invalidateQueries({
-        queryKey: ['minutes'],
+        queryKey: minutesQueryKeys.all,
       });
     },
     { enabled: Boolean(currentMinutesId) },
@@ -152,13 +159,15 @@ export function useMeetingBoardState({
   useSocketEvent<[MinutesUpdatedEvent]>(
     'minutes:updated',
     data => {
-      if (data.minutes_id !== currentMinutesId) return;
-      if (isDirtyRef.current) return;
+      if (data.minutes_id !== currentMinutesId || currentMinutesId === null) {
+        return;
+      }
+
       queryClient.invalidateQueries({
-        queryKey: ['minutes', currentMinutesId],
+        queryKey: minutesQueryKeys.detail(roomId, currentMinutesId),
       });
     },
-    { enabled: Boolean(currentMinutesId) },
+    { enabled: Boolean(currentMinutesId && roomId) },
   );
 
   useSocketEvent<[MinutesLockEvent]>(

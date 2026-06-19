@@ -7,6 +7,8 @@ import type { MinutesList } from './model';
 
 export const minutesQueryKeys = {
   all: ['minutes'] as const,
+  detail: (roomId: string, minutesId: string) =>
+    [...minutesQueryKeys.all, roomId, 'detail', minutesId] as const,
   recentMeeting: (roomId: string) =>
     [...minutesQueryKeys.all, roomId, 'recent-meeting'] as const,
 };
